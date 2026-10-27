@@ -1,0 +1,33 @@
+# Servidor propio (VPS): MesaYa + HTTPS automático con Caddy.
+#   1) cp .env.example .env   y complétalo (ver DEPLOY.md)
+#   2) docker compose up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MESAYA_ENV: production
+    volumes:
+      - ./storage:/app/data          # base de datos, fotos y copias de seguridad
+    expose:
+      - "8000"                       # solo visible para Caddy, no para internet
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      MESAYA_DOMAIN: ${MESAYA_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

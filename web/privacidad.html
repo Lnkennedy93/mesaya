@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es" data-auto-theme>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Política de tratamiento de datos · MesaYa</title>
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+body{padding:1rem}
+article{max-width:780px;margin:1rem auto 3rem;background:var(--card);border-radius:16px;padding:1.6rem 1.4rem;box-shadow:var(--shadow);line-height:1.6}
+h1{font-size:1.7rem} h2{font-size:1.15rem;margin-top:1.6rem}
+.draft{background:#fff3cd;color:#664d03;padding:.7rem 1rem;border-radius:10px;font-weight:600;margin-bottom:1rem}
+.meta{color:var(--muted);font-size:.9rem}
+nav{max-width:780px;margin:auto;display:flex;gap:1rem;font-size:.9rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}td,th{border:1px solid var(--line);padding:.5rem;text-align:left;vertical-align:top}
+</style>
+</head>
+<body>
+<nav><a href="/">← MesaYa</a><a href="/terminos">Términos y condiciones</a></nav>
+<article>
+{{draft}}
+<h1>Política de tratamiento de datos personales</h1>
+<p class="meta">Versión {{version}} · Ley 1581 de 2012, Decreto 1377 de 2013 (compilado en el Decreto 1074 de 2015) y normas que los modifiquen</p>
+
+<h2>1. Responsable</h2>
+<p><b>{{name}}</b>, NIT {{nit}}, {{address}}, {{city}}. Correo para consultas, peticiones, quejas y reclamos: <b>{{email}}</b> · {{phone}}.</p>
+
+<h2>2. Dos papeles distintos</h2>
+<ul>
+<li><b>Dueños y administradores de restaurantes</b> (quienes crean una cuenta): somos <b>responsables</b> del tratamiento de sus datos.</li>
+<li><b>Comensales</b> (clientes que escanean el QR de una mesa): el <b>restaurante</b> es el responsable de sus datos y {{name}} actúa como <b>encargado</b>, tratándolos únicamente para prestarle el servicio al restaurante y bajo sus instrucciones. Para ejercer tus derechos sobre estos datos puedes dirigirte al restaurante o a nosotros, y te ayudaremos a tramitarlo.</li>
+</ul>
+
+<h2>3. Qué datos tratamos y para qué</h2>
+<table>
+<tr><th>Datos</th><th>Titular</th><th>Finalidad</th></tr>
+<tr><td>Nombre del negocio, correo, teléfono, datos fiscales opcionales (razón social, NIT, dirección), contraseña (almacenada solo cifrada con hash), PIN del equipo</td><td>Dueño</td><td>Crear y administrar la cuenta, autenticarte, enviarte avisos del servicio y de seguridad, facturar la suscripción, soporte</td></tr>
+<tr><td>Número de mesa, nombre (opcional, lo escribe el cliente), pedidos y notas al pedido, hora, calificación y comentario opcional, identificador aleatorio del dispositivo</td><td>Comensal</td><td>Enviar el pedido a cocina, mostrar el estado y la cuenta de la mesa, mejorar el servicio del restaurante, reportes del restaurante</td></tr>
+<tr><td>Dirección IP y registros técnicos</td><td>Todos</td><td>Seguridad, prevención de abuso y de pedidos falsos, diagnóstico de fallas</td></tr>
+</table>
+<p>No solicitamos datos bancarios ni de tarjetas. No usamos tus datos para publicidad ni los vendemos.</p>
+
+<h2>4. Datos sensibles</h2>
+<p>Las notas que un comensal escriba en su pedido (por ejemplo, alergias o intolerancias) pueden revelar datos de salud, que son <b>sensibles</b>. Escribirlas es <b>facultativo</b>: nadie está obligado a hacerlo ni a autorizar su tratamiento, y se usan únicamente para que el restaurante prepare el pedido de forma segura. Ninguna actividad ni servicio se condiciona a suministrar datos sensibles.</p>
+
+<h2>5. Niños, niñas y adolescentes</h2>
+<p>El servicio no está dirigido a menores de edad ni les solicitamos datos de forma deliberada. Si detectas datos de un menor, escríbenos y los eliminaremos.</p>
+
+<h2>6. Derechos del titular</h2>
+<p>Tienes derecho a: conocer, actualizar y rectificar tus datos; solicitar prueba de la autorización otorgada; ser informado del uso que se ha dado a tus datos; presentar quejas ante la Superintendencia de Industria y Comercio (SIC); revocar la autorización y/o solicitar la supresión de tus datos cuando no se respeten los principios y garantías legales; y acceder gratuitamente a tus datos.</p>
+<p><b>Cómo ejercerlos:</b> escribe a {{email}} indicando tu nombre, medio de contacto y lo que solicitas (y, si eres comensal, el restaurante y la fecha aproximada de tu visita). Las <b>consultas</b> se responden en máximo 10 días hábiles (prorrogables 5 más) y los <b>reclamos</b> en máximo 15 días hábiles (prorrogables 8 más), conforme a la ley. Los dueños también pueden exportar sus pedidos y <b>borrar su cuenta y sus datos</b> directamente desde el panel.</p>
+
+<h2>7. Con quién se comparten (transmisiones y transferencias)</h2>
+<p>Usamos proveedores que tratan datos por nuestra cuenta y bajo obligaciones de confidencialidad y seguridad: alojamiento y almacenamiento de la plataforma, envío de correo transaccional y, solo si el dueño usa esa función, un proveedor de inteligencia artificial (actualmente Google, con su API Gemini; opcionalmente Anthropic) que lee la <b>foto o PDF de la carta</b> (no se envían datos de comensales). Los PDF con texto, Word, Excel, CSV y texto pegado se leen en nuestro propio servidor y no se envían a terceros. Si en el futuro se activan pagos o facturación electrónica, el restaurante conectará sus propias cuentas con esos proveedores y se te informará. Algunos proveedores pueden operar fuera de Colombia; en ese caso exigimos niveles adecuados de protección. Podemos entregar datos a autoridades cuando una norma o una orden judicial lo exija.</p>
+
+<h2>8. Seguridad</h2>
+<p>Aplicamos medidas razonables: conexión cifrada (HTTPS), contraseñas almacenadas con hash, credenciales de terceros cifradas, códigos secretos por mesa, límites de intentos, control de acceso por rol y copias de seguridad. Ningún sistema es infalible; si ocurre un incidente que afecte tus datos, lo gestionaremos y lo informaremos conforme a la ley, incluida la SIC cuando corresponda.</p>
+
+<h2>9. Cuánto tiempo conservamos los datos</h2>
+<ul>
+<li><b>Cuenta de restaurante:</b> mientras esté activa. Si la borras, eliminamos su información de inmediato de la plataforma; las copias de seguridad que la contengan se destruyen en el ciclo normal de rotación (por defecto, 14 días).</li>
+<li><b>Datos de comensales:</b> el restaurante los conserva mientras mantenga su cuenta, para su cuenta de mesa, reportes e historial; puede eliminarlos al borrar la cuenta o solicitarnos su supresión.</li>
+<li><b>Registros técnicos:</b> el tiempo necesario para seguridad y diagnóstico.</li>
+</ul>
+
+<h2>10. Cookies y almacenamiento local</h2>
+<p>Usamos una <b>cookie de sesión</b> necesaria para mantener tu sesión en el panel y en la pantalla de cocina. En el celular del comensal se guarda localmente un identificador anónimo, el nombre que escribió, el idioma, el carrito y los datos de la mesa, para que la experiencia funcione. No usamos cookies publicitarias ni herramientas de analítica de terceros.</p>
+
+<h2>11. Autorización</h2>
+<p>Al crear una cuenta, el dueño autoriza el tratamiento descrito aquí marcando la casilla de aceptación (se guarda la fecha y la versión). El comensal autoriza el tratamiento al enviar su pedido a través de la carta digital, donde se enlaza esta política.</p>
+
+<h2>12. Registro Nacional de Bases de Datos y cambios</h2>
+<p>Cumpliremos con la inscripción de nuestras bases de datos en el RNBD cuando sea exigible. Podemos actualizar esta política; publicaremos la nueva versión aquí y, si el cambio es sustancial, lo avisaremos en el panel o por correo.</p>
+</article>
+</body>
+</html>

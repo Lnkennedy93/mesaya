@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es" data-auto-theme>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MesaYa · Menú QR que sí recibe pedidos</title>
+<meta name="description" content="Tu QR ya no solo muestra la carta: tus clientes piden desde su celular y el pedido llega a cocina con el número de mesa. Sin app. 14 días gratis, sin tarjeta.">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+:root{--brand:#e4572e}
+body{background:#fffaf4}
+.w{max-width:1040px;margin:auto;padding:0 1.2rem}
+header{display:flex;align-items:center;gap:1rem;padding:1rem 0}
+.logo{font-weight:900;font-size:1.4rem;text-decoration:none}.logo b{color:var(--brand)}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:2rem;align-items:center;padding:2.5rem 0 3rem}
+@media(max-width:820px){.hero{grid-template-columns:1fr}}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);letter-spacing:-.02em}
+.hero h1 em{font-style:normal;color:var(--brand)}
+.lead{font-size:1.15rem;color:#5b5348;max-width:34em}
+.cta{display:flex;gap:.7rem;flex-wrap:wrap;margin:1.4rem 0 .6rem}
+.cta .btn{padding:.9em 1.5em;font-size:1.05rem}
+.phone{width:min(300px,100%);margin:auto;background:#1d1a16;border-radius:38px;padding:10px;box-shadow:0 30px 60px rgba(60,30,10,.25)}
+.screen{background:var(--bg);border-radius:30px;overflow:hidden;height:540px;position:relative;font-size:.85rem}
+.screen .top{background:#c8102e;color:#fff;padding:1rem}
+.screen .it{display:flex;gap:.6rem;padding:.6rem .8rem;border-bottom:1px solid var(--line);align-items:center}
+.screen .th{width:44px;height:44px;border-radius:10px;background:#f6d9cf;flex:none}
+.screen .go{position:absolute;left:12px;right:12px;bottom:12px;background:#c8102e;color:#fff;text-align:center;border-radius:99px;padding:.8em;font-weight:800}
+section{padding:2.4rem 0}
+h2.t{font-size:clamp(1.5rem,3.5vw,2.2rem);text-align:center;margin-bottom:.4rem}
+.sub{text-align:center;color:#6d6459;max-width:36em;margin:0 auto 2rem}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;counter-reset:s}
+.steps .card{position:relative;padding-top:2.6rem}
+.steps .card:before{counter-increment:s;content:counter(s);position:absolute;top:-14px;left:1rem;width:36px;height:36px;border-radius:50%;background:var(--brand);color:#fff;font-weight:900;display:grid;place-items:center}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem}
+.feat .card h3{font-size:1.05rem}.feat .ico{font-size:1.6rem}
+.cmp{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.cmp th,.cmp td{padding:.8rem 1rem;border-bottom:1px solid var(--line);text-align:left}
+.cmp td:not(:first-child),.cmp th:not(:first-child){text-align:center;width:22%}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;align-items:stretch}
+.plan{display:flex;flex-direction:column}.plan.hot{outline:3px solid var(--brand)}
+.plan .p{font-size:2rem;font-weight:900}.plan ul{padding-left:1.1rem;color:#5b5348;flex:1}
+details{background:#fff;border-radius:12px;padding:1rem;margin-bottom:.6rem;box-shadow:var(--shadow)}summary{font-weight:700;cursor:pointer}
+footer{padding:2rem 0;color:#8a8175;text-align:center;font-size:.85rem}
+.band{background:#1d1a16;color:#fff;border-radius:24px;padding:2.4rem 1.4rem;text-align:center}
+.band .btn{background:#fff;color:#1d1a16}
+</style>
+</head>
+<body>
+<div class="w">
+<header><a class="logo" href="/">Mesa<b>Ya</b></a><span class="grow"></span><a href="/login" class="btn ghost sm">Entrar</a><a href="/signup" class="btn sm">Prueba gratis</a></header>
+
+<div class="hero">
+  <div>
+    <span class="pill brand">Para restaurantes, cafés y bares</span>
+    <h1 style="margin-top:.6rem">Tu QR ya no solo muestra la carta: <em>tus clientes piden desde la mesa y la cocina lo recibe al instante</em></h1>
+    <p class="lead">Sin descargar ninguna app. El pedido llega a cocina con el número de mesa, apagas lo agotado con un toque y el cliente termina su mesa y pide la cuenta desde el celular. Vendes 100 % tuyo, sin comisiones por pedido.</p>
+    <div class="cta"><a class="btn" href="/signup">Crear mi carta gratis · 14 días</a><a class="btn ghost" href="/r/dragon-dorado?t=1&k=demo1">Ver demo en vivo</a></div>
+    <div class="muted small">Sin tarjeta de crédito · Lista en 5 minutos · Cancela cuando quieras</div>
+  </div>
+  <div class="phone"><div class="screen"><div class="top"><b style="font-size:1.1rem">Dragón Dorado</b><div style="opacity:.85">Mesa 5 · Cocina china de barrio</div></div>
+    <div class="it"><div class="th"></div><div class="grow"><b>Arroz especial</b><div class="muted">Cerdo, pollo, camarón y huevo</div></div><b>$24.000</b></div>
+    <div class="it"><div class="th"></div><div class="grow"><b>Lumpias</b><div class="muted">6 rollitos crujientes</div></div><b>$16.000</b></div>
+    <div class="it"><div class="th"></div><div class="grow"><b>Chop suey</b><div class="muted">Pollo y verduras al wok</div></div><b>$28.000</b></div>
+    <div class="it"><div class="th" style="opacity:.4"></div><div class="grow" style="opacity:.5"><b>Sopa wantán</b></div><span class="pill bad">Agotado</span></div>
+    <div class="go">Ver pedido · 3 · $68.000</div></div></div>
+</div>
+
+<section id="como"><h2 class="t">Del QR a la cocina en 5 pasos</h2><p class="sub">Así funciona para tu restaurante y para tu cliente.</p>
+<div class="steps">
+  <div class="card"><h3>Sube tu carta</h3><p class="muted">Pega el texto o sube una foto/PDF y la IA arma tu carta. Agrega la foto de cada plato.</p></div>
+  <div class="card"><h3>Pega el QR en la mesa</h3><p class="muted">Imprime los QR listos, uno por mesa y con código secreto propio.</p></div>
+  <div class="card"><h3>El cliente pide</h3><p class="muted">Escanea, elige, personaliza y envía. Sin app, sin registro.</p></div>
+  <div class="card"><h3>Llega a cocina</h3><p class="muted">Pantalla en vivo con el número de mesa, alertas y cronómetro por pedido.</p></div>
+  <div class="card"><h3>Termina la mesa</h3><p class="muted">Pide la cuenta desde el celular; tu equipo cobra en caja y cierra la mesa.</p></div>
+</div></section>
+
+<section><h2 class="t">Todo lo que necesitas para vender más rápido</h2><p class="sub">Lo esencial de un menú QR, más lo que normalmente solo ofrecen los sistemas caros.</p>
+<div class="feat">
+  <div class="card"><div class="ico">📸</div><h3>Carta con foto de cada plato</h3><p class="muted">Fotos optimizadas, etiquetas (vegano, picante…) y alérgenos visibles.</p></div>
+  <div class="card"><div class="ico">⚡</div><h3>Importar con IA en minutos</h3><p class="muted">Foto, PDF o texto pegado → carta lista para revisar.</p></div>
+  <div class="card"><div class="ico">🍳</div><h3>Pantalla de cocina en vivo</h3><p class="muted">Nuevo → preparando → listo. Sonido, colores por demora y número de mesa.</p></div>
+  <div class="card"><div class="ico">🚫</div><h3>Apaga lo agotado</h3><p class="muted">Un toque y desaparece al instante de todos los celulares. Cocina también puede hacerlo.</p></div>
+  <div class="card"><div class="ico">🧩</div><h3>Opciones y adicionales</h3><p class="muted">Término, tamaño, salsas, extras con recargo. El precio lo calcula el servidor.</p></div>
+  <div class="card"><div class="ico">🙋</div><h3>Llamar al mesero / pedir cuenta</h3><p class="muted">Aviso en la pantalla de sala sin que el cliente tenga que gritar.</p></div>
+  <div class="card"><div class="ico">🔒</div><h3>QR seguro por mesa</h3><p class="muted">Código secreto renovable: nadie manda pedidos falsos desde su casa.</p></div>
+  <div class="card"><div class="ico">⭐</div><h3>Opiniones → reseñas en Google</h3><p class="muted">Pedimos calificación al terminar la mesa; los de 4–5 ★ se envían a tu perfil de Google.</p></div>
+  <div class="card"><div class="ico">📊</div><h3>Reportes que sí sirven</h3><p class="muted">Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV.</p></div>
+  <div class="card"><div class="ico">🌎</div><h3>Carta en español e inglés</h3><p class="muted">Ideal para zonas turísticas. El cliente cambia el idioma con un toque.</p></div>
+  <div class="card"><div class="ico">⏸️</div><h3>Modo «solo carta»</h3><p class="muted">En hora pico o sin cocina, pausas pedidos y el QR sigue mostrando la carta.</p></div>
+</div></section>
+
+<section><h2 class="t">El QR de siempre vs. MesaYa</h2><p class="sub">&nbsp;</p>
+<table class="cmp"><tr><th></th><th>QR que solo muestra PDF</th><th>MesaYa</th></tr>
+<tr><td>El cliente puede pedir</td><td>✗ Espera al mesero</td><td>✓ Desde su celular</td></tr>
+<tr><td>Pedido llega a cocina con mesa</td><td>✗</td><td>✓ En vivo</td></tr>
+<tr><td>Plato agotado</td><td>✗ Se entera al pedir</td><td>✓ Se apaga en 1 toque</td></tr>
+<tr><td>Pedir la cuenta / terminar mesa</td><td>✗ Hay que llamar al mesero</td><td>✓ Desde el celular</td></tr>
+<tr><td>Fotos y alérgenos</td><td>✗ Texto plano</td><td>✓</td></tr>
+<tr><td>Comisión por pedido</td><td>—</td><td>0 %</td></tr></table></section>
+
+<section id="precios"><h2 class="t">Precios simples</h2><p class="sub">14 días gratis sin tarjeta. Sin permanencia. Sin letra pequeña.</p>
+<div class="plans">
+  <div class="card plan"><h3>Esencial</h3><div class="p">$59.000<small class="muted"> /mes</small></div><ul><li>Hasta 15 mesas</li><li>Carta con fotos y QR por mesa</li><li>Pantalla de cocina</li><li>Cuenta y cierre de mesa desde el celular</li><li>Reportes básicos</li></ul><a class="btn ghost block" href="/signup">Empezar gratis</a></div>
+  <div class="card plan hot"><span class="pill brand" style="align-self:flex-start">Más elegido</span><h3>Pro</h3><div class="p">$119.000<small class="muted"> /mes</small></div><ul><li>Hasta 60 mesas</li><li>Importación de carta con IA</li><li>Opiniones y reseñas en Google</li><li>Reportes completos + CSV</li><li>Soporte prioritario</li></ul><a class="btn block" href="/signup">Empezar gratis</a></div>
+  <div class="card plan"><h3>Cadena</h3><div class="p">A tu medida</div><ul><li>Varias sedes</li><li>Marca propia y dominio</li><li>Integraciones (POS, facturación)</li><li>Onboarding con tu equipo</li></ul><a class="btn ghost block" href="mailto:ventas@mesaya.app">Hablar con ventas</a></div>
+</div></section>
+
+<section><h2 class="t">Preguntas frecuentes</h2><p class="sub">&nbsp;</p><div style="max-width:720px;margin:auto">
+<details><summary>¿Mis clientes tienen que descargar algo?</summary><p class="muted">No. Escanean el QR y se abre la carta en el navegador del celular.</p></details>
+<details><summary>¿Necesito tarjeta para probar?</summary><p class="muted">No. Son 14 días completos sin tarjeta; al terminar eliges un plan o tu QR queda solo como carta.</p></details>
+<details><summary>¿Cobran comisión por cada venta?</summary><p class="muted">No. Pagas una mensualidad fija. No cobramos nada por cada pedido.</p></details>
+<details><summary>¿Cómo se cobra la cuenta?</summary><p class="muted">Como siempre, en caja. El cliente toca «Terminar mesa» en su celular, tu equipo recibe el aviso, cobra y cierra la mesa en la pantalla de sala.</p></details>
+<details><summary>¿Funciona con mi caja o sistema de facturación?</summary><p class="muted">MesaYa no reemplaza tu caja: registra los pedidos y exporta CSV. Las integraciones con POS están en el plan Cadena.</p></details>
+</div></section>
+
+<section><div class="band"><h2 style="font-size:1.8rem">Tu cocina recibiendo pedidos hoy mismo</h2><p style="opacity:.8">Crea tu carta, imprime los QR y listo.</p><a class="btn" href="/signup">Crear mi carta gratis</a></div></section>
+<footer>© MesaYa · Hecho para restaurantes · <a href="/terminos">Términos</a> · <a href="/privacidad">Política de datos</a> · <a href="/kitchen">Entrada del equipo</a></footer>
+</div>
+</body>
+</html>

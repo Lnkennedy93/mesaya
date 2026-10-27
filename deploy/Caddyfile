@@ -1,0 +1,15 @@
+# HTTPS automático (Let's Encrypt). Requiere que el dominio ya apunte a este servidor.
+{$MESAYA_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 35MB
+	}
+	# flush_interval -1: necesario para que la pantalla de cocina reciba los pedidos en vivo (SSE)
+	reverse_proxy app:8000 {
+		flush_interval -1
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

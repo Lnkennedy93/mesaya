@@ -1,0 +1,35 @@
+# Fly.io:  fly launch --no-deploy --copy-config   ->   fly volumes create mesaya_data --size 3
+#          fly secrets set MESAYA_ADMIN_KEY=... MESAYA_SECRET_KEY=... (ver .env.example)   ->   fly deploy
+app = "mesaya-CAMBIA-ESTE-NOMBRE"
+primary_region = "bog"            # verifica la región más cercana con: fly platform regions
+
+[build]
+
+[env]
+  MESAYA_ENV = "production"
+  MESAYA_BASE_URL = "https://mesaya-CAMBIA-ESTE-NOMBRE.fly.dev"   # cámbialo por tu dominio propio cuando lo tengas
+  MESAYA_DB = "/app/data/mesaya.db"
+  MESAYA_UPLOADS = "/app/data/uploads"
+  MESAYA_BACKUP_DIR = "/app/data/backups"
+
+[mounts]
+  source = "mesaya_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "off"       # hay hilos en segundo plano (copias) y conexiones en vivo: no apagar
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "30s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

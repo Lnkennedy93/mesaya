@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR de mesas</title>
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+body{background:#eee;padding:1rem}
+.bar{max-width:820px;margin:0 auto 1rem;display:flex;gap:.6rem;align-items:center}
+.sheet{max-width:820px;margin:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.tent{background:#fff;border:2px dashed #bbb;border-radius:18px;padding:22px;text-align:center;break-inside:avoid;display:flex;flex-direction:column;align-items:center;gap:6px}
+.tent .name{font-weight:900;font-size:1.3rem}
+.tent .num{font-size:3.4rem;font-weight:900;line-height:1;color:var(--brand)}
+.tent img{width:230px;height:230px}
+.tent .how{font-size:.95rem;color:#444}
+.tent .foot{font-size:.7rem;color:#888}
+@media print{body{background:#fff;padding:0}.bar{display:none}.sheet{gap:8px}.tent{border-color:#999}}
+</style>
+</head>
+<body>
+<div class="bar"><b class="grow">QR de mesas — imprime en papel adhesivo o acrílico</b><button class="btn" onclick="print()">Imprimir</button></div>
+<div class="sheet" id="sheet"></div>
+<script src="/assets/common.js"></script>
+<script>
+(async () => {
+  try {
+    const me = await api('/api/me'); setBrand(me.restaurant.brand_color);
+    const { tables } = await api('/api/tables');
+    $('#sheet').innerHTML = tables.map(t => `<div class="tent"><div class="name">${esc(me.restaurant.name)}</div><div class="num">Mesa ${esc(t.label)}</div>
+      <img src="/api/qr/${t.id}.svg" alt="QR mesa ${esc(t.label)}"><div class="how"><b>Escanea, pide y paga</b> desde tu celular.<br>Sin descargar nada.</div>
+      <div class="foot">${esc(me.public_url.replace(/^https?:\/\//, ''))}</div></div>`).join('');
+  } catch (e) { location.href = '/login'; }
+})();
+</script>
+</body>
+</html>

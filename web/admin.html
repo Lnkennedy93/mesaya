@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="es" data-auto-theme>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel · MesaYa</title>
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+nav{background:var(--card);border-right:1px solid var(--line);padding:1rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.2rem}
+nav .logo{font-weight:900;font-size:1.3rem;margin-bottom:1rem}nav .logo b{color:var(--brand)}
+nav button{text-align:left;border:0;background:none;padding:.65em .8em;border-radius:10px;font-weight:600;cursor:pointer;font-size:.95rem}
+nav button.on{background:color-mix(in srgb,var(--brand) 13%,transparent);color:var(--brand)}
+nav .sp{flex:1}
+main{padding:1.4rem;max-width:980px;width:100%}
+@media(max-width:760px){.layout{grid-template-columns:1fr}nav{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;overflow-x:auto;z-index:40;border-top:1px solid var(--line);border-right:0;padding:.4rem}nav .logo,nav .sp,nav .nlabel{display:none}nav button{white-space:nowrap}main{padding:1rem 1rem 90px}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1rem 0}
+.kpi .v{font-size:1.5rem;font-weight:900}
+.banner{background:color-mix(in srgb,var(--warn) 16%,var(--card));border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.banner.bad{background:color-mix(in srgb,var(--bad) 14%,var(--card))}
+.bars{display:flex;align-items:flex-end;gap:4px;height:140px;margin-top:.6rem}
+.bars div{flex:1;background:var(--brand);border-radius:6px 6px 0 0;min-height:2px;position:relative;opacity:.9}
+.bars div:hover:after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#1d1a16;color:#fff;font-size:.7rem;padding:.2em .5em;border-radius:6px;white-space:nowrap;z-index:3}
+.axis{display:flex;gap:4px;font-size:.65rem;color:var(--muted)}.axis span{flex:1;text-align:center}
+.mi{display:flex;gap:.7rem;align-items:center;padding:.6rem;border-bottom:1px solid var(--line)}
+.mi .thumb{width:52px;height:52px;border-radius:10px;flex:none}
+.cathead{display:flex;align-items:center;gap:.5rem;margin:1.4rem 0 .3rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem}
+.qrg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem;margin-top:1rem}
+.qrc{text-align:center}.qrc img{width:100%;max-width:150px}
+table{width:100%;border-collapse:collapse}td,th{padding:.5rem;text-align:left;border-bottom:1px solid var(--line);font-size:.92rem}
+textarea{min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem}
+.chk{display:flex;gap:.4rem;align-items:center;font-weight:500;color:var(--ink);margin:.3rem 0}.chk input{width:auto}
+.tgl{display:flex;gap:.4rem;flex-wrap:wrap}
+.tgl label{display:inline-flex;align-items:center;gap:.3rem;margin:0;padding:.3em .7em;border:1.5px solid var(--line);border-radius:99px;font-size:.82rem;cursor:pointer;color:var(--ink)}
+.tgl input{display:none}.tgl label:has(input:checked){background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav><div class="logo">Mesa<b>Ya</b></div><div id="nav"></div><div class="sp"></div>
+<a class="btn sm ghost" href="/kitchen" target="_blank">Cocina y sala ↗</a>
+<button id="logout" style="margin-top:.3rem">Salir</button></nav>
+<main id="main"></main>
+</div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script src="/assets/common.js"></script>
+<script>
+const TABS = [['home', '📊 Resumen'], ['menu', '🍽️ Carta'], ['tables', '🔳 Mesas y QR'], ['reviews', '⭐ Opiniones'], ['settings', '⚙️ Ajustes']];
+let ME, money, tab = 'home', MENU = [], days = 7;
+const FACTOR = () => Math.pow(10, ME.restaurant.decimals);
+const toMajor = v => v / FACTOR(), toMinor = v => Math.round(parseFloat(v || 0) * FACTOR());
+const TAGS = ['vegano', 'vegetariano', 'picante', 'sin gluten', 'popular'];
+const ALLERGENS = ['gluten', 'lácteos', 'huevo', 'maní', 'frutos secos', 'soya', 'mariscos', 'pescado'];
+
+async function boot() {
+  try { ME = await api('/api/me'); } catch (e) { return location.href = '/login'; }
+  if (ME.role !== 'owner') return location.href = '/kitchen';
+  setBrand(ME.restaurant.brand_color);
+  money = makeMoney(ME.restaurant.decimals, ME.restaurant.currency);
+  if (ME.features.payments || ME.features.invoicing) TABS.splice(3, 0, ['fiscal', '🧾 Facturas y pagos']);
+  $('#nav').innerHTML = TABS.map(([k, l]) => `<button data-t="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
+  $$('#nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; $$('#nav button').forEach(x => x.classList.toggle('on', x === b)); show(); });
+  $('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); location.href = '/login'; };
+  if (new URLSearchParams(location.search).get('welcome')) { tab = 'menu'; $$('#nav button').forEach(x => x.classList.toggle('on', x.dataset.t === 'menu')); }
+  show();
+  if (!ME.terms_current) termsDialog();
+}
+function termsDialog() {
+  $('#dlgBody').innerHTML = `<h2>Actualizamos nuestros términos</h2><p>Para seguir usando MesaYa necesitamos que revises y aceptes la versión vigente de los <a href="/terminos" target="_blank" rel="noopener">Términos y condiciones</a> y de la <a href="/privacidad" target="_blank" rel="noopener">Política de tratamiento de datos</a>.</p>
+    <button class="btn block" id="acc">Los leí y los acepto</button>`;
+  $('#dlg').addEventListener('cancel', e => e.preventDefault());
+  $('#acc').onclick = async () => { await api('/api/accept-terms', { method: 'POST' }); ME.terms_current = true; $('#dlg').close(); };
+  $('#dlg').showModal();
+}
+const planBanner = () => {
+  if (ME.restaurant.subscription_status === 'active') return '';
+  if (!ME.active) return `<div class="banner bad"><b>Tu prueba terminó.</b> Los clientes ya no pueden pedir desde el QR. <a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20${esc(ME.restaurant.slug)}">Activar mi plan</a></div>`;
+  return `<div class="banner"><span>🎁 Prueba gratis: te quedan <b>${ME.trial_days_left} días</b></span><a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20${esc(ME.restaurant.slug)}">Elegir plan</a></div>`;
+};
+async function show() {
+  const m = $('#main'); m.innerHTML = planBanner() + '<p class="muted">Cargando…</p>';
+  try { await ({ home, menu, tables, fiscal, reviews, settings }[tab])(m); } catch (e) { toast(e.message, true); }
+}
+const frame = (m, html) => { m.innerHTML = planBanner() + html; };
+
+// ------------------------------------------------------------ resumen
+async function home(m) {
+  const a = await api('/api/analytics?days=' + days);
+  const maxS = Math.max(1, ...a.daily.map(d => d.sales)), maxH = Math.max(1, ...a.hourly);
+  frame(m, `<div class="row spread wrap"><h1>Resumen</h1><select id="dsel" style="width:auto">${[1, 7, 30, 90].map(d => `<option value="${d}" ${d === days ? 'selected' : ''}>${d === 1 ? 'Hoy / 24 h' : 'Últimos ' + d + ' días'}</option>`).join('')}</select></div>
+  <div class="card row wrap spread"><div><b>Link de tu carta</b><div class="muted small">${esc(ME.public_url)}</div></div>
+    <div class="row"><button class="btn sm ghost" id="cp">Copiar</button><a class="btn sm" href="/print/qr" target="_blank">Imprimir QR de mesas</a></div></div>
+  <div class="kpis">
+    ${[['Ventas', money(a.sales)], ['Pedidos', a.orders], ['Ticket promedio', money(a.avg_ticket)], ...(ME.features.payments ? [['Propinas', money(a.tips)]] : []),
+      ['Tiempo a cocina', a.avg_prep_min === null ? '—' : a.avg_prep_min + ' min'], ['Opiniones', a.rating_avg ? a.rating_avg + ' ★ (' + a.rating_count + ')' : '—']]
+      .map(([k, v]) => `<div class="card kpi"><div class="muted small">${k}</div><div class="v">${v}</div></div>`).join('')}</div>
+  <div class="card"><b>Ventas por día</b><div class="bars">${a.daily.map(d => `<div style="height:${d.sales / maxS * 100}%" data-t="${d.date}: ${money(d.sales)}"></div>`).join('') || '<span class="muted small">Aún sin ventas</span>'}</div>
+    <div class="axis">${a.daily.map(d => `<span>${d.date.slice(8)}</span>`).join('')}</div></div>
+  <div class="grid2" style="margin-top:.8rem"><div class="card"><b>Horas pico</b><div class="bars" style="height:100px">${a.hourly.map((v, h) => `<div style="height:${v / maxH * 100}%" data-t="${h}:00 · ${v} pedidos"></div>`).join('')}</div>
+    <div class="axis">${a.hourly.map((v, h) => `<span>${h % 3 === 0 ? h : ''}</span>`).join('')}</div></div>
+  <div class="card"><b>Platos más vendidos</b><table>${a.top.map(t => `<tr><td>${esc(t.name)}</td><td>${t.qty}×</td><td>${money(t.revenue)}</td></tr>`).join('') || '<tr><td class="muted">Sin datos</td></tr>'}</table></div></div>
+  <p><a class="btn ghost sm" href="/api/export/orders.csv">⬇ Exportar pedidos (CSV)</a></p>`);
+  $('#dsel').onchange = e => { days = +e.target.value; home(m); };
+  $('#cp').onclick = () => { navigator.clipboard.writeText(ME.public_url); toast('Link copiado'); };
+}
+
+// ------------------------------------------------------------ carta
+async function menu(m) {
+  MENU = (await api('/api/menu')).categories;
+  const welcome = !MENU.length;
+  frame(m, `<div class="row spread wrap"><h1>Carta</h1><div class="row wrap"><button class="btn ghost sm" id="imp">⚡ Importar carta</button><button class="btn sm" id="addc">+ Categoría</button></div></div>
+  ${welcome ? `<div class="card"><h2>Crea tu carta en 5 minutos</h2><p class="muted">Importa tu menú pegando el texto o subiendo una foto/PDF, o crea las categorías a mano. Luego agrega la foto de cada plato.</p><button class="btn" id="imp2">⚡ Importar mi carta</button></div>` : ''}
+  ${MENU.map((c, ci) => `<div class="cathead"><h2 style="margin:0" class="grow">${esc(c.name)}</h2>
+    <button class="btn sm ghost" data-up="${c.id}" ${ci === 0 ? 'disabled' : ''}>↑</button><button class="btn sm ghost" data-down="${c.id}" ${ci === MENU.length - 1 ? 'disabled' : ''}>↓</button>
+    <button class="btn sm ghost" data-rc="${c.id}">Renombrar</button><button class="btn sm ghost" data-dc="${c.id}">Eliminar</button><button class="btn sm" data-ai="${c.id}">+ Plato</button></div>
+    <div class="card" style="padding:.2rem">${c.items.map(i => `<div class="mi"><div class="thumb">${i.image ? `<img src="${esc(i.image)}" alt="">` : esc(i.name[0] || '?')}</div>
+      <div class="grow"><b>${esc(i.name)}</b> ${i.featured ? '<span class="pill warn">★</span>' : ''}<div class="muted small">${esc(i.description).slice(0, 80)}</div></div>
+      <b>${money(i.price)}</b>
+      <label class="switch" title="Disponible"><input type="checkbox" data-av="${i.id}" ${i.available ? 'checked' : ''}><span></span></label>
+      <button class="btn sm ghost" data-ei="${i.id}">Editar</button></div>`).join('') || '<p class="muted small" style="padding:.8rem">Sin platos todavía</p>'}</div>`).join('')}`);
+  $('#addc').onclick = async () => { const n = prompt('Nombre de la categoría (ej. Entradas)'); if (n) { await api('/api/categories', { method: 'POST', body: { name: n } }); menu(m); } };
+  ['imp', 'imp2'].forEach(id => { const b = $('#' + id); if (b) b.onclick = importDialog; });
+  $$('[data-up]').forEach(b => b.onclick = async () => { await api(`/api/categories/${b.dataset.up}/move`, { method: 'POST', body: { dir: 'up' } }); menu(m); });
+  $$('[data-down]').forEach(b => b.onclick = async () => { await api(`/api/categories/${b.dataset.down}/move`, { method: 'POST', body: { dir: 'down' } }); menu(m); });
+  $$('[data-rc]').forEach(b => b.onclick = async () => { const c = MENU.find(x => x.id == b.dataset.rc); const n = prompt('Nuevo nombre', c.name); if (n) { await api('/api/categories/' + c.id, { method: 'PUT', body: { name: n } }); menu(m); } });
+  $$('[data-dc]').forEach(b => b.onclick = async () => { if (confirm('¿Eliminar la categoría y todos sus platos?')) { await api('/api/categories/' + b.dataset.dc, { method: 'DELETE' }); menu(m); } });
+  $$('[data-ai]').forEach(b => b.onclick = () => itemDialog(null, +b.dataset.ai));
+  $$('[data-ei]').forEach(b => b.onclick = () => itemDialog(MENU.flatMap(c => c.items).find(i => i.id == b.dataset.ei)));
+  $$('[data-av]').forEach(c => c.onchange = async () => { await api(`/api/items/${c.dataset.av}/availability`, { method: 'POST', body: { available: c.checked } }); toast(c.checked ? 'Disponible' : 'Marcado como agotado'); });
+}
+
+function itemDialog(it, catId) {
+  const isNew = !it;
+  it = it || { name: '', description: '', price: 0, featured: false, tags: [], allergens: [], options: [], category_id: catId, image: '' };
+  const optsText = it.options.map(g => `${g.name}${g.required ? '*' : ''}${g.multi ? '+' : ''}\n${g.options.map(o => `- ${o.name}${o.price ? ' | ' + toMajor(o.price) : ''}`).join('\n')}`).join('\n\n');
+  $('#dlgBody').innerHTML = `<div class="row spread"><h2 style="margin:0">${isNew ? 'Nuevo plato' : 'Editar plato'}</h2><button class="btn sm ghost" id="cl">✕</button></div>
+  <label>Nombre</label><input id="n" value="${esc(it.name)}" maxlength="90">
+  <label>Descripción</label><textarea id="d" style="min-height:70px;font-family:inherit" maxlength="400">${esc(it.description)}</textarea>
+  <div class="grid2"><div><label>Precio (${ME.restaurant.currency})</label><input id="p" type="number" min="0" step="${ME.restaurant.decimals ? '0.01' : '1'}" value="${toMajor(it.price)}"></div>
+  <div><label>Categoría</label><select id="c">${MENU.map(c => `<option value="${c.id}" ${c.id === it.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div></div>
+  <label>Etiquetas</label><div class="tgl">${TAGS.map(t => `<label><input type="checkbox" name="tag" value="${t}" ${it.tags.includes(t) ? 'checked' : ''}>${t}</label>`).join('')}</div>
+  <label>Alérgenos</label><div class="tgl">${ALLERGENS.map(t => `<label><input type="checkbox" name="al" value="${t}" ${it.allergens.includes(t) ? 'checked' : ''}>${t}</label>`).join('')}</div>
+  <label class="chk"><input type="checkbox" id="f" ${it.featured ? 'checked' : ''}> Destacar con ★</label>
+  <label>Opciones y adicionales <span class="small">(grupo en una línea · * obligatorio · + varias · luego «- opción | recargo»)</span></label>
+  <textarea id="o" placeholder="Término*&#10;- Medio&#10;- Bien cocido&#10;&#10;Adicionales+&#10;- Queso extra | 3000">${esc(optsText)}</textarea>
+  ${isNew ? '<p class="muted small">Guarda el plato primero para poder subirle una foto.</p>' : `<label>Foto del plato</label><div class="row"><div class="thumb" style="width:70px;height:70px;border-radius:12px">${it.image ? `<img id="pv" src="${esc(it.image)}">` : '<span id="pv">📷</span>'}</div><input type="file" id="img" accept="image/*"></div>`}
+  <div class="row spread" style="margin-top:1.2rem">${isNew ? '<span></span>' : '<button class="btn bad sm" id="del">Eliminar</button>'}<button class="btn" id="save">Guardar</button></div>`;
+  $('#cl').onclick = () => $('#dlg').close();
+  const img = $('#img');
+  if (img) img.onchange = async () => { const fd = new FormData(); fd.append('file', img.files[0]); try { const r = await api(`/api/items/${it.id}/image`, { method: 'POST', body: fd }); const pv = $('#pv'); pv.outerHTML = `<img id="pv" src="${r.image}">`; toast('Foto actualizada'); } catch (e) { toast(e.message, true); } };
+  if (!isNew) $('#del').onclick = async () => { if (confirm('¿Eliminar este plato?')) { await api('/api/items/' + it.id, { method: 'DELETE' }); $('#dlg').close(); show(); } };
+  $('#save').onclick = async () => {
+    const body = { category_id: +$('#c').value, name: $('#n').value, description: $('#d').value, price: toMinor($('#p').value), featured: $('#f').checked,
+      tags: $$('[name=tag]:checked').map(x => x.value), allergens: $$('[name=al]:checked').map(x => x.value), options: parseOpts($('#o').value) };
+    try {
+      if (isNew) { const r = await api('/api/items', { method: 'POST', body }); it.id = r.id; } else await api('/api/items/' + it.id, { method: 'PUT', body });
+      $('#dlg').close(); toast('Plato guardado'); show();
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#dlg').showModal();
+}
+function parseOpts(text) {
+  const groups = []; let g = null;
+  text.split('\n').forEach(raw => {
+    const l = raw.trim(); if (!l) return;
+    if (l.startsWith('-')) {
+      if (!g) return;
+      const [name, price] = l.slice(1).split('|').map(s => s.trim());
+      g.options.push({ name, price: toMinor(price) });
+    } else { g = { name: l.replace(/[*+]+$/, '').trim(), required: /\*/.test(l.slice(-2)), multi: /\+/.test(l.slice(-2)), options: [] }; groups.push(g); }
+  });
+  return groups.filter(x => x.options.length);
+}
+
+function readingView(name) {
+  $('#dlgBody').innerHTML = `<div style="text-align:center;padding:1.2rem .4rem"><div style="font-size:2.4rem">📖</div><h2>Leyendo tu carta…</h2>
+    <p class="muted small" style="margin:.2rem 0">${esc(name)}</p><p class="small" id="rd_reason" style="margin:.2rem 0"></p><p class="big"><span id="rd_t">0</span> s</p>
+    <p class="muted small">Si trae fotos de los platos, las extraemos también. Las cartas grandes pueden tardar un poco: no cierres esta ventana.</p></div>`;
+  const t0 = Date.now();
+  clearInterval(window._rdTimer);
+  window._rdTimer = setInterval(() => { const el = $('#rd_t'); if (el) el.textContent = Math.round((Date.now() - t0) / 1000); }, 500);
+}
+function stopReading() { clearInterval(window._rdTimer); }
+
+async function waitForRead(jobId, name, reason) {
+  const rs = $('#rd_reason'); if (rs && reason) rs.textContent = reason === 'local_baja_confianza' ? 'La lectura local no quedó segura: usamos IA para mejorarla.' : reason;
+  const t0 = Date.now();
+  while (true) {
+    await new Promise(r => setTimeout(r, 2000));
+    if (!$('#dlg').open) throw new Error('Lectura cancelada');
+    if (Date.now() - t0 > 6 * 60 * 1000) throw new Error('La lectura tardó demasiado. Inténtalo de nuevo.');
+    const s = await api('/api/import/ai/' + jobId);
+    if (s.status === 'done') return s.result;
+    if (s.status === 'error') throw new Error(s.error);
+  }
+}
+
+function importDialog() {
+  let draft = null;
+  const photoCounts = () => { const m = {}; draft.categories.forEach(c => c.items.forEach(i => { if (i.image_ref) m[i.image_ref[1]] = (m[i.image_ref[1]] || 0) + 1; })); return m; };
+  const photoBar = () => {
+    const n = draft.categories.reduce((s, c) => s + c.items.filter(i => i.image_ref).length, 0);
+    if (!n) return '';
+    const rep = Object.values(photoCounts()).filter(v => v >= 3).length;
+    return `<div class="row wrap small" style="margin:.3rem 0;gap:.5rem"><span>📷 <b>${n}</b> platos con foto.</span>
+      ${rep ? `<button class="btn sm ghost" id="rmRepeated">Quitar ${rep} foto(s) repetida(s)</button>` : ''}<button class="btn sm ghost" id="rmAll">Quitar todas las fotos</button></div>`;
+  };
+  const paint = () => {
+    $('#dlgBody').innerHTML = `<div class="row spread"><h2 style="margin:0">Importar carta</h2><button class="btn sm ghost" id="cl">✕</button></div>
+    ${draft ? `<p>Encontramos <b>${draft.categories.reduce((s, c) => s + c.items.length, 0)} platos</b> en ${draft.categories.length} categorías.
+        ${draft.source === 'local' ? '<span class="pill ok">Leído sin IA</span>' : draft.source === 'ai' ? '<span class="pill brand">Leído con IA</span>' : ''} Revisa y confirma:</p>
+      ${(draft.warnings || []).map(w => `<div class="banner" style="margin:.4rem 0;font-size:.85rem">⚠️ ${esc(w)}</div>`).join('')}
+      ${photoBar()}
+      <div style="max-height:46vh;overflow:auto" class="card">${draft.categories.map((c, ci) => `<b>${esc(c.name)}</b>${c.items.map((i, ii) => `<div class="row small" style="padding:.25rem 0;gap:.6rem">
+        ${i.image ? `<span style="position:relative;flex:none"><img src="${esc(i.image)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;display:block">
+          <button class="rmphoto" data-rm="${ci}:${ii}" title="Quitar esta foto" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:0;background:#1d1a16;color:#fff;font-size:.7rem;line-height:1;cursor:pointer">✕</button></span>` : ''}
+        <span class="grow">${esc(i.name)}</span><span class="muted">${i.price ? money(toMinor(i.price)) : 'sin precio'}</span></div>`).join('')}`).join('<hr>')}</div>
+      <div class="row spread" style="margin-top:1rem"><button class="btn ghost" id="back">Volver</button><button class="btn" id="ok">Agregar a mi carta</button></div>` : `
+    <label>Opción 1 · Pega el texto de tu carta</label>
+    <textarea id="txt" placeholder="# Entradas&#10;Empanadas - 8.000 - Rellenas de carne&#10;Limonada | 6500&#10;&#10;# Platos fuertes&#10;Bandeja paisa 32.000"></textarea>
+    <button class="btn block" style="margin-top:.5rem" id="parse">Leer texto</button>
+    <label style="margin-top:1.2rem">Opción 2 · Sube tu carta: PDF, Word, Excel${ME.ai_available || ME.ocr_available ? ', foto' : ''}, .txt o .csv
+      <span class="pill ok">Lectura sin IA</span> ${ME.ai_available ? '<span class="pill brand">IA de respaldo</span>' : ''}</label>
+    <input type="file" id="aif" accept=".pdf,.docx,.xlsx,.txt,.csv${ME.ai_available || ME.ocr_available ? ',image/*' : ''}">
+    <p class="muted small" style="margin:.4rem 0 0">Los PDF con texto, Word y Excel se leen en tu servidor, al instante y sin enviar nada a terceros.
+      ${ME.ai_available ? 'Las fotos y los PDF escaneados o difíciles se envían a ' + (ME.ai_provider === 'anthropic' ? 'Anthropic (Claude)' : 'Google (Gemini)') + ' solo para leer la carta.' : (ME.ocr_available ? 'Las fotos se leen con OCR.' : 'Para fotos y PDF escaneados el administrador debe activar la IA o el OCR.')} Máximo ${ME.max_import_mb} MB. Siempre revisas todo antes de agregarlo.</p>`}`;
+    $('#cl').onclick = () => $('#dlg').close();
+    if (draft) {
+      $('#back').onclick = () => { draft = null; paint(); };
+      $$('[data-rm]').forEach(b => b.onclick = () => { const [ci, ii] = b.dataset.rm.split(':').map(Number); const it = draft.categories[ci].items[ii]; delete it.image; delete it.image_ref; paint(); });
+      const rr = $('#rmRepeated'); if (rr) rr.onclick = () => { const cnt = photoCounts(); draft.categories.forEach(c => c.items.forEach(i => { if (i.image_ref && cnt[i.image_ref[1]] >= 3) { delete i.image; delete i.image_ref; } })); paint(); };
+      const ra = $('#rmAll'); if (ra) ra.onclick = () => { draft.categories.forEach(c => c.items.forEach(i => { delete i.image; delete i.image_ref; })); paint(); };
+      $('#ok').onclick = async () => { $('#ok').disabled = true; try { const r = await api('/api/import/commit', { method: 'POST', body: draft }); $('#dlg').close(); toast(`${r.added} platos agregados${r.photos ? ` (${r.photos} con foto)` : ''}`); show(); } catch (err) { toast(err.message, true); $('#ok').disabled = false; } };
+    } else {
+      $('#parse').onclick = async () => { const r = await api('/api/import/text', { method: 'POST', body: { text: $('#txt').value } }); if (!r.categories.length) return toast('No pudimos leer platos. Usa «Nombre - precio» por línea.', true); draft = r; paint(); };
+      $('#aif').onchange = async e => {
+        const f = e.target.files[0]; if (!f) return;
+        if (f.size > ME.max_import_mb * 1024 * 1024) { e.target.value = ''; return toast(`El archivo pesa ${(f.size / 1048576).toFixed(1)} MB y el máximo es ${ME.max_import_mb} MB. Exporta el PDF en calidad media o sin fotos pesadas.`, true); }
+        const fd = new FormData(); fd.append('file', f);
+        readingView(f.name);
+        try {
+          let r = await api('/api/import/ai', { method: 'POST', body: fd });
+          if (r.job_id) r = await waitForRead(r.job_id, f.name, r.reason);
+          stopReading(); draft = r; paint();
+        } catch (err) { stopReading(); toast(err.message, true); paint(); } finally { e.target.value = ''; }
+      };
+    }
+  };
+  paint(); $('#dlg').showModal();
+}
+
+// ------------------------------------------------------------ mesas
+async function tables(m) {
+  const { tables } = await api('/api/tables');
+  frame(m, `<div class="row spread wrap"><h1>Mesas y QR</h1><div class="row"><button class="btn ghost sm" id="addt">+ Agregar mesas</button><a class="btn sm" href="/print/qr" target="_blank">🖨 Imprimir todos</a></div></div>
+  <p class="muted">Cada mesa tiene un QR con código secreto propio: así nadie puede mandar pedidos a tu cocina sin estar en la mesa. Plan ${esc(ME.plan.name)}: hasta ${ME.plan.tables} mesas.</p>
+  <div class="qrg">${tables.map(t => `<div class="card qrc"><b>Mesa ${esc(t.label)}</b><img src="/api/qr/${t.id}.svg" alt="QR"><div class="row" style="justify-content:center">
+    <button class="btn sm ghost" data-rot="${t.id}" title="Genera un QR nuevo e invalida el anterior">Renovar</button><button class="btn sm ghost" data-dt="${t.id}">✕</button></div></div>`).join('')}</div>`);
+  $('#addt').onclick = async () => { const n = prompt('¿Cuántas mesas quieres agregar?', '1'); if (n) { try { await api('/api/tables', { method: 'POST', body: { count: +n } }); tables_(); } catch (e) { toast(e.message, true); } } };
+  const tables_ = () => show();
+  $$('[data-rot]').forEach(b => b.onclick = async () => { if (confirm('El QR impreso actual dejará de funcionar. ¿Renovar?')) { await api(`/api/tables/${b.dataset.rot}/rotate`, { method: 'POST' }); show(); } });
+  $$('[data-dt]').forEach(b => b.onclick = async () => { if (confirm('¿Eliminar mesa?')) { await api('/api/tables/' + b.dataset.dt, { method: 'DELETE' }); show(); } });
+}
+
+async function reviews(m) {
+  const { feedback } = await api('/api/feedback');
+  frame(m, `<h1>Opiniones de clientes</h1><div class="card">${feedback.map(f => `<div class="mi"><b style="color:#f5a623;min-width:5.2em">${'★'.repeat(f.rating)}${'☆'.repeat(5 - f.rating)}</b><div class="grow">${esc(f.comment) || '<span class="muted">Sin comentario</span>'}<div class="muted small">Mesa ${esc(f.table_label)} · ${esc(f.created_at)} UTC</div></div></div>`).join('') || '<p class="muted">Aún no hay opiniones. Se piden a los clientes cuando terminan su mesa; si dan 4–5 estrellas los invitamos a dejar reseña en Google.</p>'}</div>`);
+}
+
+async function settings(m) {
+  const r = ME.restaurant;
+  frame(m, `<h1>Ajustes</h1><div class="card"><h3>Tu restaurante</h3>
+  <div class="grid2"><div><label>Nombre</label><input id="s_name" value="${esc(r.name)}"></div><div><label>Eslogan</label><input id="s_tag" value="${esc(r.tagline)}"></div>
+  <div><label>Color de marca</label><input id="s_col" type="color" value="${r.brand_color}" style="height:44px;padding:.2em"></div>
+  <div><label>Logo</label><input type="file" id="s_logo" accept="image/*"></div>
+  <div><label>Propina sugerida (%)</label><input id="s_tip" type="number" min="0" max="30" value="${r.tip_pct}"></div>
+  
+  <div><label>Moneda</label><select id="s_cur">${['COP', 'USD', 'MXN', 'PEN', 'CLP', 'ARS', 'EUR', 'GTQ', 'DOP'].map(c => `<option ${c === r.currency ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+  <div><label>Zona horaria (minutos vs UTC)</label><input id="s_tz" type="number" value="${r.tz_offset}"></div>
+  <div><label>Link reseñas de Google</label><input id="s_g" value="${esc(r.google_review_url)}" placeholder="https://g.page/r/..."></div></div></div>
+  <div class="card" style="margin-top:.8rem"><h3>Operación</h3>
+  <label class="chk"><input type="checkbox" id="s_acc" ${r.accepting_orders ? 'checked' : ''}> Recibir pedidos desde el QR (si lo apagas, el QR solo muestra la carta)</label>
+  <label>PIN del equipo (cocina y meseros) — entran en <b>/kitchen</b> con el código <b>${esc(r.slug)}</b></label><input id="s_pin" value="${esc(r.staff_pin)}" inputmode="numeric" maxlength="8" style="max-width:160px"></div>
+  <p><button class="btn" id="save">Guardar cambios</button></p>
+  <div class="card" style="margin-bottom:.8rem"><h3>Seguridad de la cuenta</h3>
+    <div class="grid2"><div><label>Contraseña actual</label><input id="pw_cur" type="password" autocomplete="current-password"></div>
+    <div><label>Nueva contraseña (mín. 8)</label><input id="pw_new" type="password" autocomplete="new-password"></div></div>
+    <p><button class="btn ghost sm" id="pw_save">Cambiar contraseña</button></p></div>
+  <div class="card" style="margin-bottom:.8rem"><h3>Plan</h3><p>Plan <b>${esc(ME.plan.name)}</b> · ${r.subscription_status === 'active' ? '<span class="pill ok">Activo</span>' : ME.active ? `<span class="pill warn">Prueba · ${ME.trial_days_left} días</span>` : '<span class="pill bad">Vencido</span>'}</p></div>
+  <div class="card" style="margin-top:.8rem"><h3>Tus datos</h3><p class="muted small" style="margin-top:0">Consulta los <a href="/terminos" target="_blank">Términos</a> y la <a href="/privacidad" target="_blank">Política de datos</a>. Puedes llevarte tus pedidos o borrar todo (derecho de supresión).</p>
+    <p><a class="btn ghost sm" href="/api/export/orders.csv">⬇ Exportar pedidos (CSV)</a> <button class="btn bad sm" id="del_acc">Borrar mi cuenta y mis datos</button></p></div>`);
+  $('#pw_save').onclick = async () => { try { await api('/api/password', { method: 'POST', body: { current: $('#pw_cur').value, password: $('#pw_new').value } }); $('#pw_cur').value = $('#pw_new').value = ''; toast('Contraseña actualizada. Las demás sesiones se cerraron.'); } catch (e) { toast(e.message, true); } };
+  $('#del_acc').onclick = async () => {
+    const pw = prompt('Vas a BORRAR tu restaurante y todos sus datos (carta, pedidos, opiniones, fotos). No se puede deshacer.\n\nEscribe tu contraseña para continuar:');
+    if (!pw) return;
+    const conf = prompt(`Para confirmar escribe el código de tu restaurante: ${ME.restaurant.slug}`);
+    if (!conf) return;
+    try { await api('/api/account/delete', { method: 'POST', body: { password: pw, confirm: conf } }); location.href = '/'; } catch (e) { toast(e.message, true); }
+  };
+  $('#s_logo').onchange = async e => { const fd = new FormData(); fd.append('file', e.target.files[0]); try { await api('/api/logo', { method: 'POST', body: fd }); toast('Logo actualizado'); } catch (err) { toast(err.message, true); } };
+  $('#save').onclick = async () => {
+    try {
+      ME = await api('/api/settings', { method: 'PUT', body: { name: $('#s_name').value, tagline: $('#s_tag').value, brand_color: $('#s_col').value, tip_pct: +$('#s_tip').value,
+        currency: $('#s_cur').value, tz_offset: +$('#s_tz').value, google_review_url: $('#s_g').value, accepting_orders: $('#s_acc').checked ? 1 : 0,
+        staff_pin: $('#s_pin').value } });
+      setBrand(ME.restaurant.brand_color); money = makeMoney(ME.restaurant.decimals, ME.restaurant.currency); toast('Guardado ✓');
+    } catch (e) { toast(e.message, true); }
+  };
+}
+// ------------------------------------------------------------ Colombia: fiscal, facturación y pagos
+async function fiscal(m) {
+  const r = ME.restaurant, I = ME.integrations, tt = ME.catalog.tax_types;
+  const { invoices } = await api('/api/invoices');
+  const ph = ok => ok ? 'placeholder="•••••• (guardado; deja vacío para conservar)"' : '';
+  const stBadge = i => i.status === 'issued' ? '<span class="pill ok">Emitida</span>' : i.status === 'error' ? '<span class="pill bad">Error</span>' : '<span class="pill warn">Pendiente</span>';
+  frame(m, `<h1>Facturación y pagos · Colombia</h1>
+  <p class="muted">Configura una sola vez: tus datos fiscales, tu proveedor de factura electrónica DIAN y cómo cobras (Nequi / Bre-B).</p>
+
+  <div class="card"><h3>1 · Datos fiscales</h3>
+    <div class="grid2">
+      <div><label>Razón social</label><input id="f_legal" value="${esc(r.legal_name)}"></div>
+      <div><label>NIT (sin dígito de verificación)</label><input id="f_nit" value="${esc(r.nit)}" inputmode="numeric"><div class="muted small">DV calculado: <b id="f_dv">${esc(r.nit_dv || '—')}</b></div></div>
+      <div><label>Impuesto de tu negocio</label><select id="f_tax">${Object.entries(tt).map(([k, v]) => `<option value="${k}" ${k === r.tax_type ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select></div>
+      <div><label>Tarifa (%)</label><input id="f_pct" type="number" step="0.1" min="0" max="30" value="${ME.restaurant.tax_pct ?? 0}"></div>
+      <div><label>Dirección del establecimiento</label><input id="f_addr" value="${esc(r.fiscal_address)}"></div>
+      <div><label>Teléfono</label><input id="f_phone" value="${esc(r.fiscal_phone)}"></div>
+      <div><label>ID de municipio (en Factus)</label><input id="f_mun" type="number" value="${r.fiscal_municipality_id || ''}" placeholder="ej. el de tu ciudad en Factus"></div>
+      <div><label>Los precios de tu carta…</label><select id="f_incl"><option value="1" ${r.tax_included ? 'selected' : ''}>ya incluyen el impuesto</option><option value="0" ${!r.tax_included ? 'selected' : ''}>NO lo incluyen (se suma)</option></select></div>
+    </div>
+    <p class="muted small">Los restaurantes normalmente cobran <b>INC 8 %</b>, no IVA. La propina voluntaria se muestra aparte y <b>no</b> entra en la factura. Confirma tu régimen con tu contador.</p>
+  </div>
+
+  <div class="card" style="margin-top:.8rem"><h3>2 · Facturación electrónica DIAN</h3>
+    <p class="muted small" style="margin-top:0">MesaYa no transmite a la DIAN directamente (eso requiere habilitación, firma digital y XML UBL). Se conecta a tu <b>proveedor tecnológico</b>: crea cuenta en <a href="https://factus.com.co" target="_blank" rel="noopener">Factus</a>, habilita tu resolución de numeración y pega aquí las credenciales.</p>
+    <div class="grid2">
+      <div><label>Proveedor</label><select id="i_prov"><option value="none" ${r.inv_provider === 'none' ? 'selected' : ''}>Desactivada</option><option value="factus" ${r.inv_provider === 'factus' ? 'selected' : ''}>Factus</option>${ME.demo_mode ? `<option value="mock" ${r.inv_provider === 'mock' ? 'selected' : ''}>Demo (facturas de mentira)</option>` : ''}</select></div>
+      <div><label>Ambiente</label><select id="i_env"><option value="sandbox" ${r.inv_env === 'sandbox' ? 'selected' : ''}>Pruebas (sandbox)</option><option value="production" ${r.inv_env === 'production' ? 'selected' : ''}>Producción</option></select></div>
+      <div><label>Client ID</label><input id="i_cid" autocomplete="off" ${ph(I.inv_configured)}></div>
+      <div><label>Client secret</label><input id="i_cs" type="password" autocomplete="new-password" ${ph(I.inv_configured)}></div>
+      <div><label>Usuario (correo)</label><input id="i_user" autocomplete="off" ${ph(I.inv_configured)}></div>
+      <div><label>Contraseña</label><input id="i_pw" type="password" autocomplete="new-password" ${ph(I.inv_configured)}></div>
+      <div><label>ID del rango de numeración</label><input id="i_range" type="number" value="${r.inv_range_id || ''}" placeholder="usa «Probar conexión» para verlos"></div>
+    </div>
+    <div class="row wrap" style="margin-top:.8rem"><button class="btn ghost sm" id="i_test">Probar conexión</button><span class="muted small">Guarda primero los cambios.</span></div>
+    <div id="i_ranges"></div>
+  </div>
+
+  <div class="card" style="margin-top:.8rem"><h3>3 · Cobros desde el celular</h3>
+    <label class="chk"><input type="checkbox" id="p_online" ${r.online_payments ? 'checked' : ''}> Permitir pago desde el celular de la mesa</label>
+    <h4 style="margin:1rem 0 .2rem">Nequi (por Wompi) — confirmación automática</h4>
+    <p class="muted small" style="margin:0 0 .4rem">El cliente escribe su celular y recibe la notificación en Nequi. Necesitas una cuenta de comercio en <a href="https://wompi.com" target="_blank" rel="noopener">Wompi</a> con Nequi habilitado. En Wompi → Desarrolladores configura la <b>URL de eventos</b>:</p>
+    <div class="row"><input readonly id="p_hook" value="${esc(I.wompi_webhook_url)}"><button class="btn sm ghost" id="p_cp">Copiar</button></div>
+    <div class="grid2">
+      <div><label>Ambiente</label><select id="p_env"><option value="sandbox" ${r.wompi_env === 'sandbox' ? 'selected' : ''}>Pruebas</option><option value="production" ${r.wompi_env === 'production' ? 'selected' : ''}>Producción</option></select></div>
+      <div><label>Llave pública</label><input id="p_pub" autocomplete="off" ${ph(I.wompi_configured)}></div>
+      <div><label>Llave privada</label><input id="p_prv" type="password" autocomplete="new-password" ${ph(I.wompi_configured)}></div>
+      <div><label>Secreto de eventos</label><input id="p_ev" type="password" autocomplete="new-password" ${ph(I.wompi_events_set)}></div>
+      <div><label>Secreto de integridad</label><input id="p_int" type="password" autocomplete="new-password" ${ph(I.wompi_configured)}></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="p_nequi" ${r.nequi_enabled ? 'checked' : ''}> Ofrecer «Pagar con Nequi»</label>
+    <h4 style="margin:1rem 0 .2rem">Bre-B — confirmación asistida</h4>
+    <p class="muted small" style="margin:0 0 .4rem">El cliente paga a tu llave Bre-B desde su banco o Nequi y toca «Ya pagué»; tu equipo ve el aviso en la pantalla de cocina/sala, verifica que llegó el dinero y confirma. (Aún no hay API pública de cobro Bre-B para comercios.)</p>
+    <div class="grid2">
+      <div><label>Tipo de llave</label><select id="b_type">${['celular', 'cedula', 'nit', 'correo', 'alfanumerica'].map(t => `<option ${t === r.breb_key_type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div><label>Tu llave Bre-B</label><input id="b_key" value="${esc(r.breb_key)}"></div>
+      <div><label>Nombre del titular (el cliente lo verá)</label><input id="b_holder" value="${esc(r.breb_holder)}"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="b_on" ${r.breb_enabled ? 'checked' : ''}> Ofrecer «Pagar con Bre-B»</label>
+  </div>
+  <p><button class="btn" id="f_save">Guardar todo</button></p>
+
+  <div class="card"><h3>Facturas electrónicas recientes</h3>
+  <table>${invoices.map(i => `<tr><td>${stBadge(i)}</td><td><b>${esc(i.number || '—')}</b><div class="muted small">Mesa ${esc(i.table_label)} · ${esc(i.created_at)} UTC</div></td>
+    <td>${esc(i.customer.name || '')}<div class="muted small">${esc(i.customer.doc_number || '')}</div></td><td>${money(i.total)}</td>
+    <td>${i.public_url ? `<a class="btn sm ghost" href="${esc(i.public_url)}" target="_blank" rel="noopener">Ver</a>` : ''}${i.status !== 'issued' ? `<button class="btn sm" data-retry="${i.id}">Reintentar</button>` : ''}
+    ${i.error ? `<div class="small" style="color:var(--bad);max-width:260px">${esc(i.error)}</div>` : ''}</td></tr>`).join('') || '<tr><td class="muted">Aún no hay facturas. Se emite una por cada pago confirmado.</td></tr>'}</table></div>`);
+
+  $('#f_nit').oninput = e => { const d = e.target.value.replace(/\D/g, ''); const W = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71]; let t = 0; [...d].reverse().forEach((c, i) => t += +c * W[i]); const x = t % 11; $('#f_dv').textContent = d ? (x < 2 ? x : 11 - x) : '—'; };
+  $('#p_cp').onclick = () => { navigator.clipboard.writeText($('#p_hook').value); toast('URL copiada'); };
+  $('#i_test').onclick = async () => {
+    try {
+      const { ranges } = await api('/api/invoicing/test', { method: 'POST' });
+      $('#i_ranges').innerHTML = `<table style="margin-top:.6rem"><tr><th>ID</th><th>Prefijo</th><th>Documento</th><th>Rango</th><th></th></tr>${ranges.map(x => `<tr><td>${x.id}</td><td>${esc(x.prefix)}</td><td>${esc(x.document)}</td><td>${x.from}–${x.to} (actual ${x.current})</td><td><button class="btn sm ghost" data-pick="${x.id}">Usar</button></td></tr>`).join('')}</table>`;
+      toast('Conexión exitosa ✓'); $$('[data-pick]').forEach(b => b.onclick = () => { $('#i_range').value = b.dataset.pick; });
+    } catch (e) { toast(e.message, true); }
+  };
+  $$('[data-retry]').forEach(b => b.onclick = async () => { try { const r2 = await api(`/api/invoices/${b.dataset.retry}/retry`, { method: 'POST' }); toast(r2.invoice.status === 'issued' ? 'Factura emitida ✓' : 'Sigue con error: ' + r2.invoice.error, r2.invoice.status !== 'issued'); show(); } catch (e) { toast(e.message, true); } });
+  $('#f_save').onclick = async () => {
+    try {
+      await api('/api/integrations/invoicing', { method: 'PUT', body: { client_id: $('#i_cid').value, client_secret: $('#i_cs').value, username: $('#i_user').value, password: $('#i_pw').value } });
+      await api('/api/integrations/payments', { method: 'PUT', body: { wompi_public: $('#p_pub').value, wompi_private: $('#p_prv').value, wompi_events: $('#p_ev').value, wompi_integrity: $('#p_int').value } });
+      ME = await api('/api/settings', { method: 'PUT', body: {
+        legal_name: $('#f_legal').value, nit: $('#f_nit').value, tax_type: $('#f_tax').value, tax_pct: +$('#f_pct').value, tax_included: +$('#f_incl').value,
+        fiscal_address: $('#f_addr').value, fiscal_phone: $('#f_phone').value, fiscal_municipality_id: +$('#f_mun').value || 0,
+        inv_provider: $('#i_prov').value, inv_env: $('#i_env').value, inv_range_id: +$('#i_range').value || 0,
+        online_payments: $('#p_online').checked ? 1 : 0, wompi_env: $('#p_env').value, nequi_enabled: $('#p_nequi').checked ? 1 : 0,
+        breb_enabled: $('#b_on').checked ? 1 : 0, breb_key_type: $('#b_type').value, breb_key: $('#b_key').value, breb_holder: $('#b_holder').value } });
+      toast('Guardado ✓'); show();
+    } catch (e) { toast(e.message, true); }
+  };
+}
+
+boot();
+</script>
+</body>
+</html>

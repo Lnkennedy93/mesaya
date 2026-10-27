@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="es" data-auto-theme>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Carta</title>
+<meta name="theme-color" content="#e4572e">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+body{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+.hero{padding:1.1rem 1rem .6rem;display:flex;gap:.8rem;align-items:center}
+.logo{width:56px;height:56px;border-radius:16px;flex:none;font-size:1.5rem}
+.hero h1{font-size:1.35rem;margin:0}
+.btn.nequi{background:#da0081;color:#fff}
+.tablebadge{margin-left:auto;background:var(--brand);color:var(--brand-ink);padding:.35em .8em;border-radius:99px;font-weight:800;font-size:.85rem;white-space:nowrap}
+.tools{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:.5rem 1rem .6rem;border-bottom:1px solid var(--line)}
+.chips{display:flex;gap:.5rem;overflow-x:auto;scrollbar-width:none;padding-top:.5rem}
+.chip{flex:none;border:1.5px solid var(--line);background:var(--card);border-radius:99px;padding:.35em .95em;font-weight:700;font-size:.9rem;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+main{padding:.2rem 1rem}
+.cat h2{font-size:1.15rem;margin:1.3rem 0 .6rem}
+.item{display:flex;gap:.8rem;padding:.8rem;margin-bottom:.7rem;cursor:pointer;position:relative}
+.item .thumb{width:92px;height:92px;border-radius:12px;flex:none;font-size:1.8rem}
+.item h3{font-size:1rem;margin:0 0 .15rem}
+.item p{margin:0;font-size:.85rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item .price{font-weight:800;margin-top:.35rem}
+.item.off{opacity:.55}
+.item .add{position:absolute;right:.7rem;bottom:.6rem;width:34px;height:34px;border-radius:50%;border:0;background:var(--brand);color:var(--brand-ink);font-size:1.3rem;font-weight:700;line-height:1}
+.tag{font-size:.68rem;font-weight:700;padding:.1em .5em;border-radius:6px;background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok);margin-right:.25rem}
+.tag.hot{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.tag.star{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom));display:flex;gap:.6rem;background:linear-gradient(transparent,var(--bg) 35%)}
+.bar .btn{flex:1;padding:.9em}
+.notice{margin:.6rem 1rem;padding:.8rem 1rem;border-radius:12px;background:color-mix(in srgb,var(--warn) 15%,var(--card));font-size:.9rem}
+.opt{display:flex;gap:.6rem;align-items:center;padding:.55rem .2rem;border-bottom:1px solid var(--line)}
+.opt input{width:auto}
+.qty{display:flex;align-items:center;gap:.7rem}
+.qgap{display:inline-block;width:36px;height:36px}
+.rm{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);font-size:1.2rem;font-weight:700;line-height:1;cursor:pointer;margin-left:.2rem}
+.qty button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);font-size:1.2rem;font-weight:700;cursor:pointer}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem}
+.x{border:0;background:none;font-size:1.6rem;cursor:pointer;color:var(--muted)}
+.line{display:flex;gap:.6rem;align-items:flex-start;padding:.6rem 0;border-bottom:1px solid var(--line)}
+.line input[type=checkbox]{width:22px;height:22px;margin-top:2px;accent-color:var(--brand)}
+.line.paid{opacity:.55}
+.steps{display:flex;gap:.3rem;margin:.4rem 0 .2rem}
+.steps i{flex:1;height:5px;border-radius:9px;background:var(--line)}
+.steps i.on{background:var(--ok)}
+.tips{display:flex;gap:.4rem}
+.tips button{flex:1;padding:.55em 0;border:1.5px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;cursor:pointer}
+.tips button.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+.stars{display:flex;gap:.3rem;justify-content:center;font-size:2.2rem}
+.stars button{border:0;background:none;cursor:pointer;color:#cfc6b8;font-size:inherit;padding:0}
+.stars button.on{color:#f5a623}
+.big{font-size:1.5rem;font-weight:800}
+.langs{display:flex;gap:.3rem;margin-left:.4rem}
+.langs button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:.2em .5em;font-size:.75rem;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script src="/assets/common.js"></script>
+<script>
+const slug = location.pathname.split('/').pop();
+const qs = new URLSearchParams(location.search);
+const TABLE = qs.get('t') || '', KEY = qs.get('k') || '';
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+
+const I18N = {
+  es: { search: 'Buscar plato…', all: 'Todo', add: 'Agregar', soldout: 'Agotado', table: 'Mesa', viewOrder: 'Ver pedido', myBill: 'Mi cuenta',
+    menu: 'Carta', notes: 'Notas para cocina (opcional)', yourName: 'Tu nombre (para dividir la cuenta)', send: 'Enviar pedido a cocina',
+    total: 'Total', empty: 'Aún no has pedido nada', sent: '¡Pedido enviado!', sentSub: 'Ya llegó a la cocina de la mesa', required: 'Obligatorio',
+    qty: 'Cantidad', addToOrder: 'Agregar al pedido', status: ['Recibido', 'Preparando', 'Listo', 'Entregado'],
+    pay: 'Pagar', mine: 'Lo mío', everything: 'Todo lo pendiente', pick: 'Elegir', tip: 'Propina', subtotal: 'Subtotal', tax: 'Impuesto incl.',
+    paid: 'PAGADO', reserved: 'EN PAGO', callWaiter: 'Llamar al mesero', waiterCalled: 'Mesero avisado ✓', askBill: 'Pedir la cuenta en caja',
+    payOnline: 'Pagar desde mi celular', ready: '¡Tu pedido está listo!', menuOnly: 'Esta carta es solo de consulta. Pide al mesero.',
+    scan: 'Escanea el QR de tu mesa para pedir desde tu celular.', badQr: 'Este QR ya no es válido (fue renovado o está incompleto). Escanea el QR actual de tu mesa o pide ayuda al mesero.', paused: 'Por ahora los pedidos digitales están en pausa. Pide al mesero.',
+    nothingToPay: 'No hay nada pendiente por pagar 🎉', thanks: '¡Gracias! Pago recibido', rate: '¿Cómo estuvo todo?', comment: 'Cuéntanos más (opcional)',
+    sendRate: 'Enviar', rated: '¡Gracias por tu opinión!', google: 'Dejar reseña en Google', allergens: 'Contiene', choose: 'Elige', min: 'Min',
+    privacyNote: 'Al enviar tu pedido aceptas el tratamiento de tus datos según la', privacyLink: 'Política de datos.', less: 'Quitar uno', more: 'Agregar uno', remove: 'Quitar del pedido', finishTable: 'Terminar mesa y pedir la cuenta', billAsked: 'Cuenta solicitada ✓ El mesero va en camino', tableClosed: 'Mesa cerrada. ¡Gracias por visitarnos!', totalConsumption: 'Total del consumo', tipSuggested: 'Propina voluntaria sugerida',
+    payNequi: 'Pagar con Nequi', payBreb: 'Pagar con Bre-B', nequiPhone: 'Celular con Nequi', wantInvoice: 'Quiero factura electrónica a mi nombre',
+    invoiceHint: 'Si no llenas esto, te emitimos la factura como Consumidor Final.', docNumber: 'Número de documento', fullName: 'Nombre o razón social', emailInv: 'Correo para la factura',
+    openNequi: 'Abre tu app Nequi', nequiWait: 'Te enviamos una notificación para aprobar el pago.', waiting: 'Esperando aprobación…', cancel: 'Cancelar',
+    payTimeout: 'No recibimos la aprobación', payDeclined: 'El pago no se completó', brebIntro: 'Abre la app de tu banco y paga a esta llave:', brebKey: 'Llave Bre-B',
+    copyKey: 'Copiar llave', exactAmount: 'Valor exacto a pagar', brebRef: 'Referencia', mesaLbl: 'Mesa', iPaid: 'Ya pagué', brebCheck: 'Verificando tu pago…',
+    brebCheckSub: 'El restaurante confirma que le llegó el dinero. Unos segundos.', brebNo: 'No pudimos confirmar el pago', invoiceNo: 'Factura electrónica', viewInvoice: 'Ver factura',
+    invoiceSoon: 'Tu factura electrónica llegará en unos minutos.', taxIncl: 'incluido' },
+  en: { search: 'Search dish…', all: 'All', add: 'Add', soldout: 'Sold out', table: 'Table', viewOrder: 'View order', myBill: 'My bill',
+    menu: 'Menu', notes: 'Notes for the kitchen (optional)', yourName: 'Your name (to split the bill)', send: 'Send order to kitchen',
+    total: 'Total', empty: "You haven't ordered anything yet", sent: 'Order sent!', sentSub: 'It already reached the kitchen', required: 'Required',
+    qty: 'Quantity', addToOrder: 'Add to order', status: ['Received', 'Preparing', 'Ready', 'Served'],
+    pay: 'Pay', mine: 'Mine', everything: 'Everything due', pick: 'Choose', tip: 'Tip', subtotal: 'Subtotal', tax: 'Tax incl.',
+    paid: 'PAID', reserved: 'PAYING', callWaiter: 'Call the waiter', waiterCalled: 'Waiter notified ✓', askBill: 'Ask for the bill at the till',
+    payOnline: 'Pay from my phone', ready: 'Your order is ready!', menuOnly: 'This menu is view-only. Ask your waiter.',
+    scan: 'Scan the QR on your table to order from your phone.', badQr: 'This QR is no longer valid (it was renewed or is incomplete). Scan the current QR on your table or ask your waiter.', paused: 'Digital ordering is paused right now. Ask your waiter.',
+    nothingToPay: 'Nothing left to pay 🎉', thanks: 'Thanks! Payment received', rate: 'How was everything?', comment: 'Tell us more (optional)',
+    sendRate: 'Send', rated: 'Thanks for your feedback!', google: 'Leave a Google review', allergens: 'Contains', choose: 'Choose', min: 'Min',
+    privacyNote: 'By sending your order you accept the processing of your data under the', privacyLink: 'Privacy policy.', less: 'Remove one', more: 'Add one', remove: 'Remove from order', finishTable: 'Finish table and ask for the bill', billAsked: 'Bill requested ✓ A waiter is on the way', tableClosed: 'Table closed. Thanks for visiting!', totalConsumption: 'Total', tipSuggested: 'Suggested voluntary tip',
+    payNequi: 'Pay with Nequi', payBreb: 'Pay with Bre-B', nequiPhone: 'Nequi phone number', wantInvoice: 'I want an electronic invoice in my name',
+    invoiceHint: 'If you leave this blank we issue it to Consumidor Final.', docNumber: 'ID number', fullName: 'Name or company', emailInv: 'Email for the invoice',
+    openNequi: 'Open your Nequi app', nequiWait: 'We sent a notification to approve the payment.', waiting: 'Waiting for approval…', cancel: 'Cancel',
+    payTimeout: 'We did not receive the approval', payDeclined: 'The payment was not completed', brebIntro: 'Open your bank app and pay to this key:', brebKey: 'Bre-B key',
+    copyKey: 'Copy key', exactAmount: 'Exact amount to pay', brebRef: 'Reference', mesaLbl: 'Table', iPaid: 'I paid', brebCheck: 'Checking your payment…',
+    brebCheckSub: 'The restaurant confirms the money arrived. A few seconds.', brebNo: 'We could not confirm the payment', invoiceNo: 'Electronic invoice', viewInvoice: 'View invoice',
+    invoiceSoon: 'Your electronic invoice will arrive in a few minutes.', taxIncl: 'incl.' }
+};
+let lang = LS('mesaya_lang') || (navigator.language || 'es').slice(0, 2);
+if (!I18N[lang]) lang = 'es';
+const T = k => I18N[lang][k];
+
+const dinerId = LS('mesaya_diner') || (() => { const v = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)); LS('mesaya_diner', v); return v; })();
+let dinerName = LS('mesaya_name') || '';
+
+let M = null, money = v => v, cart = [], bill = { lines: [], calls: [] }, view = qs.get('view') === 'bill' ? 'bill' : 'menu';
+let activeCat = null, search = '', sel = new Set(), tipPct = null, paying = false, lastReadyIds = new Set();
+
+try { cart = JSON.parse(LS('mesaya_cart_' + slug) || '[]'); } catch (e) { cart = []; }
+const saveCart = () => LS('mesaya_cart_' + slug, JSON.stringify(cart));
+
+async function load() {
+  try {
+    M = await api(`/api/public/${slug}/menu?t=${encodeURIComponent(TABLE)}&k=${encodeURIComponent(KEY)}`);
+  } catch (e) { $('#app').innerHTML = `<div class="notice">${esc(e.message)}</div>`; return; }
+  const R = M.restaurant;
+  document.title = R.name + ' · ' + T('menu');
+  setBrand(R.brand_color);
+  $('meta[name=theme-color]').content = R.brand_color;
+  money = makeMoney(R.decimals, R.currency);
+  if (tipPct === null) tipPct = R.tip_pct;
+  if (M.table_ok) {
+    await refreshBill();
+    liveStream(`/api/public/${slug}/stream?table=${encodeURIComponent(TABLE)}&k=${encodeURIComponent(KEY)}`, { update: onLive });
+  }
+  render();
+  if (qs.get('paid') === '1') { history.replaceState(null, '', location.pathname + `?t=${TABLE}&k=${KEY}`); showThanks(); }
+}
+
+async function refreshBill() {
+  try { bill = await api(`/api/public/${slug}/bill?table=${encodeURIComponent(TABLE)}&k=${encodeURIComponent(KEY)}`); } catch (e) { /* mantener */ }
+}
+
+async function onLive() {
+  const before = new Map(bill.lines.map(l => [l.order_id, l.order_status]));
+  await refreshBill();
+  const mineReady = bill.lines.some(l => l.diner_id === dinerId && l.order_status === 'ready' && before.get(l.order_id) !== 'ready');
+  if (mineReady) { toast('🍽️ ' + T('ready')); if (navigator.vibrate) navigator.vibrate([120, 60, 120]); }
+  render();
+}
+
+function dishInitial(n) { return esc(n.trim().charAt(0).toUpperCase()); }
+
+const draft = {};
+function captureDraft() {
+  if ($('#nph')) draft.phone = $('#nph').value;
+  if ($('#idn')) draft.inv = { doc_type: $('#idt').value, doc_number: $('#idn').value, name: $('#idname').value, email: $('#idmail').value, open: $('#invf').open };
+}
+function taxRow(subtotal) {
+  const R = M.restaurant;
+  if (!R.tax_pct || R.tax_label.startsWith('No ')) return '';
+  const tax = R.tax_included ? subtotal - subtotal / (1 + R.tax_pct / 100) : subtotal * R.tax_pct / 100;
+  return `<div class="row spread small muted"><span>${esc(R.tax_label)} ${R.tax_pct}%${R.tax_included ? ' · ' + T('taxIncl') : ''}</span><span>${money(Math.round(tax))}</span></div>`;
+}
+
+function render() {
+  captureDraft();
+  const R = M.restaurant;
+  let h = `<div class="hero">
+    <div class="thumb logo">${R.logo ? `<img src="${esc(R.logo)}" alt="">` : dishInitial(R.name)}</div>
+    <div class="grow"><h1>${esc(R.name)}</h1><div class="muted small">${esc(R.tagline || '')}</div></div>
+    ${M.table_ok ? `<div class="tablebadge">${T('table')} ${esc(M.table)}</div>` : ''}
+    <div class="langs">${['es', 'en'].map(l => `<button data-lang="${l}" ${l === lang ? 'style="background:var(--ink);color:var(--bg)"' : ''}>${l.toUpperCase()}</button>`).join('')}</div>
+  </div>`;
+  if (!M.subscription_ok) h += `<div class="notice">${T('menuOnly')}</div>`;
+  else if (M.paused) h += `<div class="notice">${T('paused')}</div>`;
+  else if (!M.table_ok) h += `<div class="notice">${TABLE ? T('badQr') : T('scan')}</div>`;
+  h += view === 'menu' ? menuView() : billView();
+  h += barView();
+  $('#app').innerHTML = h;
+  bind();
+}
+
+function menuView() {
+  const cats = M.categories;
+  let h = `<div class="tools"><input id="q" type="search" placeholder="${T('search')}" value="${esc(search)}">
+    <div class="chips">${[{ id: null, name: T('all') }, ...cats].map(c => `<button class="chip ${activeCat === c.id ? 'on' : ''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div></div><main>`;
+  const s = search.trim().toLowerCase();
+  const shown = cats.filter(c => activeCat === null || c.id === activeCat).map(c => ({ ...c, items: c.items.filter(i => !s || (i.name + ' ' + i.description).toLowerCase().includes(s)) })).filter(c => c.items.length);
+  shown.forEach(c => {
+    h += `<section class="cat"><h2>${esc(c.name)}</h2>`;
+    c.items.forEach(i => {
+      h += `<article class="card item ${i.available ? '' : 'off'}" data-item="${i.id}">
+        <div class="thumb">${i.image ? `<img loading="lazy" src="${esc(i.image)}" alt="">` : dishInitial(i.name)}</div>
+        <div class="grow"><h3>${i.featured ? '<span class="tag star">★</span>' : ''}${esc(i.name)}</h3>
+          <p>${esc(i.description)}</p>
+          <div>${i.tags.map(t => `<span class="tag ${t === 'picante' ? 'hot' : ''}">${esc(t)}</span>`).join('')}</div>
+          <div class="price">${i.available ? money(i.price) : `<span class="pill bad">${T('soldout')}</span>`}</div></div>
+        ${i.available && M.can_order ? `<button class="add" aria-label="${T('add')}">+</button>` : ''}
+      </article>`;
+    });
+    h += '</section>';
+  });
+  return h + '</main>';
+}
+
+function cartTotal() { return cart.reduce((s, l) => s + l.unit * l.qty, 0); }
+function cartCount() { return cart.reduce((s, l) => s + l.qty, 0); }
+function unpaidMine() { return bill.lines.filter(l => l.state === 'unpaid').length; }
+
+function barView() {
+  if (!M.table_ok) return '';
+  let h = '<div class="bar">';
+  h += `<button class="btn ${view === 'menu' ? 'dark' : 'ghost'}" data-view="menu">${T('menu')}</button>`;
+  if (cartCount() && M.can_order) h += `<button class="btn" id="openCart">${T('viewOrder')} · ${cartCount()} · ${money(cartTotal())}</button>`;
+  else h += `<button class="btn ${view === 'bill' ? 'dark' : 'ghost'}" data-view="bill">${T('myBill')}${unpaidMine() ? ` · ${unpaidMine()}` : ''}</button>`;
+  return h + '</div>';
+}
+
+function bind() {
+  $$('[data-lang]').forEach(b => b.onclick = () => { lang = b.dataset.lang; LS('mesaya_lang', lang); render(); });
+  $$('[data-cat]').forEach(b => b.onclick = () => { activeCat = b.dataset.cat === 'null' ? null : +b.dataset.cat; render(); });
+  const q = $('#q'); if (q) q.oninput = e => { search = e.target.value; const pos = e.target.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
+  $$('.item').forEach(el => el.onclick = () => openItem(+el.dataset.item));
+  $$('[data-view]').forEach(b => b.onclick = async () => { view = b.dataset.view; if (view === 'bill') await refreshBill(); render(); window.scrollTo(0, 0); });
+  const oc = $('#openCart'); if (oc) oc.onclick = openCart;
+  if (view === 'bill') bindBill();
+}
+
+function findItem(id) { for (const c of M.categories) for (const i of c.items) if (i.id === id) return i; }
+
+// ------------------------------------------------------------ plato
+function openItem(id) {
+  const it = findItem(id);
+  let qty = 1, note = '';
+  const chosen = {};
+  it.options.forEach(g => { chosen[g.name] = g.required && !g.multi ? [g.options[0].name] : []; });
+  const dlg = $('#dlg'), body = $('#dlgBody');
+  const calc = () => {
+    let extra = 0;
+    it.options.forEach(g => (chosen[g.name] || []).forEach(n => extra += (g.options.find(o => o.name === n) || { price: 0 }).price));
+    return it.price + extra;
+  };
+  const paint = () => {
+    body.innerHTML = `<div class="sheet-h"><h2 style="margin:0">${esc(it.name)}</h2><button class="x" id="cl">×</button></div>
+      ${it.image ? `<div class="thumb" style="height:200px;border-radius:14px;margin-bottom:.6rem"><img src="${esc(it.image)}" alt=""></div>` : ''}
+      <p class="muted" style="margin-top:0">${esc(it.description)}</p>
+      ${it.allergens.length ? `<p class="small muted">⚠️ ${T('allergens')}: ${it.allergens.map(esc).join(', ')}</p>` : ''}
+      ${it.options.map(g => `<h3 style="margin:1rem 0 .2rem;font-size:1rem">${esc(g.name)} ${g.required ? `<span class="pill brand">${T('required')}</span>` : ''}</h3>
+        ${g.options.map(o => `<label class="opt" style="margin:0;font-size:1rem;color:var(--ink)"><input type="${g.multi ? 'checkbox' : 'radio'}" name="g_${esc(g.name)}" data-g="${esc(g.name)}" data-o="${esc(o.name)}" ${(chosen[g.name] || []).includes(o.name) ? 'checked' : ''}>
+          <span class="grow">${esc(o.name)}</span><span class="muted">${o.price ? '+' + money(o.price) : ''}</span></label>`).join('')}`).join('')}
+      ${M.can_order ? `<label>${T('notes')}</label><input id="inote" maxlength="140" value="${esc(note)}">
+      <div class="row spread" style="margin:1rem 0 .4rem"><div class="qty"><button id="m">−</button><b id="qv">${qty}</b><button id="p">+</button></div>
+      <button class="btn grow" id="addB">${T('addToOrder')} · ${money(calc() * qty)}</button></div>` : ''}`;
+    $('#cl').onclick = () => dlg.close();
+    $$('input[data-g]', body).forEach(inp => inp.onchange = () => {
+      const g = it.options.find(x => x.name === inp.dataset.g);
+      if (g.multi) { const a = chosen[g.name]; inp.checked ? a.push(inp.dataset.o) : a.splice(a.indexOf(inp.dataset.o), 1); } else chosen[g.name] = [inp.dataset.o];
+      note = $('#inote') ? $('#inote').value : note; paint();
+    });
+    if (!M.can_order) return;
+    $('#m').onclick = () => { qty = Math.max(1, qty - 1); note = $('#inote').value; paint(); };
+    $('#p').onclick = () => { qty = Math.min(20, qty + 1); note = $('#inote').value; paint(); };
+    $('#addB').onclick = () => {
+      for (const g of it.options) if (g.required && !(chosen[g.name] || []).length) { toast(`${T('choose')}: ${g.name}`, true); return; }
+      const opts = []; it.options.forEach(g => (chosen[g.name] || []).forEach(n => opts.push({ group: g.name, name: n })));
+      cart.push({ item_id: it.id, name: it.name, qty, unit: calc(), options: opts, note: $('#inote').value.trim() });
+      saveCart(); dlg.close(); render();
+    };
+  };
+  paint(); dlg.showModal();
+}
+
+// ------------------------------------------------------------ carrito
+function openCart() {
+  const dlg = $('#dlg'), body = $('#dlgBody');
+  const paint = () => {
+    if (!cart.length) { dlg.close(); render(); return; }
+    body.innerHTML = `<div class="sheet-h"><h2 style="margin:0">${T('viewOrder')} · ${T('table')} ${esc(M.table)}</h2><button class="x" id="cl">×</button></div>
+      ${cart.map((l, i) => `<div class="line"><div class="grow"><b>${esc(l.name)}</b><div class="muted small">${esc(l.options.map(o => o.name).join(', '))}${l.note ? ' · “' + esc(l.note) + '”' : ''}</div></div>
+        <div class="qty">${l.qty > 1 ? `<button data-d="${i}" data-s="-1" aria-label="${T('less')}">−</button>` : '<span class="qgap"></span>'}<b>${l.qty}</b><button data-d="${i}" data-s="1" aria-label="${T('more')}">+</button></div><b style="min-width:76px;text-align:right">${money(l.unit * l.qty)}</b>
+        <button class="rm" data-rm="${i}" aria-label="${T('remove')}" title="${T('remove')}">×</button></div>`).join('')}
+      <label>${T('yourName')}</label><input id="dn" maxlength="40" value="${esc(dinerName)}" autocomplete="given-name">
+      <label>${T('notes')}</label><input id="gn" maxlength="200">
+      <div class="row spread" style="margin:1rem 0"><span class="big">${T('total')}</span><span class="big">${money(cartTotal())}</span></div>
+      <p class="muted small" style="margin:.6rem 0 0;text-align:center">${T('privacyNote')} <a href="/privacidad" target="_blank" rel="noopener">${T('privacyLink')}</a></p>
+      <button class="btn block" id="send" style="margin-top:.6rem">${T('send')}</button>`;
+    $('#cl').onclick = () => dlg.close();
+    $$('[data-d]', body).forEach(b => b.onclick = () => { const l = cart[+b.dataset.d]; l.qty = Math.min(Math.max(1, l.qty + +b.dataset.s), 20); saveCart(); render(); paint(); });
+    $$('[data-rm]', body).forEach(b => b.onclick = () => { cart.splice(+b.dataset.rm, 1); saveCart(); render(); paint(); });
+    $('#send').onclick = async e => {
+      e.target.disabled = true;
+      dinerName = $('#dn').value.trim(); LS('mesaya_name', dinerName);
+      try {
+        await api(`/api/public/${slug}/orders`, { method: 'POST', body: { table: TABLE, key: KEY, diner_id: dinerId, diner_name: dinerName, note: $('#gn').value,
+          items: cart.map(l => ({ item_id: l.item_id, qty: l.qty, options: l.options, note: l.note })) } });
+        cart = []; saveCart(); dlg.close(); await refreshBill(); view = 'bill'; render(); toast('✅ ' + T('sent') + ' ' + T('sentSub'));
+      } catch (err) { toast(err.message, true); e.target.disabled = false; }
+    };
+  };
+  paint(); dlg.showModal();
+}
+
+// ------------------------------------------------------------ cuenta
+const STATUS_IDX = { new: 0, preparing: 1, ready: 2, served: 3 };
+
+function billView() {
+  const L = bill.lines, R = M.restaurant;
+  if (!L.length) return `<main><div class="card" style="margin-top:1rem;text-align:center"><p class="muted">${T('empty')}</p><button class="btn" data-view="menu">${T('menu')}</button></div>${callButtons()}</main>`;
+  const orders = [...new Set(L.map(l => l.order_id))].map(id => L.find(l => l.order_id === id));
+  let h = '<main>';
+  orders.filter(o => o.order_status !== 'served' || L.some(l => l.order_id === o.order_id && l.state !== 'paid')).forEach(o => {
+    const idx = STATUS_IDX[o.order_status] ?? 0;
+    h += `<div class="card" style="margin-top:.8rem"><div class="row spread"><b>#${o.seq} ${o.diner_name ? '· ' + esc(o.diner_name) : ''}</b>
+      <span class="pill ${idx >= 2 ? 'ok' : 'warn'}">${T('status')[idx]}</span></div>
+      <div class="steps">${[0, 1, 2, 3].map(i => `<i class="${i <= idx ? 'on' : ''}"></i>`).join('')}</div></div>`;
+  });
+  const unpaid = L.filter(l => l.state === 'unpaid');
+  h += `<h2 style="margin:1.2rem 0 .3rem">${T('myBill')}</h2><div class="card">`;
+  L.forEach(l => {
+    const can = l.state === 'unpaid';
+    h += `<div class="line ${l.state === 'paid' ? 'paid' : ''}">
+      ${can && M.features.payments ? `<input type="checkbox" data-sel="${l.id}" ${sel.has(l.id) ? 'checked' : ''}>` : '<span style="width:22px"></span>'}
+      <div class="grow"><b>${l.qty}× ${esc(l.name)}</b> ${l.state === 'paid' ? `<span class="pill ok">${T('paid')}</span>` : l.state === 'reserved' ? `<span class="pill warn">${T('reserved')}</span>` : ''}
+        <div class="muted small">${esc(l.options_text)} ${l.diner_name ? '· ' + esc(l.diner_name) : ''}${l.diner_id === dinerId ? ' ✦' : ''}</div></div>
+      <b>${money(l.line_total)}</b></div>`;
+  });
+  h += '</div>';
+  if (!M.features.payments) return h + simpleBill(unpaid) + callButtons() + '</main>';
+  if (!unpaid.length) return h + `<div class="card" style="margin-top:.8rem;text-align:center">${T('nothingToPay')}</div>${feedbackBox()}${callButtons()}</main>`;
+  const chosen = unpaid.filter(l => sel.has(l.id)), subtotal = chosen.reduce((s, l) => s + l.line_total, 0);
+  const tip = Math.round(subtotal * (tipPct || 0) / 100);
+  h += `<div class="card" style="margin-top:.8rem">
+    <div class="row wrap" style="margin-bottom:.6rem">
+      <button class="btn sm soft" id="selMine">${T('mine')}</button><button class="btn sm soft" id="selAll">${T('everything')}</button></div>
+    <label style="margin-top:0">${T('tip')}</label>
+    <div class="tips">${[0, 5, 10, 15].map(p => `<button data-tip="${p}" class="${tipPct === p ? 'on' : ''}">${p}%</button>`).join('')}</div>
+    <div class="row spread" style="margin-top:.8rem"><span class="muted">${T('subtotal')}</span><b>${money(subtotal)}</b></div>
+    ${taxRow(subtotal)}
+    <div class="row spread"><span class="muted">${T('tip')}</span><b>${money(tip)}</b></div>
+    <div class="row spread" style="margin:.4rem 0 .8rem"><span class="big">${T('total')}</span><span class="big">${money(subtotal + tip + (R.tax_included ? 0 : Math.round(subtotal * R.tax_pct / 100)))}</span></div>
+    ${R.invoicing ? invoiceForm() : ''}
+    ${M.providers.some(p => p.id === 'nequi') ? `<label>${T('nequiPhone')}</label><input id="nph" inputmode="tel" maxlength="14" placeholder="300 123 4567" value="${esc(draft.phone ?? (LS('mesaya_phone') || ''))}">` : ''}
+    ${M.providers.map(p => `<button class="btn block ${p.id === 'cashier' ? 'ghost' : p.id === 'nequi' ? 'nequi' : ''}" style="margin-top:.5rem" data-pay="${p.id}" ${chosen.length ? '' : 'disabled'}>${PAYLBL(p)}</button>`).join('')}
+  </div>`;
+  return h + callButtons() + '</main>';
+}
+
+// Modo simple (sin pagos en línea): el cliente ve su consumo y termina la mesa; el equipo cobra en caja.
+function simpleBill(unpaid) {
+  const R = M.restaurant;
+  if (!unpaid.length) return `<div class="card" style="margin-top:.8rem;text-align:center"><div style="font-size:2rem">✅</div><b>${T('tableClosed')}</b></div>${feedbackBox()}`;
+  const subtotal = unpaid.reduce((s, l) => s + l.line_total, 0);
+  const tipS = Math.round(subtotal * (R.tip_pct || 0) / 100);
+  const total = subtotal + (R.tax_included ? 0 : Math.round(subtotal * R.tax_pct / 100));
+  const asked = bill.calls.includes('bill');
+  return `<div class="card" style="margin-top:.8rem">
+    ${taxRow(subtotal)}
+    <div class="row spread" style="margin:.3rem 0"><span class="big">${T('totalConsumption')}</span><span class="big">${money(total)}</span></div>
+    ${R.tip_pct ? `<div class="muted small">${T('tipSuggested')} (${R.tip_pct}%): ${money(tipS)}</div>` : ''}
+    <button class="btn block" id="askBill" style="margin-top:.9rem" ${asked ? 'disabled' : ''}>${asked ? T('billAsked') : '🧾 ' + T('finishTable')}</button></div>`;
+}
+
+function callButtons() {
+  const called = bill.calls.includes('waiter');
+  return `<div class="row" style="margin:1rem 0"><button class="btn ghost grow" id="callW" ${called ? 'disabled' : ''}>🙋 ${called ? T('waiterCalled') : T('callWaiter')}</button></div>`;
+}
+
+let rating = 0, rated = false, billInit = false;
+function feedbackBox() {
+  if (rated) return `<div class="card" style="margin-top:.8rem;text-align:center">${T('rated')}</div>`;
+  return `<div class="card" style="margin-top:.8rem;text-align:center"><h3>${T('rate')}</h3>
+    <div class="stars">${[1, 2, 3, 4, 5].map(n => `<button data-star="${n}" class="${rating >= n ? 'on' : ''}">★</button>`).join('')}</div>
+    <input id="fbc" placeholder="${T('comment')}" maxlength="400" style="margin:.6rem 0"><button class="btn block" id="fbSend" ${rating ? '' : 'disabled'}>${T('sendRate')}</button></div>`;
+}
+
+function bindBill() {
+  const unpaid = bill.lines.filter(l => l.state === 'unpaid');
+  if (!billInit && unpaid.length) { billInit = true; unpaid.filter(l => l.diner_id === dinerId).forEach(l => sel.add(l.id)); if (sel.size) { render(); return; } }
+  [...sel].forEach(id => { if (!unpaid.some(l => l.id === id)) sel.delete(id); });
+  $$('[data-sel]').forEach(c => c.onchange = () => { c.checked ? sel.add(+c.dataset.sel) : sel.delete(+c.dataset.sel); render(); });
+  const a = $('#selAll'); if (a) a.onclick = () => { unpaid.forEach(l => sel.add(l.id)); render(); };
+  const m = $('#selMine'); if (m) m.onclick = () => { sel.clear(); unpaid.filter(l => l.diner_id === dinerId).forEach(l => sel.add(l.id)); render(); };
+  $$('[data-tip]').forEach(b => b.onclick = () => { tipPct = +b.dataset.tip; render(); });
+  $$('[data-pay]').forEach(b => b.onclick = () => pay(b.dataset.pay));
+  const ab = $('#askBill'); if (ab) ab.onclick = async () => { try { await api(`/api/public/${slug}/call`, { method: 'POST', body: { table: TABLE, key: KEY, type: 'bill' } }); await refreshBill(); render(); toast('🧾 ' + T('billAsked')); } catch (e) { toast(e.message, true); } };
+  const cw = $('#callW'); if (cw) cw.onclick = async () => { try { await api(`/api/public/${slug}/call`, { method: 'POST', body: { table: TABLE, key: KEY, type: 'waiter' } }); await refreshBill(); render(); toast('🙋 ' + T('waiterCalled')); } catch (e) { toast(e.message, true); } };
+  $$('[data-star]').forEach(b => b.onclick = () => { rating = +b.dataset.star; render(); });
+  const fb = $('#fbSend'); if (fb) fb.onclick = sendFeedback;
+}
+
+const PAYLBL = p => p.id === 'cashier' ? T('askBill') : p.id === 'nequi' ? T('payNequi') : p.id === 'breb' ? T('payBreb') : T('payOnline') + (p.id === 'mock' ? ' · demo' : '');
+
+// ---- factura electrónica (opcional; sin datos se emite a Consumidor Final)
+function invoiceData() { try { return { ...JSON.parse(LS('mesaya_inv') || '{}'), ...(draft.inv || {}) }; } catch (e) { return draft.inv || {}; } }
+function invoiceForm() {
+  const d = invoiceData(), open = d.open !== undefined ? d.open : !!(d.doc_number && d.name);
+  return `<details id="invf" ${open ? 'open' : ''} style="margin-top:.8rem"><summary style="cursor:pointer;font-weight:700">🧾 ${T('wantInvoice')}</summary>
+    <p class="muted small" style="margin:.4rem 0">${T('invoiceHint')}</p>
+    <div class="row"><select id="idt" style="width:42%">${[['CC', 'CC'], ['NIT', 'NIT'], ['CE', 'CE'], ['PP', 'Pasaporte']].map(([v, l]) => `<option value="${v}" ${d.doc_type === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <input id="idn" inputmode="numeric" placeholder="${T('docNumber')}" value="${esc(d.doc_number || '')}"></div>
+    <input id="idname" placeholder="${T('fullName')}" style="margin-top:.4rem" value="${esc(d.name || '')}" autocomplete="name">
+    <input id="idmail" type="email" placeholder="${T('emailInv')}" style="margin-top:.4rem" value="${esc(d.email || '')}" autocomplete="email"></details>`;
+}
+function readInvoice() {
+  if (!$('#idn')) return null;
+  const d = { doc_type: $('#idt').value, doc_number: $('#idn').value.trim(), name: $('#idname').value.trim(), email: $('#idmail').value.trim() };
+  if (d.doc_number && d.name) { LS('mesaya_inv', JSON.stringify(d)); return d; }
+  return null;
+}
+
+async function pay(provider) {
+  const ids = [...sel].filter(id => bill.lines.some(l => l.id === id && l.state === 'unpaid'));
+  if (!ids.length) return;
+  const phone = $('#nph') ? $('#nph').value : '';
+  if (provider === 'nequi') LS('mesaya_phone', phone);
+  paying = true;
+  try {
+    const res = await api(`/api/public/${slug}/pay`, { method: 'POST', body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, phone, invoice: readInvoice() } });
+    if (res.mode === 'redirect') { location.href = res.url; return; }
+    sel.clear();
+    if (res.mode === 'cashier') toast('🧾 ' + T('askBill'));
+    else if (res.mode === 'push') waitNequi(res);
+    else if (res.mode === 'breb') showBreb(res);
+    else showThanks(res.payment_id);
+  } catch (e) { toast(e.message, true); }
+  paying = false; await refreshBill(); render();
+}
+
+const statusUrl = id => `/api/public/${slug}/pay/${id}?table=${encodeURIComponent(TABLE)}&k=${encodeURIComponent(KEY)}`;
+const payAction = (id, act) => api(`/api/public/${slug}/pay/${id}/${act}`, { method: 'POST', body: { table: TABLE, key: KEY } });
+let pollTimer = null;
+
+function pollPayment(id, onPaid, onFail) {
+  clearInterval(pollTimer);
+  const started = Date.now();
+  pollTimer = setInterval(async () => {
+    try {
+      const s = await api(statusUrl(id));
+      if (s.status === 'paid') { clearInterval(pollTimer); onPaid(s); }
+      else if (s.status === 'failed') { clearInterval(pollTimer); onFail(); }
+      else if (Date.now() - started > 6 * 60 * 1000) { clearInterval(pollTimer); onFail(true); }
+    } catch (e) { /* reintenta */ }
+  }, 3000);
+}
+
+function waitNequi(res) {
+  const dlg = $('#dlg'), body = $('#dlgBody');
+  body.innerHTML = `<div style="text-align:center;padding:.6rem 0"><div style="font-size:2.6rem">📲</div><h2>${T('openNequi')}</h2>
+    <p class="muted">${T('nequiWait')}</p><div class="big">${money(res.total)}</div>
+    <p class="small muted" id="pst">${T('waiting')}</p><button class="btn ghost" id="cn">${T('cancel')}</button></div>`;
+  $('#cn').onclick = async () => { clearInterval(pollTimer); await payAction(res.payment_id, 'cancel'); dlg.close(); await refreshBill(); render(); };
+  dlg.showModal();
+  pollPayment(res.payment_id, s => showThanks(res.payment_id, s), timeout => {
+    body.innerHTML = `<div style="text-align:center;padding:1rem 0"><div style="font-size:2.6rem">⚠️</div><h2>${timeout ? T('payTimeout') : T('payDeclined')}</h2><button class="btn" id="okT">OK</button></div>`;
+    $('#okT').onclick = async () => { dlg.close(); await refreshBill(); render(); };
+  });
+}
+
+function showBreb(res) {
+  const dlg = $('#dlg'), body = $('#dlgBody'), k = res.breb;
+  body.innerHTML = `<div style="text-align:center"><h2>Bre-B</h2><p class="muted">${T('brebIntro')}</p>
+    <div class="card" style="background:var(--bg)"><div class="muted small">${T('brebKey')} (${esc(k.type)})</div><div class="big" id="bk">${esc(k.key)}</div>
+      ${k.holder ? `<div class="muted small">${esc(k.holder)}</div>` : ''}<button class="btn sm soft" id="cpk" style="margin-top:.4rem">${T('copyKey')}</button></div>
+    <p style="margin:.8rem 0 .2rem">${T('exactAmount')}</p><div class="big">${money(res.total)}</div><p class="muted small">${T('brebRef')}: <b>${esc(res.reference)}</b> · ${T('mesaLbl')} ${esc(M.table)}</p>
+    <button class="btn block" id="did">${T('iPaid')}</button><button class="btn ghost block" id="cn" style="margin-top:.4rem">${T('cancel')}</button></div>`;
+  $('#cpk').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(k.key); toast('✓'); };
+  $('#cn').onclick = async () => { clearInterval(pollTimer); await payAction(res.payment_id, 'cancel'); dlg.close(); await refreshBill(); render(); };
+  $('#did').onclick = async () => {
+    try { await payAction(res.payment_id, 'claim'); } catch (e) { return toast(e.message, true); }
+    body.innerHTML = `<div style="text-align:center;padding:1rem 0"><div style="font-size:2.6rem">⏳</div><h2>${T('brebCheck')}</h2><p class="muted">${T('brebCheckSub')}</p></div>`;
+    pollPayment(res.payment_id, s => showThanks(res.payment_id, s), () => { body.innerHTML = `<div style="text-align:center;padding:1rem 0"><div style="font-size:2.6rem">⚠️</div><h2>${T('brebNo')}</h2><button class="btn" id="okT">OK</button></div>`; $('#okT').onclick = async () => { dlg.close(); await refreshBill(); render(); }; });
+  };
+  dlg.showModal();
+}
+
+async function showThanks(paymentId, status) {
+  const dlg = $('#dlg'), body = $('#dlgBody');
+  clearInterval(pollTimer);
+  const paint = inv => {
+    body.innerHTML = `<div style="text-align:center;padding:1rem 0"><div style="font-size:3rem">✅</div><h2>${T('thanks')}</h2>
+      ${inv && inv.status === 'issued' ? `<p>🧾 ${T('invoiceNo')} <b>${esc(inv.number)}</b></p>${inv.public_url ? `<a class="btn sm soft" target="_blank" rel="noopener" href="${esc(inv.public_url)}">${T('viewInvoice')}</a>` : ''}` : inv ? `<p class="muted small">${T('invoiceSoon')}</p>` : ''}
+      <p><button class="btn" id="okT">OK</button></p></div>`;
+    $('#okT').onclick = () => { dlg.close(); refreshBill().then(render); };
+  };
+  paint(status && status.invoice);
+  if (!dlg.open) dlg.showModal();
+  if (paymentId && M.restaurant.invoicing) {  // la factura se emite en segundo plano: consultar unos segundos
+    for (let i = 0; i < 8 && dlg.open; i++) {
+      await new Promise(r => setTimeout(r, 2500));
+      try { const s = await api(statusUrl(paymentId)); if (s.invoice && ['issued', 'error'].includes(s.invoice.status)) { paint(s.invoice.status === 'issued' ? s.invoice : { status: 'pending' }); break; } } catch (e) { /* ok */ }
+    }
+  }
+}
+
+async function sendFeedback() {
+  try {
+    const r = await api(`/api/public/${slug}/feedback`, { method: 'POST', body: { table: TABLE, rating, comment: $('#fbc').value } });
+    rated = true; render();
+    if (r.review_url) { const a = document.createElement('a'); a.href = r.review_url; a.target = '_blank'; a.rel = 'noopener'; a.className = 'btn block'; a.style.margin = '.6rem 0'; a.textContent = '⭐ ' + T('google'); $('main').prepend(a); }
+  } catch (e) { toast(e.message, true); }
+}
+
+load();
+</script>
+</body>
+</html>

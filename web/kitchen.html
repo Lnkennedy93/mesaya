@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cocina y sala</title>
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+body{background:#16130f;color:#f3ede4;--card:#241f19;--line:#3a332a;--ink:#f3ede4;--muted:#a39a8d;--bg:#16130f}
+header{display:flex;gap:.8rem;align-items:center;padding:.7rem 1rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:#16130f;z-index:10;flex-wrap:wrap}
+header h1{font-size:1.1rem;margin:0}
+.tabs{display:flex;gap:.3rem;margin-left:1rem}
+.tabs button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:.5em 1em;border-radius:99px;cursor:pointer}
+.tabs button.on{background:var(--brand);color:var(--brand-ink)}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;padding:.8rem;align-items:start}
+@media(max-width:860px){.cols{grid-template-columns:1fr}}
+.col h2{font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.2rem .2rem .6rem}
+.ticket{background:var(--card);border-radius:14px;padding:.9rem;margin-bottom:.7rem;border-left:6px solid var(--ok)}
+.ticket.warn{border-color:var(--warn)} .ticket.late{border-color:var(--bad);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(214,69,69,.25)}}
+.ticket .t{font-size:1.7rem;font-weight:900}
+.ticket li{margin:.25rem 0;list-style:none}
+.ticket ul{padding:0;margin:.5rem 0}
+.q{display:inline-block;min-width:1.8em;text-align:center;background:#fff;color:#1d1a16;border-radius:6px;font-weight:800;margin-right:.4rem}
+.note{color:#ffd27a;font-size:.85rem}
+.calls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.6rem 1rem 0}
+.call{background:#5a1d1d;border-radius:12px;padding:.5rem .8rem;display:flex;gap:.6rem;align-items:center;animation:pulse 1.4s infinite}
+.floor{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.7rem;padding:1rem}
+.tb{background:var(--card);border-radius:14px;padding:.8rem;cursor:pointer;border:2px solid transparent;text-align:center}
+.tb.occ{border-color:var(--warn)} .tb.call{border-color:var(--bad)} .tb.done{border-color:var(--ok)}
+.tb b{font-size:1.6rem;display:block}
+.login{max-width:340px;margin:12vh auto;padding:1.4rem}
+dialog{background:#241f19;color:#f3ede4}
+.pad{padding:1rem}
+.line{display:flex;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line)}
+input,select{background:#16130f;border-color:var(--line)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script src="/assets/common.js"></script>
+<script>
+let ME = null, money = v => v, reviews = [], tab = 'kitchen', orders = [], calls = [], floor = [], menu = [], sound = true, knownIds = new Set(), first = true;
+
+async function boot() {
+  try { ME = await api('/api/me'); } catch (e) { return loginView(); }
+  setBrand(ME.restaurant.brand_color);
+  money = makeMoney(ME.restaurant.decimals, ME.restaurant.currency);
+  await refresh();
+  liveStream('/api/stream', { order: refresh, call: refresh, paid: refresh, menu: refresh, payment: refresh });
+  setInterval(() => { if (tab === 'kitchen') paintKitchen(); }, 15000);
+  render();
+}
+
+function loginView() {
+  const slug = new URLSearchParams(location.search).get('r') || '';
+  $('#root').innerHTML = `<div class="card login"><h2>Cocina y sala</h2><p class="muted small">Ingresa el código de tu restaurante y el PIN del equipo (lo encuentras en Ajustes del panel).</p>
+    <label>Restaurante (código)</label><input id="slug" value="${esc(slug)}" placeholder="dragon-dorado" autocapitalize="off">
+    <label>PIN</label><input id="pin" type="password" inputmode="numeric" maxlength="8">
+    <button class="btn block" style="margin-top:1rem" id="go">Entrar</button>
+    <p class="small muted" style="margin-top:1rem">¿Eres el dueño? <a href="/login">Entra al panel</a></p></div>`;
+  $('#go').onclick = async () => {
+    try { await api('/api/staff-login', { method: 'POST', body: { slug: $('#slug').value, pin: $('#pin').value } }); location.reload(); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+
+async function refresh() {
+  const [o, c, f, m, rv] = await Promise.all([api('/api/orders'), api('/api/calls'), api('/api/floor'), api('/api/menu'), api('/api/payments/review')]);
+  if (!first && rv.payments.some(x => !reviews.some(y => y.id === x.id)) && sound) beep();
+  reviews = rv.payments;
+  const ids = new Set(o.orders.map(x => x.id));
+  const fresh = o.orders.filter(x => x.status === 'new' && !knownIds.has(x.id));
+  if (!first && fresh.length && sound) beep();
+  const newCalls = c.calls.filter(x => !calls.some(y => y.id === x.id));
+  if (!first && newCalls.length && sound) beep();
+  knownIds = ids; first = false;
+  orders = o.orders; calls = c.calls; floor = f.tables; menu = m.categories;
+  render();
+}
+
+function render() {
+  if (!ME) return;
+  const nNew = orders.filter(o => o.status === 'new').length;
+  $('#root').innerHTML = `<header><h1>${esc(ME.restaurant.name)}</h1>
+    <div class="tabs"><button data-t="kitchen" class="${tab === 'kitchen' ? 'on' : ''}">Cocina${nNew ? ` · ${nNew}` : ''}</button>
+    <button data-t="floor" class="${tab === 'floor' ? 'on' : ''}">Sala${calls.length ? ` · ${calls.length}` : ''}</button>
+    <button data-t="stock" class="${tab === 'stock' ? 'on' : ''}">Agotados</button></div>
+    <span class="grow"></span><button class="btn sm ghost" id="snd">${sound ? '🔔 Sonido' : '🔕 Silencio'}</button>
+    ${ME.role === 'owner' ? '<a class="btn sm ghost" href="/admin">Panel</a>' : ''}
+    <button class="btn sm ghost" id="out">Salir</button></header>
+    <div class="calls">${reviews.map(p => `<div class="call" style="background:#1d3f5a;animation:none"><b>💸 Confirmar Bre-B · Mesa ${esc(p.table_label)} · ${money(p.total)}</b><span class="muted small">ref ${esc(p.reference.slice(-6).toUpperCase())}</span>
+      <button class="btn sm ok" data-pc="${p.id}">Ya llegó</button><button class="btn sm ghost" data-pr="${p.id}">No llegó</button></div>`).join('')}${calls.map(c => `<div class="call"><b>${c.type === 'bill' ? '🧾 Cuenta' : '🙋 Mesero'} · Mesa ${esc(c.table_label)}</b><button class="btn sm" data-res="${c.id}">Atendido</button></div>`).join('')}</div>
+    <div id="body"></div>`;
+  $$('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
+  $('#snd').onclick = () => { sound = !sound; if (sound) beep(); render(); };
+  $('#out').onclick = async () => { await api('/api/logout', { method: 'POST' }); location.reload(); };
+  $$('[data-pc]').forEach(b => b.onclick = async () => { await api(`/api/payments/${b.dataset.pc}/confirm`, { method: 'POST' }); toast('Pago confirmado ✓'); refresh(); });
+  $$('[data-pr]').forEach(b => b.onclick = async () => { if (confirm('¿El dinero NO llegó a tu cuenta? Se liberará la cuenta del cliente.')) { await api(`/api/payments/${b.dataset.pr}/reject`, { method: 'POST' }); refresh(); } });
+  $$('[data-res]').forEach(b => b.onclick = async () => { await api(`/api/calls/${b.dataset.res}/resolve`, { method: 'POST' }); refresh(); });
+  if (tab === 'kitchen') paintKitchen(); else if (tab === 'floor') paintFloor(); else paintStock();
+}
+
+const NEXT = { new: ['preparing', 'Preparar'], preparing: ['ready', 'Listo'], ready: ['served', 'Entregado'] };
+
+function paintKitchen() {
+  const col = (st, title) => {
+    const list = orders.filter(o => o.status === st);
+    return `<div class="col"><h2>${title} (${list.length})</h2>${list.map(o => {
+      const mins = secsSince(o.created_at) / 60;
+      const cls = st === 'ready' ? '' : mins > 15 ? 'late' : mins > 8 ? 'warn' : '';
+      return `<div class="ticket ${cls}"><div class="row spread"><span class="t">Mesa ${esc(o.table_label)}</span><span class="muted">#${o.seq} · ${Math.floor(mins)} min</span></div>
+        <ul>${o.items.map(i => `<li><span class="q">${i.qty}</span><b>${esc(i.name)}</b>${i.options_text ? `<div class="muted small">${esc(i.options_text)}</div>` : ''}${i.note ? `<div class="note">“${esc(i.note)}”</div>` : ''}</li>`).join('')}</ul>
+        ${o.note ? `<div class="note">📝 ${esc(o.note)}</div>` : ''}${o.diner_name ? `<div class="muted small">${esc(o.diner_name)}</div>` : ''}
+        <div class="row" style="margin-top:.6rem"><button class="btn grow ${st === 'ready' ? 'ok' : ''}" data-adv="${o.id}" data-to="${NEXT[st][0]}">${NEXT[st][1]}</button>
+        <button class="btn ghost sm" data-cancel="${o.id}">✕</button></div></div>`;
+    }).join('') || '<p class="muted small">—</p>'}</div>`;
+  };
+  $('#body').innerHTML = `<div class="cols">${col('new', 'Nuevos')}${col('preparing', 'En preparación')}${col('ready', 'Listos para servir')}</div>`;
+  $$('[data-adv]').forEach(b => b.onclick = async () => { await api(`/api/orders/${b.dataset.adv}/status`, { method: 'POST', body: { status: b.dataset.to } }); refresh(); });
+  $$('[data-cancel]').forEach(b => b.onclick = async () => { if (confirm('¿Cancelar este pedido?')) { await api(`/api/orders/${b.dataset.cancel}/status`, { method: 'POST', body: { status: 'cancelled' } }); refresh(); } });
+}
+
+function paintFloor() {
+  $('#body').innerHTML = `<div class="floor">${floor.map(t => `<div class="tb ${t.calls.length ? 'call' : t.unpaid ? 'occ' : t.has_paid ? 'done' : ''}" data-tb="${esc(t.label)}">
+    <span class="muted small">Mesa</span><b>${esc(t.label)}</b>
+    ${t.unpaid ? `<div>${money(t.unpaid)}</div>` : '<div class="muted small">libre</div>'}
+    <div class="small">${t.active ? `🍳 ${t.active} en cocina` : ''}${t.calls.length ? ' 🔔' : ''}</div></div>`).join('')}</div>`;
+  $$('[data-tb]').forEach(el => el.onclick = () => openTable(el.dataset.tb));
+}
+
+async function openTable(label) {
+  const { lines } = await api(`/api/floor/${encodeURIComponent(label)}`);
+  const unpaid = lines.filter(l => l.state === 'unpaid');
+  const total = unpaid.reduce((s, l) => s + l.line_total, 0);
+  $('#dlgBody').innerHTML = `<div class="row spread"><h2 style="margin:0">Mesa ${esc(label)}</h2><button class="x" style="color:#fff;background:none;border:0;font-size:1.6rem" id="cl">×</button></div>
+    ${lines.map(l => `<div class="line"><div class="grow">${l.qty}× ${esc(l.name)} <span class="muted small">${esc(l.diner_name || '')}</span></div><span>${l.state === 'paid' ? '<span class="pill ok">PAGADO</span>' : money(l.line_total)}</span></div>`).join('') || '<p class="muted">Sin consumo reciente</p>'}
+    <div class="row spread" style="margin:.8rem 0"><b>Por cobrar</b><b class="big" style="font-size:1.4rem">${money(total)}</b></div>
+    ${ME.features.invoicing && ME.restaurant.inv_provider !== 'none' && total ? `<details style="margin:.4rem 0"><summary style="cursor:pointer">🧾 Factura a nombre del cliente (opcional)</summary>
+      <div class="row" style="margin-top:.4rem"><select id="idt" style="width:35%"><option>CC</option><option>NIT</option><option>CE</option><option value="PP">Pasaporte</option></select><input id="idn" placeholder="Documento" inputmode="numeric"></div>
+      <input id="idname" placeholder="Nombre o razón social" style="margin-top:.4rem"><input id="idmail" type="email" placeholder="Correo" style="margin-top:.4rem"></details>
+      <p class="muted small" style="margin:.2rem 0 .6rem">Sin datos se factura a Consumidor Final.</p>` : ''}
+    ${ME.features.payments ? `<div class="row"><button class="btn grow ok" data-m="cash" ${total ? '' : 'disabled'}>Cobrado en efectivo</button><button class="btn grow" data-m="card" ${total ? '' : 'disabled'}>Cobrado con datáfono</button></div>`
+      : `<button class="btn block ok" data-m="cash" ${total ? '' : 'disabled'}>✅ Cerrar mesa (cuenta cobrada)</button><p class="muted small" style="margin:.4rem 0 0">Cobra en caja como siempre y cierra la mesa para dejarla libre.</p>`}`;
+  $('#cl').onclick = () => $('#dlg').close();
+  $$('[data-m]').forEach(b => b.onclick = async () => { await api(`/api/floor/${encodeURIComponent(label)}/settle`, { method: 'POST', body: { method: b.dataset.m, invoice: $('#idn') && $('#idn').value && $('#idname').value ? { doc_type: $('#idt').value, doc_number: $('#idn').value, name: $('#idname').value, email: $('#idmail').value } : null } }); $('#dlg').close(); toast('Mesa cerrada ✓'); refresh(); });
+  $('#dlg').showModal();
+}
+
+function paintStock() {
+  $('#body').innerHTML = `<div class="pad" style="max-width:640px;margin:auto"><p class="muted">Apaga un plato cuando se agote: desaparece al instante de los celulares de los clientes.</p>
+    ${menu.map(c => `<h3 style="margin-top:1.2rem">${esc(c.name)}</h3>${c.items.map(i => `<div class="line"><div class="grow">${esc(i.name)}</div>
+      <span class="small muted">${i.available ? 'Disponible' : '<b style="color:#ff8a8a">AGOTADO</b>'}</span>
+      <label class="switch" style="margin:0"><input type="checkbox" data-av="${i.id}" ${i.available ? 'checked' : ''}><span></span></label></div>`).join('')}`).join('')}</div>`;
+  $$('[data-av]').forEach(c => c.onchange = async () => { await api(`/api/items/${c.dataset.av}/availability`, { method: 'POST', body: { available: c.checked } }); toast(c.checked ? 'Disponible de nuevo' : 'Plato apagado'); refresh(); });
+}
+boot();
+</script>
+</body>
+</html>

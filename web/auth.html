@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es" data-auto-theme>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · MesaYa</title>
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+body{min-height:100vh;display:grid;place-items:center;padding:1rem;background:radial-gradient(1200px 500px at 20% -10%,#ffd9c9 0,transparent 60%),var(--bg)}
+.box{width:100%;max-width:420px}
+.logo{font-weight:900;font-size:1.5rem;margin-bottom:1rem;display:block;text-decoration:none}
+.logo b{color:var(--brand)}
+.swap{margin-top:1rem;text-align:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.terms{display:flex;gap:.5rem;align-items:flex-start;font-weight:500;color:var(--ink);font-size:.88rem;margin-top:1rem}
+.terms input{width:auto;margin-top:.2rem}
+</style>
+</head>
+<body>
+<div class="box">
+  <a class="logo" href="/">Mesa<b>Ya</b></a>
+  <div class="card" id="card"></div>
+</div>
+<script src="/assets/common.js"></script>
+<script>
+const path = location.pathname.replace(/\/$/, '');
+let mode = ({ '/signup': 'signup', '/forgot': 'forgot', '/reset': 'reset' })[path] || 'login';
+const token = new URLSearchParams(location.search).get('token') || '';
+const go = (m, e) => { if (e) e.preventDefault(); mode = m; history.replaceState(null, '', '/' + (m === 'login' ? 'login' : m)); render(); };
+
+function render() {
+  const s = mode === 'signup';
+  let h = '';
+  if (mode === 'forgot') {
+    h = `<h2>Recuperar contraseña</h2><p class="muted small" style="margin-top:0">Escribe tu correo y te enviaremos un enlace para crear una nueva.</p>
+      <form id="f"><label>Correo</label><input name="email" type="email" required autocomplete="email">
+      <button class="btn block" style="margin-top:1.2rem" id="go">Enviar enlace</button></form>
+      <p class="swap small"><a href="/login" id="sw">Volver a entrar</a></p>`;
+  } else if (mode === 'reset') {
+    h = `<h2>Crea tu nueva contraseña</h2><form id="f"><label>Nueva contraseña</label><input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="Mínimo 8 caracteres">
+      <label>Repítela</label><input name="again" type="password" required minlength="8" autocomplete="new-password">
+      <button class="btn block" style="margin-top:1.2rem" id="go">Guardar y entrar</button></form>`;
+  } else {
+    h = `<h2>${s ? 'Prueba gratis 14 días' : 'Entrar a tu panel'}</h2>
+    <p class="muted small" style="margin-top:0">${s ? 'Sin tarjeta de crédito. Tu carta digital lista en minutos.' : 'Bienvenido de nuevo.'}</p>
+    <form id="f">
+    ${s ? `<label>Nombre del restaurante</label><input name="name" required minlength="2" maxlength="60" autocomplete="organization">` : ''}
+    <label>Correo</label><input name="email" type="email" required autocomplete="email">
+    <label>Contraseña</label><input name="password" type="password" required minlength="8" autocomplete="${s ? 'new-password' : 'current-password'}" placeholder="${s ? 'Mínimo 8 caracteres' : ''}">
+    ${s ? `<div class="two"><div><label>Moneda</label><select name="currency">${['COP', 'USD', 'MXN', 'PEN', 'CLP', 'ARS', 'EUR', 'GTQ', 'DOP'].map(c => `<option>${c}</option>`).join('')}</select></div>
+      <div><label>Número de mesas</label><input name="tables" type="number" min="1" max="60" value="8"></div></div>
+      <label class="terms"><input type="checkbox" name="accept_terms" required> <span>Acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y condiciones</a> y autorizo el tratamiento de mis datos según la <a href="/privacidad" target="_blank" rel="noopener">Política de tratamiento de datos</a>.</span></label>` : ''}
+    <button class="btn block" style="margin-top:1.2rem" id="go">${s ? 'Crear mi cuenta' : 'Entrar'}</button></form>
+    ${s ? '' : '<p class="swap small" style="margin-bottom:0"><a href="/forgot" id="fg">¿Olvidaste tu contraseña?</a></p>'}
+    <p class="swap small">${s ? '¿Ya tienes cuenta? <a href="/login" id="sw">Entrar</a>' : '¿Aún no tienes cuenta? <a href="/signup" id="sw">Prueba gratis</a>'}</p>`;
+  }
+  $('#card').innerHTML = h;
+  const sw = $('#sw'); if (sw) sw.onclick = e => go(mode === 'signup' || mode === 'forgot' ? 'login' : 'signup', e);
+  const fg = $('#fg'); if (fg) fg.onclick = e => go('forgot', e);
+  $('#f').onsubmit = async e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    $('#go').disabled = true;
+    try {
+      if (mode === 'forgot') {
+        const r = await api('/api/forgot', { method: 'POST', body: { email: d.email } });
+        $('#card').innerHTML = `<h2>Revisa tu correo</h2><p>${esc(r.message)}</p><p class="muted small">Si no te llega en unos minutos, revisa spam o escríbenos por WhatsApp para ayudarte.</p><p class="swap small"><a href="/login">Volver a entrar</a></p>`;
+        return;
+      }
+      if (mode === 'reset') {
+        if (d.password !== d.again) throw new Error('Las contraseñas no coinciden');
+        await api('/api/reset', { method: 'POST', body: { token, password: d.password } });
+        location.href = '/admin'; return;
+      }
+      if (d.tables) d.tables = +d.tables;
+      if (mode === 'signup') d.accept_terms = !!d.accept_terms;
+      await api('/api/' + mode, { method: 'POST', body: d });
+      location.href = mode === 'signup' ? '/admin?welcome=1' : '/admin';
+    } catch (err) { toast(err.message, true); $('#go').disabled = false; }
+  };
+}
+if (mode === 'reset' && !token) mode = 'forgot';
+render();
+</script>
+</body>
+</html>
