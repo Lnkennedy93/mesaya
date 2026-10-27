@@ -13,7 +13,7 @@ nav button{text-align:left;border:0;background:none;padding:.65em .8em;border-ra
 nav button.on{background:color-mix(in srgb,var(--brand) 13%,transparent);color:var(--brand)}
 nav .sp{flex:1}
 main{padding:1.4rem;max-width:980px;width:100%}
-@media(max-width:760px){.layout{grid-template-columns:1fr}nav{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;overflow-x:auto;z-index:40;border-top:1px solid var(--line);border-right:0;padding:.4rem}nav .logo,nav .sp,nav .nlabel{display:none}nav button{white-space:nowrap}main{padding:1rem 1rem 90px}}
+@media(max-width:760px){.layout{grid-template-columns:1fr}nav{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;overflow-x:auto;z-index:40;border-top:1px solid var(--line);border-right:0;padding:.4rem}nav .logo,nav .sp,nav .nlabel,nav .powered{display:none}nav button{white-space:nowrap}main{padding:1rem 1rem 90px}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1rem 0}
 .kpi .v{font-size:1.5rem;font-weight:900}
 .banner{background:color-mix(in srgb,var(--warn) 16%,var(--card));border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
@@ -40,7 +40,7 @@ textarea{min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:
 <div class="layout">
 <nav><div class="logo">Mesa<b>Ya</b></div><div id="nav"></div><div class="sp"></div>
 <a class="btn sm ghost" href="/kitchen" target="_blank">Cocina y sala ↗</a>
-<button id="logout" style="margin-top:.3rem">Salir</button></nav>
+<button id="logout" style="margin-top:.3rem">Salir</button><div class="powered">Desarrollado por <a href="https://www.nexflowlabs.co/" target="_blank" rel="noopener">Nexflow Labs</a></div></nav>
 <main id="main"></main>
 </div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>

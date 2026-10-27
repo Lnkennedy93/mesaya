@@ -52,3 +52,7 @@ dialog::backdrop{background:rgba(20,12,4,.55);backdrop-filter:blur(2px)}
 .dlg{padding:1.2rem}
 .thumb{background:linear-gradient(135deg,color-mix(in srgb,var(--brand) 22%,#fff),color-mix(in srgb,var(--brand) 6%,#fff));display:grid;place-items:center;color:var(--brand);font-weight:800;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+.powered{padding:1.2rem 1rem;text-align:center;font-size:.75rem;letter-spacing:.02em;color:var(--muted);opacity:.8}
+.powered a{font-weight:700;color:inherit;text-decoration:none}
+.powered a:hover{color:var(--brand);text-decoration:underline}
