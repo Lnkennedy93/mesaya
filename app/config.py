@@ -21,6 +21,11 @@ def _load_dotenv(path: Path):
 _load_dotenv(ROOT / ".env")
 
 DB_PATH = Path(os.getenv("MESAYA_DB", ROOT / "data" / "mesaya.db"))
+# Con MESAYA_DATABASE_URL (postgresql://usuario:clave@host:5432/base) MesaYa usa PostgreSQL en vez de SQLite.
+DATABASE_URL = os.getenv("MESAYA_DATABASE_URL", "").strip()
+PG_POOL_MAX = int(os.getenv("MESAYA_PG_POOL_MAX", "20"))
+# Esquema de PostgreSQL (por defecto "public"). "auto" crea uno temporal: lo usan las pruebas.
+PG_SCHEMA = os.getenv("MESAYA_PG_SCHEMA", "").strip()
 UPLOAD_DIR = Path(os.getenv("MESAYA_UPLOADS", ROOT / "uploads"))
 WEB_DIR = ROOT / "web"
 

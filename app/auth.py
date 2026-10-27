@@ -84,10 +84,19 @@ def plan_info(r: dict):
 _hits: dict[str, list[float]] = {}
 
 
-def rate_limit(key: str, limit: int, window: int):
+def rate_check(key: str, limit: int, window: int):
+    """Falla con 429 si ya se alcanzó el límite, sin contar este intento."""
     t = time.time()
     arr = [x for x in _hits.get(key, []) if t - x < window]
+    _hits[key] = arr
     if len(arr) >= limit:
         raise HTTPException(429, "Demasiados intentos, espera un momento")
-    arr.append(t)
-    _hits[key] = arr
+
+
+def rate_hit(key: str):
+    _hits.setdefault(key, []).append(time.time())
+
+
+def rate_limit(key: str, limit: int, window: int):
+    rate_check(key, limit, window)
+    rate_hit(key)

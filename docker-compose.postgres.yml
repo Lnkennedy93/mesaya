@@ -1,0 +1,29 @@
+# MesaYa con PostgreSQL propio en el mismo servidor (en vez de SQLite):
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d --build
+# Define POSTGRES_PASSWORD en tu .env (una clave larga y aleatoria).
+services:
+  app:
+    environment:
+      MESAYA_DATABASE_URL: postgresql://mesaya:${POSTGRES_PASSWORD}@db:5432/mesaya
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mesaya
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: mesaya
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mesaya -d mesaya"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # sin "ports": la base NO se expone a internet, solo la ve la app dentro de la red de Docker
+
+volumes:
+  pgdata:

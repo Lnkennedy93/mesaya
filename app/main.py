@@ -98,7 +98,7 @@ def healthz():
     age = backup.last_backup_age_hours()
     enabled = config.BACKUP_EVERY_HOURS > 0
     stale = enabled and ((age is None and time.time() - _started > 6 * 3600) or (age is not None and age > config.BACKUP_EVERY_HOURS * 3))
-    return JSONResponse({"ok": db_ok, "db": db_ok, "backup_age_hours": age, "backup_stale": bool(stale)}, status_code=200 if db_ok else 503)
+    return JSONResponse({"ok": db_ok, "db": db_ok, "engine": "postgres" if db.IS_PG else "sqlite", "backup_age_hours": age, "backup_stale": bool(stale)}, status_code=200 if db_ok else 503)
 
 
 config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

@@ -7,3 +7,4 @@ pillow>=10.4
 cryptography>=43
 pdfminer.six>=20240706
 pytesseract>=0.3.10
+psycopg[binary,pool]>=3.2

@@ -1,7 +1,17 @@
-import sqlite3
+import atexit
 import json
+import re
+import sqlite3
+import threading
+import uuid
 from contextlib import closing, contextmanager
+
+from . import config
 from .config import DB_PATH
+
+# Dos motores con la misma API: SQLite (por defecto, un solo archivo) y PostgreSQL (MESAYA_DATABASE_URL).
+IS_PG = bool(config.DATABASE_URL)
+PG_SCHEMA = ("t_" + uuid.uuid4().hex[:10]) if config.PG_SCHEMA == "auto" else config.PG_SCHEMA
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS restaurants (
@@ -147,13 +157,122 @@ CREATE TABLE IF NOT EXISTS feedback (
 """
 
 
-def connect():
+# ---------------------------------------------------------------- SQLite
+def _connect_sqlite():
     conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     return conn
+
+
+# ---------------------------------------------------------------- PostgreSQL
+class Row(dict):
+    """Fila que se lee por nombre o por posición (como sqlite3.Row)."""
+    def __getitem__(self, k):
+        if isinstance(k, int):
+            return list(self.values())[k]
+        return super().__getitem__(k)
+
+
+def _row_factory(cursor):
+    names = [c.name for c in (cursor.description or [])]
+    return lambda values: Row(zip(names, values))
+
+
+_NO_ID = ("sessions", "password_resets")  # tablas sin columna id: no se pide RETURNING id
+_pool = None
+_pool_lock = threading.Lock()
+
+
+def _pg_sql(sql: str, has_args: bool) -> str:
+    """Traduce el SQL escrito para SQLite: ? -> %s, CAST(x AS INTEGER) tolerante y RETURNING id."""
+    parts = re.split(r"('(?:[^']|'')*')", sql)
+    for i, p in enumerate(parts):
+        if has_args:
+            p = p.replace("%", "%%")
+        if i % 2 == 0:
+            if has_args:
+                p = p.replace("?", "%s")
+            p = re.sub(r"CAST\(([\w.]+) AS INTEGER\)",
+                       lambda m: f"(CASE WHEN {m[1]} ~ '^[0-9]+$' THEN {m[1]}::bigint ELSE 0 END)", p)
+        parts[i] = p
+    out = "".join(parts)
+    m = re.match(r"\s*INSERT\s+INTO\s+(\w+)", out, re.I)
+    if m and m[1].lower() not in _NO_ID and "RETURNING" not in out.upper():
+        out = out.rstrip().rstrip(";") + " RETURNING id"
+    return out
+
+
+class _PgCursor:
+    def __init__(self, cur, lastrowid=None):
+        self._cur, self.lastrowid = cur, lastrowid
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+    def __iter__(self):
+        return iter(self._cur)
+
+
+class _PgConn:
+    def __init__(self, conn, pool):
+        self._conn, self._pool = conn, pool
+
+    def execute(self, sql, args=()):
+        args = tuple(int(a) if isinstance(a, bool) else a for a in (args or ()))
+        q = _pg_sql(sql, bool(args))
+        cur = self._conn.execute(q, args or None)
+        last = None
+        if q.endswith(" RETURNING id"):
+            r = cur.fetchone()
+            last = r["id"] if r else None
+        return _PgCursor(cur, last)
+
+    def executescript(self, sql):
+        self._conn.execute(sql)
+
+    def close(self):
+        if self._conn is not None:
+            self._pool.putconn(self._conn)
+            self._conn = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                from psycopg_pool import ConnectionPool
+                opts = "-c timezone=UTC" + (f" -c search_path={PG_SCHEMA},public" if PG_SCHEMA else "")
+                p = ConnectionPool(
+                    config.DATABASE_URL, min_size=1, max_size=config.PG_POOL_MAX, open=False, timeout=15,
+                    check=ConnectionPool.check_connection,
+                    kwargs={"autocommit": True, "row_factory": _row_factory, "options": opts, "prepare_threshold": None})
+                p.open()
+                atexit.register(close_pool)
+                _pool = p
+    return _pool
+
+
+def close_pool():
+    global _pool
+    if _pool is not None:
+        _pool.close()
+        _pool = None
+
+
+def _connect_pg():
+    pool = _get_pool()
+    return _PgConn(pool.getconn(), pool)
+
+
+def connect():
+    return _connect_pg() if IS_PG else _connect_sqlite()
 
 
 # Columnas añadidas después de la v1 (se aplican también a bases existentes).
@@ -189,6 +308,23 @@ MIGRATIONS = {
 
 
 def init_db():
+    if IS_PG:
+        if PG_SCHEMA:
+            import psycopg
+            with psycopg.connect(config.DATABASE_URL, autocommit=True) as boot:
+                boot.execute(f'CREATE SCHEMA IF NOT EXISTS "{PG_SCHEMA}"')
+        ddl = SCHEMA.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        ddl = re.sub(r"\bREAL\b", "DOUBLE PRECISION", ddl)
+        with closing(connect()) as c:
+            c.execute("SELECT pg_advisory_lock(727002)")  # varios procesos arrancando a la vez
+            try:
+                c.executescript(ddl)
+                for table, cols in MIGRATIONS.items():
+                    for col, col_ddl in cols.items():
+                        c.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_ddl}")
+            finally:
+                c.execute("SELECT pg_advisory_unlock(727002)")
+        return
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with closing(connect()) as c:
         c.executescript(SCHEMA)
@@ -201,10 +337,16 @@ def init_db():
 
 @contextmanager
 def tx():
-    """Transacción con conexión propia (cada request es un hilo distinto)."""
+    """Transacción con conexión propia (cada request es un hilo distinto).
+    Las escrituras se serializan (SQLite: BEGIN IMMEDIATE; PostgreSQL: un candado de transacción),
+    así las lecturas-y-luego-escrituras (número de pedido, pagos) no se pisan."""
     conn = connect()
     try:
-        conn.execute("BEGIN IMMEDIATE")
+        if IS_PG:
+            conn.execute("BEGIN")
+            conn.execute("SELECT pg_advisory_xact_lock(727001)")
+        else:
+            conn.execute("BEGIN IMMEDIATE")
         yield conn
         conn.execute("COMMIT")
     except Exception:

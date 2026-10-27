@@ -48,6 +48,38 @@ fly certs add carta.tudominio.com         # y apunta tu DNS como indica; luego c
 
 Mantén **una sola máquina** (`min_machines_running = 1`, sin escalar a varias): con varias, los pedidos no llegarían a todas las pantallas de cocina.
 
+## 2b. Base de datos: SQLite (por defecto) o PostgreSQL
+
+MesaYa funciona con **SQLite** (cero configuración; la base es un archivo en `data/`) o con **PostgreSQL** si defines `MESAYA_DATABASE_URL`.
+El esquema se crea y se actualiza solo al arrancar; no hay que correr migraciones a mano.
+
+| | SQLite | PostgreSQL |
+|---|---|---|
+| Cuándo | Piloto y pocos restaurantes | Datos fuera del servidor de la app, copias/PITR del proveedor, crecer sin depender de un disco |
+| Dónde vive | Disco de la app (`data/mesaya.db`) | Servicio aparte (Neon, Supabase, RDS) o contenedor `db` |
+| Copias de la base | Las hace MesaYa (`data/backups/`) | **Las haces tú / tu proveedor** (la copia de MesaYa solo lleva las fotos) |
+
+**PostgreSQL gestionado (Neon, Supabase…):** crea la base y copia la cadena de conexión (la «directa» o «session pooler», no la de *transaction* si tu proveedor ofrece ambas):
+`MESAYA_DATABASE_URL=postgresql://usuario:clave@host/mesaya?sslmode=require`. En Fly: `fly secrets set MESAYA_DATABASE_URL=...`.
+
+**PostgreSQL propio en tu VPS:** añade `POSTGRES_PASSWORD` a tu `.env` y arranca con el archivo extra
+(la base no se expone a internet, solo la app la ve):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d --build
+```
+
+Copia diaria de la base en el VPS (guarda el `.sql.gz` fuera del servidor, igual que las copias de §4):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml exec -T db pg_dump -U mesaya mesaya | gzip > mesaya-$(date +%F).sql.gz
+# restaurar:  gunzip -c mesaya-AAAA-MM-DD.sql.gz | docker compose ... exec -T db psql -U mesaya mesaya
+```
+
+Notas: las escrituras (pedidos, pagos) se serializan con un candado de transacción para que el número de pedido y los pagos no se pisen;
+a esta escala no se nota (probado con 300 mesas pidiendo a la vez). Las fotos siguen en disco (`uploads/`), y el tiempo real de la cocina sigue
+siendo de **un solo proceso**, así que PostgreSQL no cambia la regla de una sola máquina. Si ya tienes datos en SQLite, avísame para migrarlos.
+
 ## 3. Primeros pasos tras publicar
 
 1. Entra a `/signup` y crea **tu propio restaurante de prueba**. Haz un pedido real desde un celular con datos móviles (no con tu WiFi) y verifícalo en `/kitchen` desde otro dispositivo.

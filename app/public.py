@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import colombia, config, db, events, invoicing, payments, service
-from .auth import is_active, now, rate_limit
+from .auth import is_active, now, rate_check, rate_hit, rate_limit
 
 router = APIRouter(prefix="/api/public/{slug}")
 
@@ -21,6 +21,22 @@ def _resto(slug: str) -> dict:
 
 def _ip(request: Request) -> str:
     return request.headers.get("x-forwarded-for", request.client.host if request.client else "x").split(",")[0].strip()
+
+
+# Muchos clientes comparten la IP del WiFi del local: el límite por IP es solo un tope alto contra abuso.
+# El ritmo "normal" se limita por mesa (ver _table y los rate_limit de cada ruta).
+IP_GUARD = 600
+
+
+def _table(r: dict, label: str, key: str, request: Request) -> dict:
+    """Valida mesa + clave. Los intentos con clave errónea sí se cuentan por IP (anti fuerza bruta)."""
+    bad = f"badkey:{_ip(request)}:{r['id']}"
+    rate_check(bad, 30, 600)
+    try:
+        return service.table_by_label(r["id"], label, key)
+    except HTTPException:
+        rate_hit(bad)
+        raise
 
 
 @router.get("/menu")
@@ -75,16 +91,18 @@ class OrderIn(BaseModel):
 @router.post("/orders")
 def create_order(slug: str, body: OrderIn, request: Request):
     r = _resto(slug)
-    rate_limit(f"order:{_ip(request)}:{r['id']}", 15, 600)
+    rate_limit(f"order:ip:{_ip(request)}:{r['id']}", IP_GUARD, 600)
     if not r["accepting_orders"]:
         raise HTTPException(409, "En este momento solo se muestra la carta. Pide al mesero.")
     if not is_active(r):
         raise HTTPException(402, "Este restaurante no tiene pedidos digitales activos. Pide al mesero.")
-    service.table_by_label(r["id"], body.table, body.key)
+    _table(r, body.table, body.key, request)
+    rate_limit(f"order:t:{r['id']}:{body.table}", 15, 600)
     lines = service.price_lines(r, [i.model_dump() for i in body.items])
     with db.tx() as c:
-        seq = c.execute("SELECT COALESCE(MAX(seq),0)+1 FROM orders WHERE restaurant_id=? AND date(created_at)=date('now')",
-                        (r["id"],)).fetchone()[0]
+        today = now()[:10] + " 00:00:00"
+        seq = c.execute("SELECT COALESCE(MAX(seq),0)+1 FROM orders WHERE restaurant_id=? AND created_at>=?",
+                        (r["id"], today)).fetchone()[0]
         oid = c.execute(
             """INSERT INTO orders(restaurant_id, table_label, seq, status, diner_id, diner_name, note, created_at)
                VALUES (?,?,?,?,?,?,?,?)""",
@@ -126,8 +144,9 @@ class CallIn(BaseModel):
 @router.post("/call")
 def call(slug: str, body: CallIn, request: Request):
     r = _resto(slug)
-    rate_limit(f"call:{_ip(request)}:{r['id']}", 6, 300)
-    service.table_by_label(r["id"], body.table, body.key)
+    rate_limit(f"call:ip:{_ip(request)}:{r['id']}", IP_GUARD // 2, 300)
+    _table(r, body.table, body.key, request)
+    rate_limit(f"call:t:{r['id']}:{body.table}", 6, 300)
     if body.type not in ("waiter", "bill"):
         raise HTTPException(400, "Tipo inválido")
     if not db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type=? AND resolved_at IS NULL",
@@ -165,8 +184,9 @@ def _cutoff():
 @router.post("/pay")
 def pay(slug: str, body: PayIn, request: Request):
     r = _resto(slug)
-    rate_limit(f"pay:{_ip(request)}:{r['id']}", 10, 600)
-    service.table_by_label(r["id"], body.table, body.key)
+    rate_limit(f"pay:ip:{_ip(request)}:{r['id']}", IP_GUARD // 2, 600)
+    _table(r, body.table, body.key, request)
+    rate_limit(f"pay:t:{r['id']}:{body.table}", 10, 600)
     if body.provider not in {p["id"] for p in payments.available_providers(r)}:
         raise HTTPException(400, "Método de pago no disponible")
     if not body.item_ids:
@@ -279,8 +299,9 @@ def pay_status(slug: str, pid: int, table: str, k: str):
 def pay_claim(slug: str, pid: int, body: dict, request: Request):
     """Bre-B: el cliente avisa que ya transfirió; el equipo lo verifica en su app bancaria y confirma."""
     r = _resto(slug)
-    rate_limit(f"claim:{_ip(request)}:{r['id']}", 8, 600)
+    rate_limit(f"claim:ip:{_ip(request)}:{r['id']}", IP_GUARD // 2, 600)
     p = _own_payment(r, pid, str(body.get("table", "")), str(body.get("key", "")))
+    rate_limit(f"claim:t:{r['id']}:{p['table_label']}", 8, 600)
     if p["provider"] != "breb" or p["status"] not in ("pending", "review"):
         raise HTTPException(409, "Este pago no se puede reportar")
     db.run("UPDATE payments SET status='review' WHERE id=?", (pid,))
@@ -314,7 +335,8 @@ class FeedbackIn(BaseModel):
 @router.post("/feedback")
 def feedback(slug: str, body: FeedbackIn, request: Request):
     r = _resto(slug)
-    rate_limit(f"fb:{_ip(request)}:{r['id']}", 5, 3600)
+    rate_limit(f"fb:ip:{_ip(request)}:{r['id']}", IP_GUARD // 2, 3600)
+    rate_limit(f"fb:t:{r['id']}:{body.table}", 5, 3600)
     db.run("INSERT INTO feedback(restaurant_id, table_label, rating, comment, created_at) VALUES (?,?,?,?,?)",
            (r["id"], body.table, body.rating, body.comment.strip(), now()))
     return {"ok": True, "review_url": r["google_review_url"] if body.rating >= 4 else ""}

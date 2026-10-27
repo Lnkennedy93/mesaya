@@ -5,6 +5,8 @@
   python -m app.backup restore ARCHIVO --yes   restaura (detén el servidor antes)
 
 La copia de la base usa la API de respaldo de SQLite: es consistente aunque el servidor esté atendiendo pedidos.
+Con PostgreSQL (MESAYA_DATABASE_URL) la copia solo incluye las fotos: la base se respalda con los backups/PITR de tu
+proveedor (Neon, Supabase, RDS...) o con pg_dump (ver DEPLOY.md).
 NO incluye la clave de cifrado (MESAYA_SECRET_KEY / data/secret.key): guárdala aparte, nunca junto a las copias.
 Las copias locales no te protegen si se pierde el disco: usa MESAYA_BACKUP_HOOK para subirlas a otro lugar
 (ver DEPLOY.md) o activa los snapshots de tu proveedor."""
@@ -22,7 +24,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config
+from . import config, db
 
 log = logging.getLogger("mesaya.backup")
 PREFIX = "mesaya-"
@@ -50,27 +52,33 @@ def make_backup() -> Path:
         partial = final.with_suffix(".partial")
         with tempfile.TemporaryDirectory() as tmp:
             snap = Path(tmp) / "mesaya.db"
-            src = sqlite3.connect(config.DB_PATH)
-            dst = sqlite3.connect(snap)
-            try:
-                src.backup(dst)
-            finally:
-                src.close()
-            check = dst.execute("PRAGMA integrity_check").fetchone()[0]
-            counts = {t: dst.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("restaurants", "orders", "items")}
-            dst.close()
-            if check != "ok":
-                raise RuntimeError(f"La copia no pasó la verificación de integridad: {check}")
+            if db.IS_PG:
+                snap = None
+                counts = {t: db.row(f"SELECT COUNT(*) n FROM {t}")["n"] for t in ("restaurants", "orders", "items")}
+            else:
+                src = sqlite3.connect(config.DB_PATH)
+                dst = sqlite3.connect(snap)
+                try:
+                    src.backup(dst)
+                finally:
+                    src.close()
+                check = dst.execute("PRAGMA integrity_check").fetchone()[0]
+                counts = {t: dst.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("restaurants", "orders", "items")}
+                dst.close()
+                if check != "ok":
+                    raise RuntimeError(f"La copia no pasó la verificación de integridad: {check}")
             n_files = 0
             with zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED) as z:
-                z.write(snap, "mesaya.db")
+                if snap is not None:
+                    z.write(snap, "mesaya.db")
                 if config.UPLOAD_DIR.exists():
                     for f in config.UPLOAD_DIR.iterdir():
                         if f.is_file():
                             z.write(f, f"uploads/{f.name}")
                             n_files += 1
                 z.writestr("MANIFEST.json", json.dumps({
-                    "created_utc": stamp, "counts": counts, "uploads": n_files, "terms_version": config.TERMS_VERSION}, indent=2))
+                    "created_utc": stamp, "engine": "postgres" if db.IS_PG else "sqlite", "counts": counts, "uploads": n_files,
+                    "terms_version": config.TERMS_VERSION}, indent=2))
         os.replace(partial, final)
         prune()
         log.info("Copia creada: %s", final.name)
@@ -98,6 +106,13 @@ def restore(archive: Path):
     """Reemplaza la base y las fotos por las de la copia. El servidor debe estar detenido."""
     with zipfile.ZipFile(archive) as z:
         names = z.namelist()
+        if db.IS_PG:
+            if "mesaya.db" in names:
+                raise RuntimeError("Esta instalación usa PostgreSQL: la copia es de SQLite. Restaura la base con pg_restore/tu proveedor.")
+            if "MANIFEST.json" not in names:
+                raise RuntimeError("El archivo no parece una copia de MesaYa (falta MANIFEST.json)")
+            _restore_uploads(z, names)
+            return
         if "mesaya.db" not in names:
             raise RuntimeError("El archivo no parece una copia de MesaYa (falta mesaya.db)")
         with tempfile.TemporaryDirectory() as tmp:
@@ -112,12 +127,16 @@ def restore(archive: Path):
             for ext in ("-wal", "-shm"):
                 Path(str(config.DB_PATH) + ext).unlink(missing_ok=True)
             shutil.copy2(Path(tmp) / "mesaya.db", config.DB_PATH)
-        config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        for n in names:
-            if n.startswith("uploads/") and not n.endswith("/"):
-                target = config.UPLOAD_DIR / Path(n).name  # solo el nombre: evita rutas maliciosas
-                with z.open(n) as src, open(target, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
+        _restore_uploads(z, names)
+
+
+def _restore_uploads(z, names):
+    config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    for n in names:
+        if n.startswith("uploads/") and not n.endswith("/"):
+            target = config.UPLOAD_DIR / Path(n).name  # solo el nombre: evita rutas maliciosas
+            with z.open(n) as src, open(target, "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
 
 def start_backup_loop():

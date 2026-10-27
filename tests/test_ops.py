@@ -109,7 +109,10 @@ with TestClient(app) as c:
     f1 = backup.make_backup()
     with zipfile.ZipFile(f1) as z:
         names = z.namelist()
-    check({"mesaya.db", "MANIFEST.json", "uploads/foto.webp"} <= set(names), "la copia incluye base de datos, fotos y manifiesto")
+    if db.IS_PG:  # con PostgreSQL la base se respalda con el proveedor: la copia lleva fotos y manifiesto
+        check({"MANIFEST.json", "uploads/foto.webp"} <= set(names) and "mesaya.db" not in names, "la copia (PostgreSQL) incluye fotos y manifiesto, sin base")
+    else:
+        check({"mesaya.db", "MANIFEST.json", "uploads/foto.webp"} <= set(names), "la copia incluye base de datos, fotos y manifiesto")
     check("secret.key" not in " ".join(names), "la copia NO incluye la clave de cifrado")
     h = c.get("/healthz").json()
     check(h["ok"] and h["backup_age_hours"] is not None and h["backup_age_hours"] < 1 and not h["backup_stale"], "healthz informa la edad de la última copia")
@@ -121,12 +124,17 @@ with TestClient(app) as c:
     check(len(backup.list_backups()) == 2, "rotación: solo se conservan las últimas 2")
 
     # --- restaurar tras un desastre
-    db.run("DELETE FROM items")
-    (config.UPLOAD_DIR / "foto.webp").unlink()
-    check(db.row("SELECT COUNT(*) n FROM items")["n"] == 0, "(simulamos la pérdida de datos)")
-    backup.restore(backup.list_backups()[-1])
-    check(db.row("SELECT COUNT(*) n FROM items")["n"] == 1 and (config.UPLOAD_DIR / "foto.webp").exists(), "restauración recupera datos y fotos")
-    check(Path(str(config.DB_PATH) + ".before-restore").exists(), "queda una copia de seguridad de lo que había antes de restaurar")
+    if db.IS_PG:
+        (config.UPLOAD_DIR / "foto.webp").unlink()
+        backup.restore(backup.list_backups()[-1])
+        check((config.UPLOAD_DIR / "foto.webp").exists(), "restauración (PostgreSQL) recupera las fotos")
+    else:
+        db.run("DELETE FROM items")
+        (config.UPLOAD_DIR / "foto.webp").unlink()
+        check(db.row("SELECT COUNT(*) n FROM items")["n"] == 0, "(simulamos la pérdida de datos)")
+        backup.restore(backup.list_backups()[-1])
+        check(db.row("SELECT COUNT(*) n FROM items")["n"] == 1 and (config.UPLOAD_DIR / "foto.webp").exists(), "restauración recupera datos y fotos")
+        check(Path(str(config.DB_PATH) + ".before-restore").exists(), "queda una copia de seguridad de lo que había antes de restaurar")
     bad = tmp / "malo.zip"
     with zipfile.ZipFile(bad, "w") as z:
         z.writestr("otra_cosa.txt", "x")
