@@ -322,6 +322,10 @@ def init_db():
                 for table, cols in MIGRATIONS.items():
                     for col, col_ddl in cols.items():
                         c.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_ddl}")
+                # Supabase publica por su API REST las tablas de "public": con RLS activo y sin políticas esa API no
+                # ve nada. El backend, que es el dueño de las tablas, no se ve afectado.
+                for table in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", ddl):
+                    c.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
             finally:
                 c.execute("SELECT pg_advisory_unlock(727002)")
         return
