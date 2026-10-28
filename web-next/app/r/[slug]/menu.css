@@ -1,0 +1,48 @@
+.menu-root{padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+.menu-root .hero{padding:1.1rem 1rem .6rem;display:flex;gap:.8rem;align-items:center}
+.menu-root .logo{width:56px;height:56px;border-radius:16px;flex:none;font-size:1.5rem}
+.menu-root .hero h1{font-size:1.35rem;margin:0}
+.menu-root .btn.nequi{background:#da0081;color:#fff}
+.menu-root .tablebadge{margin-left:auto;background:var(--brand);color:var(--brand-ink);padding:.35em .8em;border-radius:99px;font-weight:800;font-size:.85rem;white-space:nowrap}
+.menu-root .tools{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);padding:.5rem 1rem .6rem;border-bottom:1px solid var(--line)}
+.menu-root .chips{display:flex;gap:.5rem;overflow-x:auto;scrollbar-width:none;padding-top:.5rem}
+.menu-root .chip{flex:none;border:1.5px solid var(--line);background:var(--card);border-radius:99px;padding:.35em .95em;font-weight:700;font-size:.9rem;cursor:pointer}
+.menu-root .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.menu-root main{padding:.2rem 1rem}
+.menu-root .cat h2{font-size:1.15rem;margin:1.3rem 0 .6rem}
+.menu-root .item{display:flex;gap:.8rem;padding:.8rem;margin-bottom:.7rem;cursor:pointer;position:relative}
+.menu-root .item .thumb{width:92px;height:92px;border-radius:12px;flex:none;font-size:1.8rem}
+.menu-root .item h3{font-size:1rem;margin:0 0 .15rem}
+.menu-root .item p{margin:0;font-size:.85rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.menu-root .item .price{font-weight:800;margin-top:.35rem}
+.menu-root .item.off{opacity:.55}
+.menu-root .item .add{position:absolute;right:.7rem;bottom:.6rem;width:34px;height:34px;border-radius:50%;border:0;background:var(--brand);color:var(--brand-ink);font-size:1.3rem;font-weight:700;line-height:1}
+.menu-root .tag{font-size:.68rem;font-weight:700;padding:.1em .5em;border-radius:6px;background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok);margin-right:.25rem}
+.menu-root .tag.hot{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.menu-root .tag.star{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.menu-root .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom));display:flex;gap:.6rem;background:linear-gradient(transparent,var(--bg) 35%)}
+.menu-root .bar .btn{flex:1;padding:.9em}
+.menu-root .notice{margin:.6rem 1rem;padding:.8rem 1rem;border-radius:12px;background:color-mix(in srgb,var(--warn) 15%,var(--card));font-size:.9rem}
+.menu-root .opt{display:flex;gap:.6rem;align-items:center;padding:.55rem .2rem;border-bottom:1px solid var(--line)}
+.menu-root .opt input{width:auto}
+.menu-root .qty{display:flex;align-items:center;gap:.7rem}
+.menu-root .qgap{display:inline-block;width:36px;height:36px}
+.menu-root .rm{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);font-size:1.2rem;font-weight:700;line-height:1;cursor:pointer;margin-left:.2rem}
+.menu-root .qty button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);font-size:1.2rem;font-weight:700;cursor:pointer}
+.menu-root .sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem}
+.menu-root .x{border:0;background:none;font-size:1.6rem;cursor:pointer;color:var(--muted)}
+.menu-root .line{display:flex;gap:.6rem;align-items:flex-start;padding:.6rem 0;border-bottom:1px solid var(--line)}
+.menu-root .line input[type=checkbox]{width:22px;height:22px;margin-top:2px;accent-color:var(--brand)}
+.menu-root .line.paid{opacity:.55}
+.menu-root .steps{display:flex;gap:.3rem;margin:.4rem 0 .2rem}
+.menu-root .steps i{flex:1;height:5px;border-radius:9px;background:var(--line)}
+.menu-root .steps i.on{background:var(--ok)}
+.menu-root .tips{display:flex;gap:.4rem}
+.menu-root .tips button{flex:1;padding:.55em 0;border:1.5px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;cursor:pointer}
+.menu-root .tips button.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+.menu-root .stars{display:flex;gap:.3rem;justify-content:center;font-size:2.2rem}
+.menu-root .stars button{border:0;background:none;cursor:pointer;color:#cfc6b8;font-size:inherit;padding:0}
+.menu-root .stars button.on{color:#f5a623}
+.menu-root .big{font-size:1.5rem;font-weight:800}
+.menu-root .langs{display:flex;gap:.3rem;margin-left:.4rem}
+.menu-root .langs button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:.2em .5em;font-size:.75rem;font-weight:700;cursor:pointer}

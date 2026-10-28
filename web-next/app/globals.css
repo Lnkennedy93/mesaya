@@ -1,0 +1,58 @@
+:root{
+  --brand:#e4572e; --brand-ink:#fff;
+  --bg:#faf7f2; --card:#fff; --ink:#1d1a16; --muted:#7a7268; --line:#ece5da;
+  --ok:#1f9d55; --warn:#e08a00; --bad:#d64545; --info:#2a6fdb;
+  --r:14px; --shadow:0 1px 2px rgba(30,20,10,.06),0 6px 20px rgba(30,20,10,.07);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root[data-auto-theme]{--bg:#15130f;--card:#201d18;--ink:#f3ede4;--muted:#a39a8d;--line:#332e26;--shadow:none;color-scheme:dark}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+h1,h2,h3{line-height:1.15;margin:0 0 .4em}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:.65em .8em;border:1.5px solid var(--line);border-radius:10px;background:var(--card)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+label{display:block;font-size:.85rem;font-weight:600;margin:.8em 0 .25em;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4em;border:0;border-radius:999px;padding:.7em 1.2em;font-weight:700;cursor:pointer;background:var(--brand);color:var(--brand-ink);text-decoration:none;transition:transform .08s,filter .15s}
+.btn:active{transform:scale(.97)}
+.btn:hover{filter:brightness(1.06)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.soft{background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+.btn.ok{background:var(--ok)} .btn.bad{background:var(--bad)} .btn.dark{background:#1d1a16;color:#fff}
+.btn.sm{padding:.4em .8em;font-size:.85rem}
+.btn.block{display:flex;width:100%}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:1rem}
+.row{display:flex;gap:.6rem;align-items:center}
+.spread{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.muted{color:var(--muted)} .small{font-size:.85rem}
+.pill{display:inline-block;padding:.15em .6em;border-radius:999px;font-size:.75rem;font-weight:700;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.pill.brand{background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+.hidden{display:none!important}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(40px);background:#1d1a16;color:#fff;padding:.75em 1.2em;border-radius:12px;opacity:0;transition:.25s;z-index:999;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--bad)}
+.switch{position:relative;width:46px;height:26px;flex:none}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch span{position:absolute;inset:0;background:#c9c1b4;border-radius:99px;transition:.2s;cursor:pointer}
+.switch span:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.switch input:checked+span{background:var(--ok)}
+.switch input:checked+span:before{transform:translateX(20px)}
+dialog{border:0;border-radius:18px;padding:0;max-width:min(520px,94vw);width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(20,12,4,.55);backdrop-filter:blur(2px)}
+.dlg{padding:1.2rem}
+.thumb{background:linear-gradient(135deg,color-mix(in srgb,var(--brand) 22%,#fff),color-mix(in srgb,var(--brand) 6%,#fff));display:grid;place-items:center;color:var(--brand);font-weight:800;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+.powered{padding:1.2rem 1rem;text-align:center;font-size:.75rem;letter-spacing:.02em;color:var(--muted);opacity:.8}
+.powered a{font-weight:700;color:inherit;text-decoration:none}
+.powered a:hover{color:var(--brand);text-decoration:underline}

@@ -1,0 +1,8 @@
+.auth-root{min-height:100vh;display:grid;place-items:center;padding:1rem;background:radial-gradient(1200px 500px at 20% -10%,#ffd9c9 0,transparent 60%),var(--bg)}
+.auth-root .box{width:100%;max-width:420px}
+.auth-root .logo{font-weight:900;font-size:1.5rem;margin-bottom:1rem;display:block;text-decoration:none}
+.auth-root .logo b{color:var(--brand)}
+.auth-root .swap{margin-top:1rem;text-align:center}
+.auth-root .two{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.auth-root .terms{display:flex;gap:.5rem;align-items:flex-start;font-weight:500;color:var(--ink);font-size:.88rem;margin-top:1rem}
+.auth-root .terms input{width:auto;margin-top:.2rem}

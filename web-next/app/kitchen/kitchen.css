@@ -1,0 +1,30 @@
+.kitchen-root{background:#16130f;color:#f3ede4;--card:#241f19;--line:#3a332a;--ink:#f3ede4;--muted:#a39a8d;--bg:#16130f}
+.kitchen-root header{display:flex;gap:.8rem;align-items:center;padding:.7rem 1rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:#16130f;z-index:10;flex-wrap:wrap}
+.kitchen-root header h1{font-size:1.1rem;margin:0}
+.kitchen-root .tabs{display:flex;gap:.3rem;margin-left:1rem}
+.kitchen-root .tabs button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:.5em 1em;border-radius:99px;cursor:pointer}
+.kitchen-root .tabs button.on{background:var(--brand);color:var(--brand-ink)}
+.kitchen-root .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;padding:.8rem;align-items:start}
+@media(max-width:860px){.kitchen-root .cols{grid-template-columns:1fr}}
+.kitchen-root .col h2{font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.2rem .2rem .6rem}
+.kitchen-root .ticket{background:var(--card);border-radius:14px;padding:.9rem;margin-bottom:.7rem;border-left:6px solid var(--ok)}
+.kitchen-root .ticket.warn{border-color:var(--warn)}.kitchen-root .ticket.late{border-color:var(--bad);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(214,69,69,.25)}}
+.kitchen-root .ticket .t{font-size:1.7rem;font-weight:900}
+.kitchen-root .ticket li{margin:.25rem 0;list-style:none}
+.kitchen-root .ticket ul{padding:0;margin:.5rem 0}
+.kitchen-root .q{display:inline-block;min-width:1.8em;text-align:center;background:#fff;color:#1d1a16;border-radius:6px;font-weight:800;margin-right:.4rem}
+.kitchen-root .note{color:#ffd27a;font-size:.85rem}
+.kitchen-root .calls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.6rem 1rem 0}
+.kitchen-root .call{background:#5a1d1d;border-radius:12px;padding:.5rem .8rem;display:flex;gap:.6rem;align-items:center;animation:pulse 1.4s infinite}
+.kitchen-root .floor{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.7rem;padding:1rem}
+.kitchen-root .tb{background:var(--card);border-radius:14px;padding:.8rem;cursor:pointer;border:2px solid transparent;text-align:center}
+.kitchen-root .tb.occ{border-color:var(--warn)}.kitchen-root .tb.call{border-color:var(--bad)}.kitchen-root .tb.done{border-color:var(--ok)}
+.kitchen-root .tb b{font-size:1.6rem;display:block}
+.kitchen-root .login{max-width:340px;margin:12vh auto;padding:1.4rem}
+.kitchen-root dialog{background:#241f19;color:#f3ede4}
+.kitchen-root .pad{padding:1rem}
+.kitchen-root .line{display:flex;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line)}
+.kitchen-root input,.kitchen-root select{background:#16130f;border-color:var(--line)}
+
+.kitchen-root{min-height:100vh}

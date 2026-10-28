@@ -1,0 +1,11 @@
+.print-root{background:#eee;padding:1rem}
+.print-root .bar{max-width:820px;margin:0 auto 1rem;display:flex;gap:.6rem;align-items:center}
+.print-root .sheet{max-width:820px;margin:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.print-root .tent{background:#fff;border:2px dashed #bbb;border-radius:18px;padding:22px;text-align:center;break-inside:avoid;display:flex;flex-direction:column;align-items:center;gap:6px}
+.print-root .tent .name{font-weight:900;font-size:1.3rem}
+.print-root .tent .num{font-size:3.4rem;font-weight:900;line-height:1;color:var(--brand)}
+.print-root .tent img{width:230px;height:230px}
+.print-root .tent .how{font-size:.95rem;color:#444}
+.print-root .tent .foot{font-size:.7rem;color:#888}
+@media print{.print-root{background:#fff;padding:0}.print-root .bar{display:none}.print-root .sheet{gap:8px}.print-root .tent{border-color:#999}}
+.print-root{min-height:100vh}

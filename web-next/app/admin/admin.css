@@ -1,0 +1,28 @@
+.admin-root .layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.admin-root nav{background:var(--card);border-right:1px solid var(--line);padding:1rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.2rem}
+.admin-root nav .logo{font-weight:900;font-size:1.3rem;margin-bottom:1rem}.admin-root nav .logo b{color:var(--brand)}
+.admin-root nav button{text-align:left;border:0;background:none;padding:.65em .8em;border-radius:10px;font-weight:600;cursor:pointer;font-size:.95rem}
+.admin-root nav button.on{background:color-mix(in srgb,var(--brand) 13%,transparent);color:var(--brand)}
+.admin-root nav .sp{flex:1}
+.admin-root main{padding:1.4rem;max-width:980px;width:100%}
+@media(max-width:760px){.admin-root .layout{grid-template-columns:1fr}.admin-root nav{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;overflow-x:auto;z-index:40;border-top:1px solid var(--line);border-right:0;padding:.4rem}.admin-root nav .logo,.admin-root nav .sp,.admin-root nav .nlabel,.admin-root nav .powered{display:none}.admin-root nav button{white-space:nowrap}.admin-root main{padding:1rem 1rem 90px}}
+.admin-root .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1rem 0}
+.admin-root .kpi .v{font-size:1.5rem;font-weight:900}
+.admin-root .banner{background:color-mix(in srgb,var(--warn) 16%,var(--card));border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.admin-root .banner.bad{background:color-mix(in srgb,var(--bad) 14%,var(--card))}
+.admin-root .bars{display:flex;align-items:flex-end;gap:4px;height:140px;margin-top:.6rem}
+.admin-root .bars div{flex:1;background:var(--brand);border-radius:6px 6px 0 0;min-height:2px;position:relative;opacity:.9}
+.admin-root .bars div:hover:after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#1d1a16;color:#fff;font-size:.7rem;padding:.2em .5em;border-radius:6px;white-space:nowrap;z-index:3}
+.admin-root .axis{display:flex;gap:4px;font-size:.65rem;color:var(--muted)}.admin-root .axis span{flex:1;text-align:center}
+.admin-root .mi{display:flex;gap:.7rem;align-items:center;padding:.6rem;border-bottom:1px solid var(--line)}
+.admin-root .mi .thumb{width:52px;height:52px;border-radius:10px;flex:none}
+.admin-root .cathead{display:flex;align-items:center;gap:.5rem;margin:1.4rem 0 .3rem}
+.admin-root .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem}
+.admin-root .qrg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem;margin-top:1rem}
+.admin-root .qrc{text-align:center}.admin-root .qrc img{width:100%;max-width:150px}
+.admin-root table{width:100%;border-collapse:collapse}.admin-root td,.admin-root th{padding:.5rem;text-align:left;border-bottom:1px solid var(--line);font-size:.92rem}
+.admin-root textarea{min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem}
+.admin-root .chk{display:flex;gap:.4rem;align-items:center;font-weight:500;color:var(--ink);margin:.3rem 0}.admin-root .chk input{width:auto}
+.admin-root .tgl{display:flex;gap:.4rem;flex-wrap:wrap}
+.admin-root .tgl label{display:inline-flex;align-items:center;gap:.3rem;margin:0;padding:.3em .7em;border:1.5px solid var(--line);border-radius:99px;font-size:.82rem;cursor:pointer;color:var(--ink)}
+.admin-root .tgl input{display:none}.admin-root .tgl label:has(input:checked){background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
