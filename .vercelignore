@@ -1,0 +1,19 @@
+# Nada de esto debe subirse a Vercel: secretos, datos locales y pruebas
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.venv
+.git
+data
+**/data
+**/uploads
+backend/tests
+**/__pycache__
+**/node_modules
+**/.next
+*.pdf
+*.zip
+*.db

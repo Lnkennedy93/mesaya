@@ -5,10 +5,10 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import account, backup, config, db, drafts, events, invoicing, panel, public
+from . import account, backup, config, db, events, invoicing, panel, public
 
 
 @asynccontextmanager
@@ -20,12 +20,11 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Configuración de producción incompleta:\n - " + "\n - ".join(bad))
         for w in config.production_problems():
             logging.getLogger("mesaya").warning(w)
-    db.init_db()
-    config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     events.set_loop(asyncio.get_running_loop())
-    invoicing.start_retry_loop()  # reintenta facturas que fallaron (red, proveedor caído)
-    backup.start_backup_loop()
-    drafts.purge()  # fotos de borradores abandonados
+    if not config.SERVERLESS:  # en Vercel no hay hilos de fondo, y el esquema se crea a mano: python -m app.db
+        db.init_db()
+        invoicing.start_retry_loop()  # reintenta facturas que fallaron (red, proveedor caído)
+        backup.start_backup_loop()
     yield
 
 
@@ -101,6 +100,13 @@ def healthz():
     return JSONResponse({"ok": db_ok, "db": db_ok, "engine": "postgres" if db.IS_PG else "sqlite", "backup_age_hours": age, "backup_stale": bool(stale)}, status_code=200 if db_ok else 503)
 
 
-config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=config.UPLOAD_DIR), name="uploads")
+@app.get("/uploads/{name}", include_in_schema=False)
+def upload(name: str):
+    """Fotos de platos y logos: viven en la base (Vercel no tiene disco). El nombre es aleatorio, así que la foto nunca cambia."""
+    r = db.row("SELECT data FROM images WHERE name=?", (name,))
+    if not r:
+        raise HTTPException(404)
+    return Response(bytes(r["data"]), media_type="image/webp", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 app.mount("/assets", StaticFiles(directory=config.WEB_DIR / "assets"), name="assets")

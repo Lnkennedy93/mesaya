@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, shrinkImage } from "@/lib/api";
 import { Any, useAdmin } from "./ctx";
 
 const TAGS = ["vegano", "vegetariano", "picante", "sin gluten", "popular"];
@@ -31,8 +31,8 @@ export default function ItemDialog({ item, catId, menu, onClose, onChanged }: { 
   async function upload(file: File | undefined) {
     if (!file) return;
     const fd = new FormData();
-    fd.append("file", file);
     try {
+      fd.append("file", await shrinkImage(file));
       const r = await api(`/api/items/${id}/image`, { method: "POST", body: fd });
       setImage(r.image);
       toast("Foto actualizada");

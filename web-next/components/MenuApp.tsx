@@ -1,7 +1,7 @@
 "use client";
 // Carta del comensal: portada de web/menu.html a React. Mismos endpoints /api/public/<slug>/..., mismas reglas.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, liveStream, ls, makeMoney, setBrand } from "@/lib/api";
+import { api, poll, ls, makeMoney, setBrand } from "@/lib/api";
 import { I18N } from "@/lib/i18n";
 import Powered from "@/components/Powered";
 
@@ -94,7 +94,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       if (meta) meta.setAttribute("content", data.restaurant.brand_color);
       if (data.table_ok) {
         await refreshBill();
-        stop = liveStream(`/api/public/${slug}/stream?table=${q(TABLE)}&k=${q(KEY)}`, { update: onLive });
+        stop = poll(onLive, 5000);
       }
       if (justPaid) {
         history.replaceState(null, "", location.pathname + `?t=${TABLE}&k=${KEY}`);

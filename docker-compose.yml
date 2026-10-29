@@ -5,7 +5,7 @@ services:
   app:
     build: .
     restart: unless-stopped
-    env_file: .env
+    env_file: ./backend/.env
     environment:
       MESAYA_ENV: production
     volumes:

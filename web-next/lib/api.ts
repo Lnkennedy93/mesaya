@@ -54,26 +54,28 @@ export function ls(key: string, value?: string): string | null {
   return null;
 }
 
-/** Canal en vivo (SSE) con reconexión automática. Devuelve la función para cerrarlo. */
-export function liveStream(url: string, handlers: Record<string, (data: any) => void>) {
-  let es: EventSource | null = null;
-  let closed = false;
-  const open = () => {
-    if (closed) return;
-    es = new EventSource(url);
-    for (const [name, fn] of Object.entries(handlers)) {
-      es.addEventListener(name, (e) => fn(JSON.parse((e as MessageEvent).data || "{}")));
-    }
-    es.onerror = () => {
-      es?.close();
-      if (!closed) setTimeout(open, 3000);
-    };
-  };
-  open();
-  return () => {
-    closed = true;
-    es?.close();
-  };
+/** Consulta cada `ms` milisegundos mientras la pestaña esté visible. Devuelve la función para detenerla.
+ *  En Vercel no hay conexiones en vivo (SSE) que compartan las instancias del servidor, así que se consulta. */
+export function poll(fn: () => unknown, ms: number) {
+  const t = setInterval(() => { if (!document.hidden) fn(); }, ms);
+  return () => clearInterval(t);
+}
+
+/** Reduce una foto de celular (3-10 MB) antes de subirla: una petición a Vercel admite 4,5 MB y el servidor la baja a 1000 px igual. */
+export async function shrinkImage(file: File, max = 1600): Promise<File> {
+  if (file.size < 1_500_000 || !file.type.startsWith("image/")) return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k);
+    c.height = Math.round(bmp.height * k);
+    c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+    const blob: Blob | null = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+    return blob ? new File([blob], "foto.jpg", { type: "image/jpeg" }) : file;
+  } catch {
+    return file;
+  }
 }
 
 /** Segundos desde una fecha UTC del backend ("2026-10-27 18:03:11"). */

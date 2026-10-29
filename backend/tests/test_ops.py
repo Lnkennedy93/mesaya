@@ -9,6 +9,7 @@ from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp())
 os.environ["MESAYA_DB"] = str(tmp / "t.db")
+from tests import isolate  # noqa: E402,F401  (PostgreSQL: esquema temporal)
 os.environ["MESAYA_UPLOADS"] = str(tmp / "up")
 os.environ["MESAYA_BACKUP_DIR"] = str(tmp / "bk")
 os.environ["MESAYA_SECRET_KEY"] = "cFhmZ3N3N2pFb0F4dDJyV2xRR2hQZ3ZtQ0hCQ2ZQZmM="
@@ -145,14 +146,15 @@ with TestClient(app) as c:
         check(True, "rechaza archivos que no son copias de MesaYa")
 
     # --- borrar cuenta (derecho de supresión)
-    (config.UPLOAD_DIR / "logo_x.webp").write_bytes(b"x")
+    db.run("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)",
+           ("logo_x.webp", db.row("SELECT id FROM restaurants WHERE slug=?", (slug,))["id"], b"x"))
     db.run("UPDATE items SET image=? WHERE id=?", ("/uploads/logo_x.webp", item))
     check(c.post("/api/account/delete", json={"password": "mala", "confirm": slug}).status_code == 400, "borrar exige la contraseña")
     check(c.post("/api/account/delete", json={"password": "terceraclave1", "confirm": "otro"}).status_code == 400, "borrar exige escribir el código del restaurante")
     check(c.post("/api/account/delete", json={"password": "terceraclave1", "confirm": slug}).status_code == 200, "cuenta eliminada")
     left = sum(db.row(f"SELECT COUNT(*) n FROM {t}")["n"] for t in ("restaurants", "items", "categories", "tables_", "orders"))
     check(left == 0, "se borran carta, mesas y pedidos (cascada)")
-    check(not (config.UPLOAD_DIR / "logo_x.webp").exists(), "se borran las fotos del restaurante")
+    check(db.row("SELECT COUNT(*) n FROM images")["n"] == 0, "se borran las fotos del restaurante")
     check(c.post("/api/login", json={"email": "uno@cafe.co", "password": "terceraclave1"}).status_code == 401, "ya no puede entrar")
 
 # --- validaciones de producción

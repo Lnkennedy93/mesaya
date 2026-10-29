@@ -1,7 +1,7 @@
 "use client";
 // Cocina y sala (portada de web/kitchen.html). Mismos endpoints /api/... y el mismo canal en vivo /api/stream.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, beep, liveStream, makeMoney, secsSince, setBrand } from "@/lib/api";
+import { api, beep, poll, makeMoney, secsSince, setBrand } from "@/lib/api";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
 
@@ -69,7 +69,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       if (dead) return;
       setPhase("ready");
       const go = () => { refreshRef.current().catch(() => {}); };
-      stop = liveStream("/api/stream", { order: go, call: go, paid: go, menu: go, payment: go });
+      stop = poll(go, 5000);
       timer = setInterval(() => setTick((t) => t + 1), 15000); // actualiza los minutos de cada ticket
     })();
     return () => { dead = true; stop?.(); if (timer) clearInterval(timer); };

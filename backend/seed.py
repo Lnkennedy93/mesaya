@@ -1,10 +1,14 @@
 """Crea un restaurante de demostración:  python seed.py
 Correo: demo@mesaya.app  ·  Contraseña: demo12345  ·  PIN cocina: 1234"""
 import json
+import sys
 from datetime import datetime, timedelta, timezone
 
 from app import auth, db, service
 
+if db.IS_PG and "--pg" not in sys.argv:  # la demo trae una clave débil: nunca en la base real por accidente
+    raise SystemExit("seed.py crea una cuenta demo con clave débil y MESAYA_DATABASE_URL apunta a PostgreSQL. "
+                     "Si de verdad lo quieres: python seed.py --pg")
 db.init_db()
 if db.row("SELECT 1 FROM restaurants WHERE email='demo@mesaya.app'"):
     print("La demo ya existe.")

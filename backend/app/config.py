@@ -29,6 +29,8 @@ PG_SCHEMA = os.getenv("MESAYA_PG_SCHEMA", "").strip()
 UPLOAD_DIR = Path(os.getenv("MESAYA_UPLOADS", ROOT / "uploads"))
 WEB_DIR = ROOT / "web"
 
+# En Vercel (funciones sin estado ni disco): no hay hilos de fondo, ni migraciones al arrancar, ni copias locales.
+SERVERLESS = bool(os.getenv("VERCEL"))
 ENV = os.getenv("MESAYA_ENV", "development")  # "production" activa las validaciones de arranque
 BASE_URL = os.getenv("MESAYA_BASE_URL", "http://localhost:8000").rstrip("/")
 TRIAL_DAYS = int(os.getenv("MESAYA_TRIAL_DAYS", "14"))

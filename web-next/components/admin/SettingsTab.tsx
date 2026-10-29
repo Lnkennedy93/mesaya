@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, shrinkImage } from "@/lib/api";
 import { Any, CURRENCIES, useAdmin } from "./ctx";
 
 export default function SettingsTab() {
@@ -41,8 +41,7 @@ export default function SettingsTab() {
   async function uploadLogo(file: File | undefined) {
     if (!file) return;
     const fd = new FormData();
-    fd.append("file", file);
-    try { await api("/api/logo", { method: "POST", body: fd }); toast("Logo actualizado"); } catch (e: Any) { toast(e.message, true); }
+    try { fd.append("file", await shrinkImage(file)); await api("/api/logo", { method: "POST", body: fd }); toast("Logo actualizado"); } catch (e: Any) { toast(e.message, true); }
   }
 
   return (

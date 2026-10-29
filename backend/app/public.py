@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import colombia, config, db, events, invoicing, payments, service
-from .auth import is_active, now, rate_check, rate_hit, rate_limit
+from .auth import client_ip, is_active, now, rate_check, rate_hit, rate_limit
 
 router = APIRouter(prefix="/api/public/{slug}")
 
@@ -19,8 +19,7 @@ def _resto(slug: str) -> dict:
     return r
 
 
-def _ip(request: Request) -> str:
-    return request.headers.get("x-forwarded-for", request.client.host if request.client else "x").split(",")[0].strip()
+_ip = client_ip
 
 
 # Muchos clientes comparten la IP del WiFi del local: el límite por IP es solo un tope alto contra abuso.
@@ -40,12 +39,15 @@ def _table(r: dict, label: str, key: str, request: Request) -> dict:
 
 
 @router.get("/menu")
-def menu(slug: str, t: str = "", k: str = ""):
+def menu(slug: str, request: Request, t: str = "", k: str = ""):
     r = _resto(slug)
     table_ok = False
     if t:
-        tb = db.row("SELECT * FROM tables_ WHERE restaurant_id=? AND label=?", (r["id"], t))
-        table_ok = bool(tb and tb["secret"] == k)
+        try:  # mismo límite de intentos que /orders: este endpoint no puede ser un oráculo de la clave
+            _table(r, t, k, request)
+            table_ok = True
+        except HTTPException:
+            pass
     cats = db.rows("SELECT id, name FROM categories WHERE restaurant_id=? ORDER BY sort, id", (r["id"],))
     items = [service.item_public(i) for i in db.rows(
         "SELECT * FROM items WHERE restaurant_id=? ORDER BY sort, id", (r["id"],))]
@@ -118,9 +120,9 @@ def create_order(slug: str, body: OrderIn, request: Request):
 
 
 @router.get("/bill")
-def bill(slug: str, table: str, k: str):
+def bill(slug: str, table: str, k: str, request: Request):
     r = _resto(slug)
-    service.table_by_label(r["id"], table, k)
+    _table(r, table, k, request)
     lines = service.bill_lines(r["id"], table)
     calls = db.rows("SELECT type FROM calls WHERE restaurant_id=? AND table_label=? AND resolved_at IS NULL",
                     (r["id"], table))
@@ -130,7 +132,7 @@ def bill(slug: str, table: str, k: str):
 @router.get("/stream")
 async def stream(slug: str, table: str, k: str, request: Request):
     r = _resto(slug)
-    service.table_by_label(r["id"], table, k)
+    _table(r, table, k, request)
     return StreamingResponse(events.stream(f"t{r['id']}:{table}", request), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -269,8 +271,8 @@ def pay(slug: str, body: PayIn, request: Request):
         fail("No se pudo iniciar el pago, intenta de nuevo o paga en caja")
 
 
-def _own_payment(r: dict, pid: int, table: str, key: str) -> dict:
-    service.table_by_label(r["id"], table, key)
+def _own_payment(r: dict, pid: int, table: str, key: str, request: Request) -> dict:
+    _table(r, table, key, request)
     p = db.row("SELECT * FROM payments WHERE id=? AND restaurant_id=? AND table_label=?", (pid, r["id"], table))
     if not p:
         raise HTTPException(404, "Pago no encontrado")
@@ -278,10 +280,10 @@ def _own_payment(r: dict, pid: int, table: str, key: str) -> dict:
 
 
 @router.get("/pay/{pid}")
-def pay_status(slug: str, pid: int, table: str, k: str):
+def pay_status(slug: str, pid: int, table: str, k: str, request: Request):
     """Estado del pago. Para Nequi consulta a Wompi como respaldo por si el webhook se demora."""
     r = _resto(slug)
-    p = _own_payment(r, pid, table, k)
+    p = _own_payment(r, pid, table, k, request)
     if p["status"] == "pending" and p["provider"] == "nequi" and p["external_ref"]:
         try:
             st = payments.wompi_get_status(r, p["external_ref"])
@@ -300,7 +302,7 @@ def pay_claim(slug: str, pid: int, body: dict, request: Request):
     """Bre-B: el cliente avisa que ya transfirió; el equipo lo verifica en su app bancaria y confirma."""
     r = _resto(slug)
     rate_limit(f"claim:ip:{_ip(request)}:{r['id']}", IP_GUARD // 2, 600)
-    p = _own_payment(r, pid, str(body.get("table", "")), str(body.get("key", "")))
+    p = _own_payment(r, pid, str(body.get("table", "")), str(body.get("key", "")), request)
     rate_limit(f"claim:t:{r['id']}:{p['table_label']}", 8, 600)
     if p["provider"] != "breb" or p["status"] not in ("pending", "review"):
         raise HTTPException(409, "Este pago no se puede reportar")
@@ -311,9 +313,9 @@ def pay_claim(slug: str, pid: int, body: dict, request: Request):
 
 
 @router.post("/pay/{pid}/cancel")
-def pay_cancel(slug: str, pid: int, body: dict):
+def pay_cancel(slug: str, pid: int, body: dict, request: Request):
     r = _resto(slug)
-    p = _own_payment(r, pid, str(body.get("table", "")), str(body.get("key", "")))
+    p = _own_payment(r, pid, str(body.get("table", "")), str(body.get("key", "")), request)
     if p["status"] == "pending":
         db.run("UPDATE payments SET status='failed' WHERE id=?", (pid,))
         events.publish(f"t{r['id']}:{p['table_label']}", "update", {})

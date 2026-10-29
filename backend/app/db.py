@@ -154,6 +154,35 @@ CREATE TABLE IF NOT EXISTS feedback (
   comment TEXT DEFAULT '',
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS rate_hits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  k TEXT NOT NULL,
+  ts REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_k ON rate_hits(k, ts);
+CREATE TABLE IF NOT EXISTS images (
+  name TEXT PRIMARY KEY,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  data BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS draft_images (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  draft_id TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  data BLOB NOT NULL,
+  created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_draft_images ON draft_images(restaurant_id, draft_id, n);
+CREATE TABLE IF NOT EXISTS import_chunks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  upload_id TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  data BLOB NOT NULL,
+  created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_import_chunks ON import_chunks(restaurant_id, upload_id, n);
 """
 
 
@@ -181,7 +210,7 @@ def _row_factory(cursor):
     return lambda values: Row(zip(names, values))
 
 
-_NO_ID = ("sessions", "password_resets")  # tablas sin columna id: no se pide RETURNING id
+_NO_ID = ("sessions", "password_resets", "images")  # tablas sin columna id: no se pide RETURNING id
 _pool = None
 _pool_lock = threading.Lock()
 
@@ -248,11 +277,12 @@ def _get_pool():
         with _pool_lock:
             if _pool is None:
                 from psycopg_pool import ConnectionPool
-                opts = "-c timezone=UTC" + (f" -c search_path={PG_SCHEMA},public" if PG_SCHEMA else "")
+                kw = {"autocommit": True, "row_factory": _row_factory, "prepare_threshold": None}
+                if PG_SCHEMA:  # solo las pruebas; sin esto la conexión sirve también tras el pooler de Supabase (puerto 6543)
+                    kw["options"] = f"-c search_path={PG_SCHEMA},public"
                 p = ConnectionPool(
                     config.DATABASE_URL, min_size=1, max_size=config.PG_POOL_MAX, open=False, timeout=15,
-                    check=ConnectionPool.check_connection,
-                    kwargs={"autocommit": True, "row_factory": _row_factory, "options": opts, "prepare_threshold": None})
+                    check=ConnectionPool.check_connection, kwargs=kw)
                 p.open()
                 atexit.register(close_pool)
                 _pool = p
@@ -315,6 +345,7 @@ def init_db():
                 boot.execute(f'CREATE SCHEMA IF NOT EXISTS "{PG_SCHEMA}"')
         ddl = SCHEMA.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
         ddl = re.sub(r"\bREAL\b", "DOUBLE PRECISION", ddl)
+        ddl = re.sub(r"\bBLOB\b", "BYTEA", ddl)
         with closing(connect()) as c:
             c.execute("SELECT pg_advisory_lock(727002)")  # varios procesos arrancando a la vez
             try:
@@ -382,3 +413,8 @@ def jl(s, default=None):
         return json.loads(s)
     except Exception:
         return default if default is not None else []
+
+
+if __name__ == "__main__":
+    init_db()
+    print("Esquema listo en", "PostgreSQL" if IS_PG else DB_PATH)

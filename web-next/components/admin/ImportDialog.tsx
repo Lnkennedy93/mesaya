@@ -21,17 +21,25 @@ export default function ImportDialog({ onClose, onDone }: { onClose: () => void;
     return () => clearInterval(t);
   }, [!!reading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function waitForRead(jobId: string, reason?: string) {
-    if (reason) setReading((r) => (r ? { ...r, reason: reason === "local_baja_confianza" ? "La lectura local no quedó segura: usamos IA para mejorarla." : reason } : r));
-    const t0 = Date.now();
-    while (true) {
-      await new Promise((r) => setTimeout(r, 2000));
-      if (!alive.current) throw new Error("Lectura cancelada");
-      if (Date.now() - t0 > 6 * 60 * 1000) throw new Error("La lectura tardó demasiado. Inténtalo de nuevo.");
-      const s = await api("/api/import/ai/" + jobId);
-      if (s.status === "done") return s.result;
-      if (s.status === "error") throw new Error(s.error);
+  // Una petición a Vercel admite 4,5 MB: las cartas más grandes se suben por partes y el servidor las reúne.
+  async function sendMenu(f: File) {
+    const fd = new FormData();
+    if (f.size <= 4_000_000) {
+      fd.append("file", f);
+      return api("/api/import/ai", { method: "POST", body: fd });
     }
+    const id = crypto.randomUUID().replace(/-/g, "");
+    const size = 3 * 1024 * 1024;
+    for (let n = 0; n * size < f.size; n++) {
+      const part = new FormData();
+      part.append("upload_id", id);
+      part.append("n", String(n));
+      part.append("file", f.slice(n * size, (n + 1) * size), "parte");
+      await api("/api/import/chunk", { method: "POST", body: part });
+    }
+    fd.append("upload_id", id);
+    fd.append("filename", f.name);
+    return api("/api/import/ai", { method: "POST", body: fd });
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -43,12 +51,9 @@ export default function ImportDialog({ onClose, onDone }: { onClose: () => void;
       toast(`El archivo pesa ${(f.size / 1048576).toFixed(1)} MB y el máximo es ${ME.max_import_mb} MB. Exporta el PDF en calidad media o sin fotos pesadas.`, true);
       return;
     }
-    const fd = new FormData();
-    fd.append("file", f);
     setReading({ name: f.name, reason: "" });
     try {
-      let r = await api("/api/import/ai", { method: "POST", body: fd });
-      if (r.job_id) r = await waitForRead(r.job_id, r.reason);
+      const r = await sendMenu(f);
       if (alive.current) { setReading(null); setDraft(r); }
     } catch (err: Any) {
       if (alive.current) { setReading(null); toast(err.message, true); }

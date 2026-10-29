@@ -12,6 +12,11 @@ from .config import PLANS
 COOKIE = "mesaya_session"
 
 
+def client_ip(request: Request) -> str:
+    """IP del visitante. Detrás de Vercel o de un proxy, request.client es el proxy: la real viene en x-forwarded-for."""
+    return request.headers.get("x-forwarded-for", request.client.host if request.client else "x").split(",")[0].strip()
+
+
 def now():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -80,21 +85,19 @@ def plan_info(r: dict):
     return PLANS.get(r["plan"], PLANS["basic"])
 
 
-# --- rate limiting en memoria (suficiente para 1 proceso; usar Redis al escalar) ---
-_hits: dict[str, list[float]] = {}
-
-
+# --- límite de intentos: vive en la base de datos para que lo compartan todas las instancias (Vercel no comparte memoria)
+# shortcut: cuenta y luego inserta (no es atómico), así que bajo concurrencia extrema puede pasarse por unos pocos intentos; usar Redis si hace falta exactitud.
 def rate_check(key: str, limit: int, window: int):
     """Falla con 429 si ya se alcanzó el límite, sin contar este intento."""
-    t = time.time()
-    arr = [x for x in _hits.get(key, []) if t - x < window]
-    _hits[key] = arr
-    if len(arr) >= limit:
+    n = db.row("SELECT COUNT(*) AS n FROM rate_hits WHERE k=? AND ts>?", (key, time.time() - window))["n"]
+    if n >= limit:
         raise HTTPException(429, "Demasiados intentos, espera un momento")
 
 
 def rate_hit(key: str):
-    _hits.setdefault(key, []).append(time.time())
+    db.run("INSERT INTO rate_hits(k, ts) VALUES (?,?)", (key, time.time()))
+    if secrets.randbelow(50) == 0:  # limpieza ocasional: ninguna ventana dura más de 1 h
+        db.run("DELETE FROM rate_hits WHERE ts<?", (time.time() - 7200,))
 
 
 def rate_limit(key: str, limit: int, window: int):

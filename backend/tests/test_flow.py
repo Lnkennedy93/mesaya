@@ -6,6 +6,7 @@ from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp())
 os.environ["MESAYA_DB"] = str(tmp / "t.db")
+from tests import isolate  # noqa: E402,F401  (PostgreSQL: esquema temporal)
 os.environ["MESAYA_UPLOADS"] = str(tmp / "up")
 os.environ["MESAYA_ADMIN_KEY"] = "k"
 os.environ["MESAYA_DEMO"] = "1"

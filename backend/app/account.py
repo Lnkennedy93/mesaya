@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from . import auth, config, db, drafts, mailer
+from . import auth, config, db, mailer
 from .auth import Staff, now, owner_dep, rate_limit
 from .panel import _admin, _me, _set_cookie
 
@@ -19,8 +19,7 @@ def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def _ip(request: Request) -> str:
-    return request.client.host if request.client else "x"
+_ip = auth.client_ip
 
 
 def _new_reset(restaurant_id: int) -> str:
@@ -111,16 +110,7 @@ def delete_account(body: DeleteIn, request: Request, response: Response, s: Staf
         raise HTTPException(400, "La contraseña no es correcta")
     if body.confirm.strip().lower() != s.r["slug"]:
         raise HTTPException(400, f"Escribe «{s.r['slug']}» para confirmar")
-    imgs = [r["image"] for r in db.rows("SELECT image FROM items WHERE restaurant_id=? AND image != ''", (s.id,))]
-    if s.r["logo"]:
-        imgs.append(s.r["logo"])
-    db.run("DELETE FROM restaurants WHERE id=?", (s.id,))  # ON DELETE CASCADE limpia el resto
-    drafts.delete_restaurant(s.id)  # borradores de importación con fotos
-    for path in imgs:
-        try:
-            (config.UPLOAD_DIR / path.rsplit("/", 1)[-1]).unlink(missing_ok=True)
-        except OSError:
-            pass
+    db.run("DELETE FROM restaurants WHERE id=?", (s.id,))  # ON DELETE CASCADE limpia el resto: carta, fotos, borradores y partes
     response.delete_cookie(auth.COOKIE, path="/")
     log.info("Cuenta %s eliminada por su dueño", s.r["slug"])
     return {"ok": True}

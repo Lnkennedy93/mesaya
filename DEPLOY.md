@@ -1,5 +1,7 @@
 # Despliegue y operación de MesaYa
 
+> **Vercel:** para publicar todo en Vercel (frontend + backend + Supabase) sigue [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md). Esta guía es para servidor propio (Docker) o Fly.io; el código del backend ahora vive en `backend/`.
+
 Guía para publicar MesaYa y mantenerla viva. Dos caminos: **VPS propio** (Docker + HTTPS automático) o **Fly.io**.
 En ambos, MesaYa corre como **un solo proceso**: el tiempo real de la cocina y los límites de intentos viven en memoria.
 

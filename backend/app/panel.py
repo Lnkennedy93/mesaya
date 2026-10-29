@@ -2,17 +2,17 @@
 import csv
 import io
 import json
+import re
 import secrets
-import shutil
-from pathlib import Path
+import time
 from datetime import datetime, timedelta, timezone
 
 import segno
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import ai_import, auth, colombia, config, db, drafts, events, invoicing, jobs, menu_reader, payments, service, vault
+from . import ai_import, auth, colombia, config, db, drafts, events, invoicing, menu_reader, payments, service, vault
 from .auth import Staff, now, owner_dep, rate_limit, staff_dep
 
 router = APIRouter(prefix="/api")
@@ -66,7 +66,7 @@ def _me(r: dict, role: str) -> dict:
 
 @router.post("/signup")
 def signup(body: SignupIn, request: Request, response: Response):
-    rate_limit(f"signup:{request.client.host if request.client else 'x'}", 5, 3600)
+    rate_limit(f"signup:{auth.client_ip(request)}", 5, 3600)
     email = body.email.strip().lower()
     if "@" not in email:
         raise HTTPException(400, "Correo inválido")
@@ -100,7 +100,7 @@ class LoginIn(BaseModel):
 
 @router.post("/login")
 def login(body: LoginIn, request: Request, response: Response):
-    rate_limit(f"login:{request.client.host if request.client else 'x'}", 10, 600)
+    rate_limit(f"login:{auth.client_ip(request)}", 10, 600)
     r = db.row("SELECT * FROM restaurants WHERE email=?", (body.email.strip().lower(),))
     if not r or not auth.verify_password(body.password, r["password_hash"]):
         raise HTTPException(401, "Correo o contraseña incorrectos")
@@ -115,7 +115,7 @@ class StaffLoginIn(BaseModel):
 
 @router.post("/staff-login")
 def staff_login(body: StaffLoginIn, request: Request, response: Response):
-    rate_limit(f"pin:{request.client.host if request.client else 'x'}", 10, 600)
+    rate_limit(f"pin:{auth.client_ip(request)}", 10, 600)
     r = db.row("SELECT * FROM restaurants WHERE slug=?", (body.slug.strip().lower(),))
     if not r or not secrets.compare_digest(r["staff_pin"], body.pin.strip()):
         raise HTTPException(401, "Restaurante o PIN incorrecto")
@@ -244,6 +244,7 @@ def retry_invoice(iid: int, s: Staff = Depends(owner_dep)):
 async def upload_logo(file: UploadFile = File(...), s: Staff = Depends(owner_dep)):
     path = await _save_image(file, s.id, max_px=400)
     db.run("UPDATE restaurants SET logo=? WHERE id=?", (path, s.id))
+    _drop_image(s.id, s.r["logo"])
     return {"logo": path}
 
 
@@ -258,15 +259,26 @@ async def _save_image(file: UploadFile, rid: int, max_px=1000) -> str:
     if not any(data.startswith(m) for m in _MAGIC):
         raise HTTPException(400, "Solo JPG, PNG o WebP")
     name = f"{rid}_{secrets.token_hex(8)}.webp"
-    config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     try:
         from PIL import Image, ImageOps
         im = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
         im.thumbnail((max_px, max_px))
-        im.convert("RGB").save(config.UPLOAD_DIR / name, "WEBP", quality=82)
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, "WEBP", quality=82)
     except Exception:
         raise HTTPException(400, "No se pudo leer la imagen")
+    db.run("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)", (name, rid, buf.getvalue()))  # sin disco: Vercel no lo conserva
     return f"/uploads/{name}"
+
+
+def _drop_image(rid: int, path: str):
+    """Borra la foto de la base si ningún plato ni el logo la usa ya (una foto importada puede estar en varios platos)."""
+    if not path or not path.startswith("/uploads/"):
+        return
+    used = db.row("SELECT (SELECT COUNT(*) FROM items WHERE restaurant_id=? AND image=?) + "
+                  "(SELECT COUNT(*) FROM restaurants WHERE id=? AND logo=?) AS n", (rid, path, rid, path))["n"]
+    if not used:
+        db.run("DELETE FROM images WHERE name=? AND restaurant_id=?", (path.rsplit("/", 1)[-1], rid))
 
 
 # ---------------------------------------------------------------- carta
@@ -297,7 +309,10 @@ def edit_category(cid: int, body: CatIn, s: Staff = Depends(owner_dep)):
 
 @router.delete("/categories/{cid}")
 def del_category(cid: int, s: Staff = Depends(owner_dep)):
+    imgs = {r["image"] for r in db.rows("SELECT image FROM items WHERE category_id=? AND restaurant_id=? AND image != ''", (cid, s.id))}
     db.run("DELETE FROM categories WHERE id=? AND restaurant_id=?", (cid, s.id))
+    for im in imgs:
+        _drop_image(s.id, im)
     return {"ok": True}
 
 
@@ -370,7 +385,10 @@ def edit_item(iid: int, body: ItemIn, s: Staff = Depends(owner_dep)):
 
 @router.delete("/items/{iid}")
 def del_item(iid: int, s: Staff = Depends(owner_dep)):
+    it = db.row("SELECT image FROM items WHERE id=? AND restaurant_id=?", (iid, s.id))
     db.run("DELETE FROM items WHERE id=? AND restaurant_id=?", (iid, s.id))
+    if it:
+        _drop_image(s.id, it["image"])
     return {"ok": True}
 
 
@@ -384,10 +402,12 @@ def set_availability(iid: int, body: dict, s: Staff = Depends(staff_dep)):
 
 @router.post("/items/{iid}/image")
 async def item_image(iid: int, file: UploadFile = File(...), s: Staff = Depends(owner_dep)):
-    if not db.row("SELECT 1 FROM items WHERE id=? AND restaurant_id=?", (iid, s.id)):
+    it = db.row("SELECT image FROM items WHERE id=? AND restaurant_id=?", (iid, s.id))
+    if not it:
         raise HTTPException(404)
     path = await _save_image(file, s.id)
     db.run("UPDATE items SET image=? WHERE id=?", (path, iid))
+    _drop_image(s.id, it["image"])
     return {"image": path}
 
 
@@ -427,21 +447,49 @@ def _local_response(rid: int, local: dict, extra_warnings: list | None = None) -
 
 
 _KIND = {"application/pdf": "pdf", "image/jpeg": "image", "image/png": "image", "image/webp": "image"}
+CHUNK_MAX = 4 * 1024 * 1024  # una petición a una función de Vercel admite 4,5 MB como máximo
+_UPLOAD_ID = re.compile(r"^[A-Za-z0-9_-]{10,40}$")
+
+
+@router.post("/import/chunk")
+async def import_chunk(upload_id: str = Form(...), n: int = Form(...), file: UploadFile = File(...), s: Staff = Depends(owner_dep)):
+    """Una parte de una carta grande: se guarda en la base y /import/ai las reúne (cartas con fotos pesan hasta 30 MB)."""
+    if not _UPLOAD_ID.match(upload_id) or not 0 <= n < 16:
+        raise HTTPException(400, "Subida inválida")
+    rate_limit(f"chunk:{s.id}", 60, 600)
+    data = await file.read(CHUNK_MAX + 1)
+    if len(data) > CHUNK_MAX:
+        raise HTTPException(413, "La parte pesa demasiado")
+    db.run("DELETE FROM import_chunks WHERE created_at<?", (time.time() - 3600,))  # partes abandonadas
+    db.run("DELETE FROM import_chunks WHERE restaurant_id=? AND upload_id=? AND n=?", (s.id, upload_id, n))
+    db.run("INSERT INTO import_chunks(restaurant_id, upload_id, n, data, created_at) VALUES (?,?,?,?,?)",
+           (s.id, upload_id, n, data, time.time()))
+    return {"ok": True}
 
 
 @router.post("/import/ai")
-async def import_ai(file: UploadFile = File(...), s: Staff = Depends(owner_dep)):
+async def import_ai(file: UploadFile | None = File(None), upload_id: str = Form(""), filename: str = Form(""), s: Staff = Depends(owner_dep)):
     """Lee la carta que sube el restaurante y devuelve un BORRADOR para revisar (nada entra a la carta hasta /import/commit).
 
     Orden (MESAYA_MENU_READER=auto): .txt/.csv, Word, Excel y PDF con texto se leen LOCALMENTE (gratis, al instante, sin IA).
-    Si la lectura local no es confiable, o es una foto, se usa la IA en segundo plano (responde 202 + job_id)."""
+    Si la lectura local no es confiable, o es una foto, se usa la IA dentro de esta misma petición (Vercel la deja correr hasta 300 s).
+    Llega como `file` (hasta 4 MB) o por partes (`upload_id` + /import/chunk)."""
     from starlette.concurrency import run_in_threadpool
     rate_limit(f"aiimport:{s.id}", 8, 600)
     limit = config.MAX_IMPORT_MB * 1024 * 1024
-    data = await file.read(limit + 1)  # lee solo hasta el límite: un archivo gigante no llena la memoria
+    if upload_id:
+        if not _UPLOAD_ID.match(upload_id):
+            raise HTTPException(400, "Subida inválida")
+        parts = db.rows("SELECT data FROM import_chunks WHERE restaurant_id=? AND upload_id=? ORDER BY n", (s.id, upload_id))
+        db.run("DELETE FROM import_chunks WHERE restaurant_id=? AND upload_id=?", (s.id, upload_id))
+        data, name = b"".join(bytes(p["data"]) for p in parts), filename
+    elif file is not None:
+        data, name = await file.read(limit + 1), file.filename or ""  # lee solo hasta el límite: un archivo gigante no llena la memoria
+    else:
+        raise HTTPException(400, "Falta el archivo")
     if len(data) > limit:
         raise HTTPException(413, f"El archivo pesa más de {config.MAX_IMPORT_MB} MB. Comprímelo o súbelo sin fotos pesadas (por ejemplo, exporta el PDF en calidad media).")
-    mt = ai_import.sniff_media_type(data, file.filename or "")
+    mt = ai_import.sniff_media_type(data, name)
     office = menu_reader.sniff_office(data)
     kind = _KIND.get(mt) or office
     if not mt and not office:
@@ -479,10 +527,12 @@ async def import_ai(file: UploadFile = File(...), s: Staff = Depends(owner_dep))
             if local and local["categories"]:
                 return _local_response(s.id, local, ["Se acabaron las lecturas con IA de tu plan; esta lectura local es de baja confianza: revísala."])
             raise HTTPException(402, "Llegaste al límite de lecturas con IA de tu plan y este archivo no se pudo leer localmente.")
-        if jobs.running_for(s.id):
-            raise HTTPException(409, "Ya estamos leyendo otra carta tuya. Espera a que termine.")
-        job_id = jobs.start(s.id, _read_menu, s.id, data, mt)
-        return JSONResponse({"job_id": job_id, "reason": local_err or ("local_baja_confianza" if local else "")}, status_code=202)
+        try:
+            return await run_in_threadpool(_read_menu, s.id, data, mt)
+        except ai_import.AIError as e:  # mensaje presentable, sin claves ni respuestas crudas del proveedor
+            raise HTTPException(502, str(e))
+        except Exception:
+            raise HTTPException(502, "No se pudo leer la carta, intenta con otro archivo.")
     if local and local["categories"]:
         return _local_response(s.id, local, ["Lectura de baja confianza (sin IA disponible): revisa cada plato y precio antes de agregar."])
     if local_err:
@@ -490,63 +540,50 @@ async def import_ai(file: UploadFile = File(...), s: Staff = Depends(owner_dep))
     raise HTTPException(422, "No encontramos platos con precio en el archivo.")
 
 
-@router.get("/import/ai/{job_id}")
-def import_ai_status(job_id: str, s: Staff = Depends(owner_dep)):
-    j = jobs.get(job_id, s.id)
-    if not j:
-        raise HTTPException(404, "Ese trabajo ya no existe. Vuelve a subir el archivo.")
-    return j
-
-
 @router.post("/import/commit")
 def import_commit(body: dict, s: Staff = Depends(owner_dep)):
-    """Agrega el borrador revisado a la carta. Si trae fotos (image_ref), las pasa del borrador a uploads/."""
+    """Agrega el borrador revisado a la carta. Si trae fotos (image_ref), las pasa del borrador a la tabla images."""
     added, photos = 0, 0
     copied: dict[tuple, str] = {}
-    new_files: list[Path] = []
 
-    def photo_for(it: dict) -> str:
+    def photo_for(c, it: dict) -> str:
         ref = it.get("image_ref")
         if not (isinstance(ref, (list, tuple)) and len(ref) == 2):
             return ""
-        src = drafts.path(s.id, ref[0], ref[1])
-        if src is None:
+        try:
+            key = (str(ref[0]), int(ref[1]))
+        except (TypeError, ValueError):
             return ""
-        key = (ref[0], src.name)
         if key not in copied:  # la misma foto en varios platos se guarda una sola vez
-            config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            data = drafts.read(s.id, key[0], key[1])
+            if data is None:
+                return ""
             name = f"{s.id}_{secrets.token_hex(8)}.webp"
-            shutil.copyfile(src, config.UPLOAD_DIR / name)
-            new_files.append(config.UPLOAD_DIR / name)
+            c.execute("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)", (name, s.id, data))
             copied[key] = f"/uploads/{name}"
         return copied[key]
 
-    try:
-        with db.tx() as c:
-            n = c.execute("SELECT COALESCE(MAX(sort),0) FROM categories WHERE restaurant_id=?", (s.id,)).fetchone()[0]
-            for cat in body.get("categories", [])[:40]:
-                name = str(cat.get("name", "")).strip()[:60]
-                items = cat.get("items", [])[:200]
-                if not name or not items:
+    with db.tx() as c:  # si algo falla, el ROLLBACK deja también sin fotos nuevas
+        n = c.execute("SELECT COALESCE(MAX(sort),0) FROM categories WHERE restaurant_id=?", (s.id,)).fetchone()[0]
+        for cat in body.get("categories", [])[:40]:
+            name = str(cat.get("name", "")).strip()[:60]
+            items = cat.get("items", [])[:200]
+            if not name or not items:
+                continue
+            n += 1
+            cid = c.execute("INSERT INTO categories(restaurant_id,name,sort) VALUES (?,?,?)", (s.id, name, n)).lastrowid
+            for k, it in enumerate(items):
+                iname = str(it.get("name", "")).strip()[:90]
+                if not iname:
                     continue
-                n += 1
-                cid = c.execute("INSERT INTO categories(restaurant_id,name,sort) VALUES (?,?,?)", (s.id, name, n)).lastrowid
-                for k, it in enumerate(items):
-                    iname = str(it.get("name", "")).strip()[:90]
-                    if not iname:
-                        continue
-                    price = round(float(it.get("price") or 0) * (1 if s.r["decimals"] == 0 else 100))
-                    tags = [t for t in it.get("tags", []) if isinstance(t, str)][:6]
-                    image = photo_for(it)
-                    photos += 1 if image else 0
-                    c.execute(
-                        "INSERT INTO items(restaurant_id,category_id,name,description,price,tags,sort,image) VALUES (?,?,?,?,?,?,?,?)",
-                        (s.id, cid, iname, str(it.get("description", ""))[:400], max(0, price), json.dumps(tags), k, image))
-                    added += 1
-    except Exception:
-        for f in new_files:  # si algo falló, no dejar fotos huérfanas
-            f.unlink(missing_ok=True)
-        raise
+                price = round(float(it.get("price") or 0) * (1 if s.r["decimals"] == 0 else 100))
+                tags = [t for t in it.get("tags", []) if isinstance(t, str)][:6]
+                image = photo_for(c, it)
+                photos += 1 if image else 0
+                c.execute(
+                    "INSERT INTO items(restaurant_id,category_id,name,description,price,tags,sort,image) VALUES (?,?,?,?,?,?,?,?)",
+                    (s.id, cid, iname, str(it.get("description", ""))[:400], max(0, price), json.dumps(tags), k, image))
+                added += 1
     drafts.delete(s.id, body.get("draft_id"))
     return {"added": added, "photos": photos}
 
@@ -554,10 +591,10 @@ def import_commit(body: dict, s: Staff = Depends(owner_dep)):
 @router.get("/import/draft/{draft_id}/{n}.webp")
 def import_draft_photo(draft_id: str, n: int, s: Staff = Depends(owner_dep)):
     """Vista previa de una foto del borrador (solo el dueño que lo creó)."""
-    p = drafts.path(s.id, draft_id, n)
-    if p is None:
+    data = drafts.read(s.id, draft_id, n)
+    if data is None:
         raise HTTPException(404, "La foto ya no está disponible (el borrador expira a las 3 horas)")
-    return FileResponse(p, media_type="image/webp", headers={"Cache-Control": "private, max-age=3600"})
+    return Response(data, media_type="image/webp", headers={"Cache-Control": "private, max-age=3600"})
 
 
 # ---------------------------------------------------------------- mesas y QR

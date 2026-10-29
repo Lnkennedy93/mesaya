@@ -196,10 +196,11 @@ def issue(invoice_id: int) -> dict:
 
 
 def enqueue(payment_id: int):
-    """Se llama al confirmarse un pago: crea la factura y la emite en segundo plano."""
+    """Se llama al confirmarse un pago: crea la factura y la emite en esta misma petición (en Vercel no hay hilos de fondo).
+    shortcut: bloquea la petición mientras responde el proveedor (máx. 30 s); si falla, queda en error y se reintenta desde el panel."""
     inv_id = create_for_payment(payment_id)
     if inv_id:
-        threading.Thread(target=issue, args=(inv_id,), daemon=True).start()
+        issue(inv_id)
 
 
 def retry_failed(limit=20):

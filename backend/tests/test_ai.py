@@ -8,6 +8,7 @@ from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp())
 os.environ["MESAYA_DB"] = str(tmp / "t.db")
+from tests import isolate  # noqa: E402,F401  (PostgreSQL: esquema temporal)
 os.environ["MESAYA_UPLOADS"] = str(tmp / "up")
 os.environ["GEMINI_API_KEY"] = "clave-falsa-de-prueba-123"  # evita usar la real del .env
 os.environ["MESAYA_AI_PROVIDER"] = "auto"
@@ -166,22 +167,14 @@ except ai_import.AIError as e:
 run_seq(lambda m, kw: R(200, {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": "```json\n" + json.dumps(DRAFT) + "\n```"}]}}]}))
 check(True, "tolera JSON envuelto en bloque de código")
 
-# --- endpoint con trabajos en segundo plano
+# --- endpoint: la lectura con IA corre dentro de la petición (Vercel no tiene hilos de fondo)
 ai_import._post = post_ok
 
 
 def ai_post(cl, name, data, ctype=None):
-    """Sube un archivo y, si responde 202, espera el trabajo. Devuelve (estado final, cuerpo)."""
+    """Sube un archivo. Devuelve (estado, cuerpo)."""
     r = cl.post("/api/import/ai", files={"file": (name, data, ctype) if ctype else (name, data)})
-    if r.status_code != 202:
-        return r.status_code, r.json()
-    jid = r.json()["job_id"]
-    for _ in range(200):
-        j = cl.get(f"/api/import/ai/{jid}").json()
-        if j["status"] != "running":
-            return (200, j["result"]) if j["status"] == "done" else (502, {"error": j["error"]})
-        time.sleep(0.02)
-    raise AssertionError("el trabajo no terminó")
+    return r.status_code, r.json()
 
 
 with TestClient(app) as cl:
@@ -190,19 +183,8 @@ with TestClient(app) as cl:
     check(me["ai_available"] and me["ai_provider"] == "gemini", "el panel sabe que hay IA (Gemini)")
     check(cl.post("/api/import/ai", files={"file": ("a.exe", b"MZ\x90\x00 virus")}).status_code == 400, "archivo no permitido → 400")
     r = cl.post("/api/import/ai", files={"file": ("carta.png", PNG, "text/plain")})
-    check(r.status_code == 202 and "job_id" in r.json(), "foto/PDF: responde 202 al instante con un job_id (no bloquea la petición)")
-    jid = r.json()["job_id"]
-    for _ in range(200):
-        j = cl.get(f"/api/import/ai/{jid}").json()
-        if j["status"] != "running":
-            break
-        time.sleep(0.02)
-    check(j["status"] == "done" and len(j["result"]["categories"][0]["items"]) == 2 and "elapsed" in j, "el trabajo termina con el borrador (aunque el navegador declare otro tipo)")
-
-    other = TestClient(app)
-    other.post("/api/signup", json={"accept_terms": True, "name": "Otro", "email": "otro@x.co", "password": "secreto123", "tables": 1})
-    check(other.get(f"/api/import/ai/{jid}").status_code == 404, "otro restaurante no puede ver el trabajo ajeno")
-    check(cl.get("/api/import/ai/inexistente").status_code == 404, "trabajo inexistente → 404")
+    check(r.status_code == 200 and r.json()["source"] == "ai" and len(r.json()["categories"][0]["items"]) == 2,
+          "foto/PDF: se lee con IA y responde con el borrador (aunque el navegador declare otro tipo)")
 
     before = len(CALLS)
     st, body = ai_post(cl, "carta.csv", csv_txt.encode())
@@ -216,28 +198,17 @@ with TestClient(app) as cl:
     st, body = ai_post(cl, "c.pdf", PDF)
     check(st == 502 and "ocupada" in body["error"] and used() == 1, "si la IA falla, el dueño ve el motivo y no se descuenta la cuota")
 
-    # un solo trabajo a la vez por restaurante
-    gate = threading.Event()
-    ai_import._post = lambda url, **kw: (gate.wait(5), gemini_ok(DRAFT))[1]
-    r1 = cl.post("/api/import/ai", files={"file": ("c1.pdf", PDF)})
-    r2 = cl.post("/api/import/ai", files={"file": ("c2.pdf", PDF)})
-    check(r1.status_code == 202 and r2.status_code == 409, "mientras se lee una carta, una segunda subida se rechaza (409)")
-    gate.set()
-    for _ in range(200):
-        if cl.get(f"/api/import/ai/{r1.json()['job_id']}").json()["status"] != "running":
-            break
-        time.sleep(0.02)
-
     ai_import._post = post_ok
-    from app import auth as _auth
-    _auth._hits.clear()  # reinicia el límite de ritmo (8 subidas / 10 min) para medir solo la cuota del plan
+    check(ai_post(cl, "c1.pdf", PDF)[0] == 200 and used() == 2, "una segunda lectura con IA descuenta otra del plan")
+    from app import db as _db
+    _db.run("DELETE FROM rate_hits")  # reinicia el límite de ritmo (8 subidas / 10 min) para medir solo la cuota del plan
     ai_post(cl, "c.pdf", PDF)
     check(used() == 3 and ai_post(cl, "c.pdf", PDF)[0] == 402, "el plan Esencial permite 3 lecturas con IA")
     check(any(cl.post("/api/import/ai", files={"file": ("x.csv", b"a;1")}).status_code == 429 for _ in range(10)), "límite de ritmo: no se puede inundar el endpoint")
     cl.post("/api/logout")
     check(cl.post("/api/import/ai", files={"file": ("c.png", PNG)}).status_code == 401, "sin sesión no se puede usar")
     config.GEMINI_API_KEY = ""
-    _auth._hits.clear()
+    _db.run("DELETE FROM rate_hits")
     cl.post("/api/login", json={"email": "ia@x.co", "password": "secreto123"})
     check(cl.post("/api/import/ai", files={"file": ("c.png", PNG)}).status_code == 422 and not cl.get("/api/me").json()["ai_available"], "sin clave ni OCR: una foto da 422 con explicación y el panel lo sabe")
 

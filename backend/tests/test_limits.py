@@ -7,6 +7,7 @@ from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp())
 os.environ["MESAYA_DB"] = str(tmp / "t.db")
+from tests import isolate  # noqa: E402,F401  (PostgreSQL: esquema temporal)
 os.environ["MESAYA_UPLOADS"] = str(tmp / "up")
 os.environ["MESAYA_ADMIN_KEY"] = "k"
 os.environ["MESAYA_DEMO"] = "1"
@@ -65,5 +66,13 @@ with TestClient(app) as c:
     bad = [order(c, slug, 5, key=f"mala{i}", ip=atacante).status_code for i in range(40)]
     check(bad[:30] == [403] * 30 and bad[30:] == [429] * 10, "clave errónea: 30 intentos y luego bloqueo por IP")
     check(order(c, slug, 7).status_code == 200, "el bloqueo del atacante no afecta al WiFi del local")
+
+    # las lecturas (/menu, /bill) comparten el mismo contador: no sirven para adivinar la clave sin límite
+    intruso = {"x-forwarded-for": "7.7.7.7"}
+    menus = [c.get(f"/api/public/{slug}/menu?t=5&k=x{i}", headers=intruso).json()["table_ok"] for i in range(30)]
+    check(not any(menus), "/menu con clave errónea: table_ok siempre falso")
+    check(c.get(f"/api/public/{slug}/bill?table=5&k=otra", headers=intruso).status_code == 429, "/bill: tras 30 intentos fallidos en /menu, la IP queda bloqueada")
+    check(not c.get(f"/api/public/{slug}/menu?t=5&k=k5", headers=intruso).json()["table_ok"], "/menu: la IP bloqueada no confirma ni la clave correcta")
+    check(c.get(f"/api/public/{slug}/menu?t=5&k=k5", headers=WIFI).json()["table_ok"], "/menu: el WiFi del local con su clave sigue funcionando")
 
 print("\nLímites ✔")
