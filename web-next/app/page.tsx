@@ -120,18 +120,18 @@ export default function Landing() {
 
         <section id="precios">
           <h2 className="t">Precios simples</h2>
-          <p className="sub">14 días gratis sin tarjeta. Sin permanencia. Sin letra pequeña.</p>
+          <p className="sub">14 días gratis sin tarjeta. Si no pagas, te quedas gratis con 3 mesas. Sin permanencia. Sin letra pequeña.</p>
           <div className="plans">
             <div className="card plan">
               <h3>Esencial</h3>
-              <div className="p">$59.000<small className="muted"> /mes</small></div>
+              <div className="p">$79.000<small className="muted"> /mes</small></div>
               <ul><li>Hasta 15 mesas</li><li>Carta con fotos y QR por mesa</li><li>Pantalla de cocina</li><li>Cuenta y cierre de mesa desde el celular</li><li>Reportes básicos</li></ul>
               <a className="btn ghost block" href="/signup">Empezar gratis</a>
             </div>
             <div className="card plan hot">
               <span className="pill brand" style={{ alignSelf: "flex-start" }}>Más elegido</span>
               <h3>Pro</h3>
-              <div className="p">$119.000<small className="muted"> /mes</small></div>
+              <div className="p">$139.000<small className="muted"> /mes</small></div>
               <ul><li>Hasta 60 mesas</li><li>Importación de carta con IA</li><li>Opiniones y reseñas en Google</li><li>Reportes completos + CSV</li><li>Soporte prioritario</li></ul>
               <a className="btn block" href="/signup">Empezar gratis</a>
             </div>

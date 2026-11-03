@@ -82,6 +82,8 @@ def is_active(r: dict) -> bool:
 
 
 def plan_info(r: dict):
+    if not is_active(r):  # prueba vencida sin pagar: plan Gratis, no un bloqueo
+        return PLANS["free"]
     return PLANS.get(r["plan"], PLANS["basic"])
 
 

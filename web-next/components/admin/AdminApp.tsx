@@ -53,7 +53,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
   const mail = `mailto:ventas@mesaya.app?subject=Activar%20${encodeURIComponent(ME.restaurant.slug)}`;
   const banner =
     ME.restaurant.subscription_status === "active" ? null : !ME.active ? (
-      <div className="banner bad"><b>Tu prueba terminó.</b> Los clientes ya no pueden pedir desde el QR. <a className="btn sm" href={mail}>Activar mi plan</a></div>
+      <div className="banner bad"><b>Tu prueba terminó: estás en el plan Gratis.</b> Solo las primeras {ME.plan.tables} mesas reciben pedidos desde el QR. <a className="btn sm" href={mail}>Activar mi plan</a></div>
     ) : (
       <div className="banner"><span>🎁 Prueba gratis: te quedan <b>{ME.trial_days_left} días</b></span><a className="btn sm" href={mail}>Elegir plan</a></div>
     );

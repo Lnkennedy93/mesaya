@@ -75,7 +75,7 @@ function termsDialog() {
 }
 const planBanner = () => {
   if (ME.restaurant.subscription_status === 'active') return '';
-  if (!ME.active) return `<div class="banner bad"><b>Tu prueba terminó.</b> Los clientes ya no pueden pedir desde el QR. <a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20${esc(ME.restaurant.slug)}">Activar mi plan</a></div>`;
+  if (!ME.active) return `<div class="banner bad"><b>Tu prueba terminó: estás en el plan Gratis.</b> Solo las primeras ${ME.plan.tables} mesas reciben pedidos desde el QR. <a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20${esc(ME.restaurant.slug)}">Activar mi plan</a></div>`;
   return `<div class="banner"><span>🎁 Prueba gratis: te quedan <b>${ME.trial_days_left} días</b></span><a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20${esc(ME.restaurant.slug)}">Elegir plan</a></div>`;
 };
 async function show() {
@@ -287,7 +287,7 @@ async function settings(m) {
     <div class="grid2"><div><label>Contraseña actual</label><input id="pw_cur" type="password" autocomplete="current-password"></div>
     <div><label>Nueva contraseña (mín. 8)</label><input id="pw_new" type="password" autocomplete="new-password"></div></div>
     <p><button class="btn ghost sm" id="pw_save">Cambiar contraseña</button></p></div>
-  <div class="card" style="margin-bottom:.8rem"><h3>Plan</h3><p>Plan <b>${esc(ME.plan.name)}</b> · ${r.subscription_status === 'active' ? '<span class="pill ok">Activo</span>' : ME.active ? `<span class="pill warn">Prueba · ${ME.trial_days_left} días</span>` : '<span class="pill bad">Vencido</span>'}</p></div>
+  <div class="card" style="margin-bottom:.8rem"><h3>Plan</h3><p>Plan <b>${esc(ME.plan.name)}</b> · ${r.subscription_status === 'active' ? '<span class="pill ok">Activo</span>' : ME.active ? `<span class="pill warn">Prueba · ${ME.trial_days_left} días</span>` : '<span class="pill warn">Gratis · ${ME.plan.tables} mesas</span>'}</p></div>
   <div class="card" style="margin-top:.8rem"><h3>Tus datos</h3><p class="muted small" style="margin-top:0">Consulta los <a href="/terminos" target="_blank">Términos</a> y la <a href="/privacidad" target="_blank">Política de datos</a>. Puedes llevarte tus pedidos o borrar todo (derecho de supresión).</p>
     <p><a class="btn ghost sm" href="/api/export/orders.csv">⬇ Exportar pedidos (CSV)</a> <button class="btn bad sm" id="del_acc">Borrar mi cuenta y mis datos</button></p></div>`);
   $('#pw_save').onclick = async () => { try { await api('/api/password', { method: 'POST', body: { current: $('#pw_cur').value, password: $('#pw_new').value } }); $('#pw_cur').value = $('#pw_new').value = ''; toast('Contraseña actualizada. Las demás sesiones se cerraron.'); } catch (e) { toast(e.message, true); } };

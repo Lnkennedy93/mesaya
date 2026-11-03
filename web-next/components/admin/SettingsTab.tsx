@@ -79,7 +79,7 @@ export default function SettingsTab() {
         <h3>Plan</h3>
         <p>
           Plan <b>{ME.plan.name}</b> ·{" "}
-          {r.subscription_status === "active" ? <span className="pill ok">Activo</span> : ME.active ? <span className="pill warn">Prueba · {ME.trial_days_left} días</span> : <span className="pill bad">Vencido</span>}
+          {r.subscription_status === "active" ? <span className="pill ok">Activo</span> : ME.active ? <span className="pill warn">Prueba · {ME.trial_days_left} días</span> : <span className="pill warn">Gratis · {ME.plan.tables} mesas</span>}
         </p>
       </div>
       <div className="card" style={{ marginTop: ".8rem" }}>

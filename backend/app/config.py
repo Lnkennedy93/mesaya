@@ -90,6 +90,7 @@ BACKUP_KEEP = int(os.getenv("MESAYA_BACKUP_KEEP", "14"))
 BACKUP_HOOK = os.getenv("MESAYA_BACKUP_HOOK", "")  # comando opcional tras cada copia, ej. rclone para subirla a la nube
 
 PLANS = {
+    "free": {"name": "Gratis", "tables": 3, "ai_imports": 0},  # lo que queda al vencer la prueba sin pagar
     "basic": {"name": "Esencial", "tables": 15, "ai_imports": 3},
     "pro": {"name": "Pro", "tables": 60, "ai_imports": 50},
     "chain": {"name": "Cadena", "tables": 500, "ai_imports": 500},

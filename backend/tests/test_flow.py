@@ -15,6 +15,7 @@ os.environ["MESAYA_INVOICING"] = "1"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app import db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
@@ -119,5 +120,28 @@ with TestClient(app) as c:
     check(c.post("/api/superadmin/activate", json={"email": "a@b.co", "plan": "pro"}, headers={"x-admin-key": "k"}).status_code == 200,
           "activar suscripción")
     check(c.get("/api/me").json()["plan"]["name"] == "Pro", "plan Pro activo")
+
+    # plan Gratis: con la prueba vencida solo las 3 primeras mesas reciben pedidos
+    c.post("/api/logout")
+    r = c.post("/api/signup", json={"accept_terms": True, "name": "Gratis", "email": "g@b.co", "password": "secreto123", "tables": 5})
+    slug2 = r.json()["restaurant"]["slug"]
+    draft = c.post("/api/import/text", json={"text": "# Entradas\nEmpanadas - 8.000\n"}).json()
+    c.post("/api/import/commit", json=draft)
+    item = c.get("/api/menu").json()["categories"][0]["items"][0]
+    db.run("UPDATE restaurants SET trial_ends_at=? WHERE slug=?", ("2000-01-01 00:00:00", slug2))
+    me = c.get("/api/me").json()
+    check(me["plan"]["name"] == "Gratis" and not me["active"], "prueba vencida → plan Gratis")
+    check(c.post("/api/tables", json={"count": 1}).status_code == 402, "plan Gratis no agrega mesas")
+    by_label = {t["label"]: t for t in c.get("/api/tables").json()["tables"]}
+    base2 = f"/api/public/{slug2}"
+
+    def pedir(label):
+        t = by_label[label]
+        return c.post(f"{base2}/orders", json={"table": label, "key": t["secret"], "diner_id": "d1",
+                                               "items": [{"item_id": item["id"], "qty": 1}]})
+    check(pedir("3").status_code == 200, "plan Gratis: la mesa 3 sí recibe pedidos")
+    check(pedir("4").status_code == 402, "plan Gratis: la mesa 4 no recibe pedidos")
+    m = c.get(f"{base2}/menu", params={"t": "4", "k": by_label["4"]["secret"]}).json()
+    check(not m["can_order"] and not m["subscription_ok"], "plan Gratis: el menú de la mesa 4 es solo carta")
 
 print("\nTodo bien ✔")

@@ -38,6 +38,15 @@ def _table(r: dict, label: str, key: str, request: Request) -> dict:
         raise
 
 
+def _plan_allows(r: dict, label: str) -> bool:
+    """Con plan Gratis solo las primeras mesas (las que cubre el plan) reciben pedidos digitales."""
+    if is_active(r):
+        return True
+    first = db.rows("SELECT label FROM tables_ WHERE restaurant_id=? ORDER BY CAST(label AS INTEGER), label LIMIT ?",
+                    (r["id"], config.PLANS["free"]["tables"]))
+    return label in {t["label"] for t in first}
+
+
 @router.get("/menu")
 def menu(slug: str, request: Request, t: str = "", k: str = ""):
     r = _resto(slug)
@@ -53,7 +62,7 @@ def menu(slug: str, request: Request, t: str = "", k: str = ""):
         "SELECT * FROM items WHERE restaurant_id=? ORDER BY sort, id", (r["id"],))]
     for c in cats:
         c["items"] = [i for i in items if i["category_id"] == c["id"]]
-    active = is_active(r)
+    allowed = table_ok and _plan_allows(r, t)
     return {
         "restaurant": {
             "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "brand_color": r["brand_color"],
@@ -64,11 +73,11 @@ def menu(slug: str, request: Request, t: str = "", k: str = ""):
             "invoicing": invoicing.enabled(r),
         },
         "features": {"payments": config.ONLINE_PAYMENTS, "invoicing": config.INVOICING},
-        "can_order": bool(table_ok and r["accepting_orders"] and active),
+        "can_order": bool(allowed and r["accepting_orders"]),
         "table_ok": table_ok,
         "table": t if table_ok else "",
         "paused": not r["accepting_orders"],
-        "subscription_ok": active,
+        "subscription_ok": is_active(r) or allowed,
         "providers": payments.available_providers(r),
         "categories": [c for c in cats if c["items"]],
     }
@@ -96,9 +105,9 @@ def create_order(slug: str, body: OrderIn, request: Request):
     rate_limit(f"order:ip:{_ip(request)}:{r['id']}", IP_GUARD, 600)
     if not r["accepting_orders"]:
         raise HTTPException(409, "En este momento solo se muestra la carta. Pide al mesero.")
-    if not is_active(r):
-        raise HTTPException(402, "Este restaurante no tiene pedidos digitales activos. Pide al mesero.")
     _table(r, body.table, body.key, request)
+    if not _plan_allows(r, body.table):
+        raise HTTPException(402, "Esta mesa no tiene pedidos digitales en el plan Gratis. Pide al mesero.")
     rate_limit(f"order:t:{r['id']}:{body.table}", 15, 600)
     lines = service.price_lines(r, [i.model_dump() for i in body.items])
     with db.tx() as c:
