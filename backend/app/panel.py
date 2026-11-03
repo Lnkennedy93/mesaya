@@ -680,7 +680,7 @@ def qr_svg(tid: int, s: Staff = Depends(staff_dep)):
     if not t:
         raise HTTPException(404)
     buf = io.BytesIO()
-    segno.make(table_url(s.r, t), error="m").save(buf, kind="svg", scale=10, border=1, dark="#111111", xmldecl=False,
+    segno.make(table_url(s.r, t), error="m").save(buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False,  # fondo blanco: sin él, en tema oscuro el QR no se ve ni se escanea
                                                   svgns=True, nl=False)
     return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
 

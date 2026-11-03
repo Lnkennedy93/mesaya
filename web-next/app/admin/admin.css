@@ -19,7 +19,7 @@
 .admin-root .cathead{display:flex;align-items:center;gap:.5rem;margin:1.4rem 0 .3rem}
 .admin-root .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem}
 .admin-root .qrg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem;margin-top:1rem}
-.admin-root .qrc{text-align:center}.admin-root .qrc img{width:100%;max-width:150px}
+.admin-root .qrc{text-align:center}.admin-root .qrc img{width:100%;max-width:150px;border-radius:10px}
 .admin-root table{width:100%;border-collapse:collapse}.admin-root td,.admin-root th{padding:.5rem;text-align:left;border-bottom:1px solid var(--line);font-size:.92rem}
 .admin-root textarea{min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem}
 .admin-root .chk{display:flex;gap:.4rem;align-items:center;font-weight:500;color:var(--ink);margin:.3rem 0}.admin-root .chk input{width:auto}
