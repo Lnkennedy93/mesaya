@@ -16,7 +16,8 @@ Las funciones de Vercel no comparten memoria, no tienen hilos de fondo ni disco,
 |---|---|
 | Tiempo real con SSE | **Sondeo** cada 5 s (cocina y cuenta del comensal): un pedido tarda hasta 5 s en aparecer |
 | Límites de intentos en memoria | Tabla `rate_hits` en la base (compartida entre instancias) |
-| Fotos y logos en `uploads/` | Tabla `images`; `/uploads/<nombre>` las sirve con caché largo |
+| Fotos y logos en `uploads/` | **Vercel Blob** (tienda pública `r<id>/…`, conectada al proyecto: Storage → Create → Blob → Connect Project). Si Blob no responde o no está conectado, caen a la tabla `images` y `/uploads/<nombre>` las sirve |
+| La carta original que sube el restaurante | Se guarda en Blob (`r<id>/catalogs/`), solo la última. Al borrar la cuenta se borra todo `r<id>/` |
 | Borradores de importación en disco | Tablas `draft_images` e `import_chunks` |
 | Cartas de hasta 30 MB en una petición | Se suben **por partes de 3 MB** (`/api/import/chunk`) y el servidor las reúne |
 | Lectura con IA en un hilo + sondeo | Dentro de la misma petición (Vercel permite hasta 300 s) |

@@ -2,6 +2,7 @@
 import csv
 import io
 import json
+import logging
 import re
 import secrets
 import time
@@ -11,11 +12,13 @@ import segno
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
-from . import ai_import, auth, colombia, config, db, drafts, events, invoicing, menu_reader, payments, service, vault
+from . import ai_import, auth, colombia, config, db, drafts, events, invoicing, menu_reader, payments, service, storage, vault
 from .auth import Staff, now, owner_dep, rate_limit, staff_dep
 
 router = APIRouter(prefix="/api")
+log = logging.getLogger("mesaya.panel")
 
 
 # ---------------------------------------------------------------- cuenta
@@ -244,7 +247,7 @@ def retry_invoice(iid: int, s: Staff = Depends(owner_dep)):
 async def upload_logo(file: UploadFile = File(...), s: Staff = Depends(owner_dep)):
     path = await _save_image(file, s.id, max_px=400)
     db.run("UPDATE restaurants SET logo=? WHERE id=?", (path, s.id))
-    _drop_image(s.id, s.r["logo"])
+    await run_in_threadpool(_drop_image, s.id, s.r["logo"])  # el SDK de Blob es síncrono: no se llama dentro del event loop
     return {"logo": path}
 
 
@@ -267,17 +270,27 @@ async def _save_image(file: UploadFile, rid: int, max_px=1000) -> str:
         im.convert("RGB").save(buf, "WEBP", quality=82)
     except Exception:
         raise HTTPException(400, "No se pudo leer la imagen")
+    if storage.enabled():  # Vercel Blob; si falla, la foto se guarda en la base y el cliente no pierde su subida
+        try:
+            return await run_in_threadpool(storage.put, f"r{rid}/img-{secrets.token_hex(8)}.webp", buf.getvalue(), "image/webp")
+        except Exception:
+            log.warning("Blob no disponible: la foto se guarda en la base", exc_info=True)
     db.run("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)", (name, rid, buf.getvalue()))  # sin disco: Vercel no lo conserva
     return f"/uploads/{name}"
 
 
 def _drop_image(rid: int, path: str):
-    """Borra la foto de la base si ningún plato ni el logo la usa ya (una foto importada puede estar en varios platos)."""
-    if not path or not path.startswith("/uploads/"):
+    """Borra la foto (de Blob o de la base) si ningún plato ni el logo la usa ya (una foto importada puede estar en varios platos)."""
+    in_blob = storage.owns(path, rid)
+    if not path or not (in_blob or path.startswith("/uploads/")):
         return
     used = db.row("SELECT (SELECT COUNT(*) FROM items WHERE restaurant_id=? AND image=?) + "
                   "(SELECT COUNT(*) FROM restaurants WHERE id=? AND logo=?) AS n", (rid, path, rid, path))["n"]
-    if not used:
+    if used:
+        return
+    if in_blob:
+        storage.best_effort(storage.delete, [path])
+    else:
         db.run("DELETE FROM images WHERE name=? AND restaurant_id=?", (path.rsplit("/", 1)[-1], rid))
 
 
@@ -407,7 +420,7 @@ async def item_image(iid: int, file: UploadFile = File(...), s: Staff = Depends(
         raise HTTPException(404)
     path = await _save_image(file, s.id)
     db.run("UPDATE items SET image=? WHERE id=?", (path, iid))
-    _drop_image(s.id, it["image"])
+    await run_in_threadpool(_drop_image, s.id, it["image"])
     return {"image": path}
 
 
@@ -447,6 +460,15 @@ def _local_response(rid: int, local: dict, extra_warnings: list | None = None) -
 
 
 _KIND = {"application/pdf": "pdf", "image/jpeg": "image", "image/png": "image", "image/webp": "image"}
+_OFFICE_TYPES = {"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                 "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+
+
+def _keep_catalog(rid: int, data: bytes, name: str, content_type: str):
+    """Conserva el archivo original que subió el restaurante. Solo la última carta: así el espacio no crece sin límite."""
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", name)[-60:] or "carta"
+    url = storage.put(f"r{rid}/catalogs/{safe}", data, content_type, random_suffix=True)
+    storage.delete_prefix(f"r{rid}/catalogs/", keep=url)
 CHUNK_MAX = 4 * 1024 * 1024  # una petición a una función de Vercel admite 4,5 MB como máximo
 _UPLOAD_ID = re.compile(r"^[A-Za-z0-9_-]{10,40}$")
 
@@ -474,7 +496,6 @@ async def import_ai(file: UploadFile | None = File(None), upload_id: str = Form(
     Orden (MESAYA_MENU_READER=auto): .txt/.csv, Word, Excel y PDF con texto se leen LOCALMENTE (gratis, al instante, sin IA).
     Si la lectura local no es confiable, o es una foto, se usa la IA dentro de esta misma petición (Vercel la deja correr hasta 300 s).
     Llega como `file` (hasta 4 MB) o por partes (`upload_id` + /import/chunk)."""
-    from starlette.concurrency import run_in_threadpool
     rate_limit(f"aiimport:{s.id}", 8, 600)
     limit = config.MAX_IMPORT_MB * 1024 * 1024
     if upload_id:
@@ -494,6 +515,8 @@ async def import_ai(file: UploadFile | None = File(None), upload_id: str = Form(
     kind = _KIND.get(mt) or office
     if not mt and not office:
         raise HTTPException(400, "Sube un PDF, un archivo de Word (.docx) o Excel (.xlsx), una foto JPG/PNG/WebP, o un .txt / .csv")
+    if storage.enabled():  # guarda el original en Blob; si falla, la lectura sigue
+        await run_in_threadpool(storage.best_effort, _keep_catalog, s.id, data, name, mt or _OFFICE_TYPES.get(office, "application/octet-stream"))
     if mt in ai_import.TEXT_TYPES:
         try:
             res = ai_import.parse_file(data, mt)
@@ -545,6 +568,7 @@ def import_commit(body: dict, s: Staff = Depends(owner_dep)):
     """Agrega el borrador revisado a la carta. Si trae fotos (image_ref), las pasa del borrador a la tabla images."""
     added, photos = 0, 0
     copied: dict[tuple, str] = {}
+    uploaded: list[str] = []  # fotos ya subidas a Blob: si la transacción falla se borran
 
     def photo_for(c, it: dict) -> str:
         ref = it.get("image_ref")
@@ -558,32 +582,44 @@ def import_commit(body: dict, s: Staff = Depends(owner_dep)):
             data = drafts.read(s.id, key[0], key[1])
             if data is None:
                 return ""
+            if storage.enabled():
+                try:
+                    copied[key] = storage.put(f"r{s.id}/img-{secrets.token_hex(8)}.webp", data, "image/webp")
+                    uploaded.append(copied[key])
+                    return copied[key]
+                except Exception:
+                    log.warning("Blob no disponible: la foto se guarda en la base", exc_info=True)
             name = f"{s.id}_{secrets.token_hex(8)}.webp"
             c.execute("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)", (name, s.id, data))
             copied[key] = f"/uploads/{name}"
         return copied[key]
 
-    with db.tx() as c:  # si algo falla, el ROLLBACK deja también sin fotos nuevas
-        n = c.execute("SELECT COALESCE(MAX(sort),0) FROM categories WHERE restaurant_id=?", (s.id,)).fetchone()[0]
-        for cat in body.get("categories", [])[:40]:
-            name = str(cat.get("name", "")).strip()[:60]
-            items = cat.get("items", [])[:200]
-            if not name or not items:
-                continue
-            n += 1
-            cid = c.execute("INSERT INTO categories(restaurant_id,name,sort) VALUES (?,?,?)", (s.id, name, n)).lastrowid
-            for k, it in enumerate(items):
-                iname = str(it.get("name", "")).strip()[:90]
-                if not iname:
+    try:
+        with db.tx() as c:  # si algo falla, el ROLLBACK deja también sin fotos nuevas
+            n = c.execute("SELECT COALESCE(MAX(sort),0) FROM categories WHERE restaurant_id=?", (s.id,)).fetchone()[0]
+            for cat in body.get("categories", [])[:40]:
+                name = str(cat.get("name", "")).strip()[:60]
+                items = cat.get("items", [])[:200]
+                if not name or not items:
                     continue
-                price = round(float(it.get("price") or 0) * (1 if s.r["decimals"] == 0 else 100))
-                tags = [t for t in it.get("tags", []) if isinstance(t, str)][:6]
-                image = photo_for(c, it)
-                photos += 1 if image else 0
-                c.execute(
-                    "INSERT INTO items(restaurant_id,category_id,name,description,price,tags,sort,image) VALUES (?,?,?,?,?,?,?,?)",
-                    (s.id, cid, iname, str(it.get("description", ""))[:400], max(0, price), json.dumps(tags), k, image))
-                added += 1
+                n += 1
+                cid = c.execute("INSERT INTO categories(restaurant_id,name,sort) VALUES (?,?,?)", (s.id, name, n)).lastrowid
+                for k, it in enumerate(items):
+                    iname = str(it.get("name", "")).strip()[:90]
+                    if not iname:
+                        continue
+                    price = round(float(it.get("price") or 0) * (1 if s.r["decimals"] == 0 else 100))
+                    tags = [t for t in it.get("tags", []) if isinstance(t, str)][:6]
+                    image = photo_for(c, it)
+                    photos += 1 if image else 0
+                    c.execute(
+                        "INSERT INTO items(restaurant_id,category_id,name,description,price,tags,sort,image) VALUES (?,?,?,?,?,?,?,?)",
+                        (s.id, cid, iname, str(it.get("description", ""))[:400], max(0, price), json.dumps(tags), k, image))
+                    added += 1
+    except Exception:
+        if uploaded:
+            storage.best_effort(storage.delete, uploaded)
+        raise
     drafts.delete(s.id, body.get("draft_id"))
     return {"added": added, "photos": photos}
 

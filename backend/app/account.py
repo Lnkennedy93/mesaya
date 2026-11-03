@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from . import auth, config, db, mailer
+from . import auth, config, db, mailer, storage
 from .auth import Staff, now, owner_dep, rate_limit
 from .panel import _admin, _me, _set_cookie
 
@@ -110,6 +110,12 @@ def delete_account(body: DeleteIn, request: Request, response: Response, s: Staf
         raise HTTPException(400, "La contraseña no es correcta")
     if body.confirm.strip().lower() != s.r["slug"]:
         raise HTTPException(400, f"Escribe «{s.r['slug']}» para confirmar")
+    if storage.enabled():  # los archivos de Blob no caen por cascada: si no se pueden borrar, la cuenta tampoco (derecho de supresión)
+        try:
+            storage.delete_prefix(f"r{s.id}/")
+        except Exception:
+            log.exception("Blob: no se pudieron borrar los archivos de %s", s.r["slug"])
+            raise HTTPException(503, "No pudimos borrar tus archivos, intenta de nuevo en unos minutos")
     db.run("DELETE FROM restaurants WHERE id=?", (s.id,))  # ON DELETE CASCADE limpia el resto: carta, fotos, borradores y partes
     response.delete_cookie(auth.COOKIE, path="/")
     log.info("Cuenta %s eliminada por su dueño", s.r["slug"])
