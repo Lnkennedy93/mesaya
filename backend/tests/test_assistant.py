@@ -128,6 +128,28 @@ with TestClient(app) as c, TestClient(app) as other:
     db.run("UPDATE items SET price=0 WHERE id=?", (items["Limonada"],))
     check(assistant.t_carta(s, {}, [])["mas_baratos"][0]["plato"] == "Empanadas", "carta: un plato sin precio no cuenta como el más barato")
     db.run("UPDATE items SET price=6500 WHERE id=?", (items["Limonada"],))
+    # --- mesas y QR: ocupada = cuenta por cobrar o pedidos en curso (igual que la sala); al cobrar queda libre
+    ms = assistant.t_mesas(s, {}, [])
+    check(ms["total_mesas"] == 2 and ms["libres"] == [] and {o["mesa"] for o in ms["ocupadas"]} == {"1", "2"} and ms["limite_de_mesas_del_plan"] == 60, "mesas: 2 ocupadas, ninguna libre, límite del plan")
+    db.run("UPDATE orders SET status='served' WHERE restaurant_id=? AND table_label='2'", (s.id,))  # cocina ya lo sirvió
+    check(c.post("/api/floor/2/settle", json={"method": "cash"}).status_code == 200, "se sirve y se cobra la mesa 2 en caja")
+    ms = assistant.t_mesas(s, {}, [])
+    check(ms["libres"] == ["2"] and [o["mesa"] for o in ms["ocupadas"]] == ["1"] and ms["ocupadas"][0]["por_cobrar"] > 0, "mesas: la 2 queda libre y la 1 sigue con cuenta por cobrar")
+    check(ms["pedidos_en_curso_por_estado"].get("new", 0) >= 1 and ms["llamados_pendientes"] == [], "mesas: pedidos en curso por estado y sin llamados")
+    check(assistant.t_ventas(s, {}, [])["mesas_que_mas_vendieron"][0]["mesa"] == "1", "ventas: la mesa 1 es la que más vendió")
+
+    # --- opiniones
+    for rating, comment in ((5, "Todo excelente"), (3, "x" * 500)):
+        db.run("INSERT INTO feedback(restaurant_id,table_label,rating,comment,created_at) VALUES (?,?,?,?,?)", (s.id, "1", rating, comment, datetime.now(timezone.utc).strftime(FMT)))
+    op = assistant.t_opiniones(s, {}, [])
+    check(op["total"] == 2 and op["promedio_estrellas"] == 4.0 and op["distribucion"]["5"] == 1 and op["distribucion"]["3"] == 1, "opiniones: 2 en total, promedio 4,0")
+    check(max(len(x["comentario"]) for x in op["ultimos_comentarios"]) == 300, "opiniones: comentarios largos recortados")
+    check(assistant.t_opiniones(s, {"desde": "2020-01-01", "hasta": "2020-01-31"}, [])["total"] == 0, "opiniones: rango sin datos")
+
+    # --- ajustes: sin secretos
+    aj = assistant.t_ajustes(s, {}, [])
+    check(aj["nombre"] == "Café Uno" and aj["plan"]["nombre"] == "Pro" and aj["plan"]["estado"] == "activo" and aj["plan"]["preguntas_al_asistente_por_mes"] == 300, "ajustes: nombre y plan")
+    check("uno@b.co" not in str(aj) and not any(k in str(aj).lower() for k in ("password", "pay_secrets", "inv_secrets", "breb_key", "nit")), "ajustes: no salen correo, claves ni datos fiscales")
     menos = assistant.t_platos(s, {"orden": "menos"}, [])
     check(menos["sin_ventas_en_el_rango"] == ["Limonada"], "menos vendidos incluye platos sin ventas")
     check("Las fechas" in assistant.run_tool(s, "ventas", {"desde": "ayer"}, [])["error"], "fecha mal escrita: error legible para el modelo")

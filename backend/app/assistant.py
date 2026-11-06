@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from . import ai_import, auth, config, db
+from . import ai_import, auth, config, db, panel
 from .auth import Staff, owner_dep, rate_limit
 
 router = APIRouter(prefix="/api")
@@ -52,6 +52,10 @@ TOOLS = [{"functionDeclarations": [
      "parameters": {"type": "OBJECT", "properties": _RANGE}},
     {"name": "desactivados", "description": "Platos apagados ahora y el historial de cuándo se apagaron o encendieron (solo desde que existe el registro).",
      "parameters": {"type": "OBJECT", "properties": _RANGE}},
+    {"name": "mesas", "description": "Mesas y QR: cuántas mesas hay, cuáles están ocupadas (cuenta por cobrar o pedidos en curso) y cuáles libres ahora, llamados pendientes al mesero y el límite de mesas del plan."},
+    {"name": "opiniones", "description": "Opiniones de clientes: cantidad, promedio de estrellas, distribución y los últimos comentarios.",
+     "parameters": {"type": "OBJECT", "properties": _RANGE}},
+    {"name": "ajustes", "description": "Ajustes del negocio: nombre, moneda, propina, impuestos, zona horaria, si recibe pedidos por QR, plan y días de prueba. No incluye claves ni PIN."},
     {"name": "carta", "description": "La carta actual: cuántos platos hay, sus categorías y precios, cuáles están disponibles, y los más baratos y más caros."},
     {"name": "proponer_disponibilidad", "description": "PROPONE apagar (disponible=false) o encender (true) un plato. No cambia nada: el dueño confirma con un botón.",
      "parameters": {"type": "OBJECT", "required": ["nombre", "disponible"], "properties": {
@@ -99,14 +103,14 @@ def _like(txt) -> str:
 def t_ventas(s, a, acts):
     lo, hi, rng = _range(s, a)
     ords = db.rows(
-        """SELECT o.created_at, (SELECT COALESCE(SUM(qty*unit_price),0) FROM order_items WHERE order_id=o.id) AS total
+        """SELECT o.created_at, o.table_label, (SELECT COALESCE(SUM(qty*unit_price),0) FROM order_items WHERE order_id=o.id) AS total
            FROM orders o WHERE o.restaurant_id=? AND o.status!='cancelled' AND o.created_at>=? AND o.created_at<?""", (s.id, lo, hi))
     pay = db.row("""SELECT COUNT(*) n, COALESCE(SUM(total),0) collected, COALESCE(SUM(tip),0) tips FROM payments
                     WHERE restaurant_id=? AND status='paid' AND created_at>=? AND created_at<?""", (s.id, lo, hi))
-    day, hour = {}, {}
+    day, hour, mesa = {}, {}, {}
     for o in ords:
         loc = datetime.strptime(o["created_at"], FMT) + _off(s)
-        for bucket, k in ((day, loc.strftime("%Y-%m-%d")), (hour, loc.hour)):
+        for bucket, k in ((day, loc.strftime("%Y-%m-%d")), (hour, loc.hour), (mesa, o["table_label"])):
             b = bucket.setdefault(k, [0, 0])
             b[0] += 1
             b[1] += o["total"]
@@ -115,7 +119,8 @@ def t_ventas(s, a, acts):
             "ticket_promedio": _m(s, round(total / len(ords))) if ords else 0,
             "cobrado_en_plataforma": _m(s, pay["collected"]), "pagos_registrados": pay["n"], "propinas_registradas": _m(s, pay["tips"]),
             "por_dia": [{"fecha": k, "pedidos": v[0], "dinero_pedido": _m(s, v[1])} for k, v in sorted(day.items())],
-            "por_hora": [{"hora": k, "pedidos": v[0], "dinero_pedido": _m(s, v[1])} for k, v in sorted(hour.items())]}
+            "por_hora": [{"hora": k, "pedidos": v[0], "dinero_pedido": _m(s, v[1])} for k, v in sorted(hour.items())],
+            "mesas_que_mas_vendieron": [{"mesa": k, "pedidos": v[0], "dinero_pedido": _m(s, v[1])} for k, v in sorted(mesa.items(), key=lambda kv: -kv[1][1])[:5]]}
 
 
 def t_platos(s, a, acts):
@@ -201,6 +206,42 @@ def t_desactivados(s, a, acts):
             "nota": "El historial existe solo desde que se activó el registro de cambios."}
 
 
+def t_mesas(s, a, acts):
+    """Misma definición de «ocupada» que la pantalla de sala (/floor): cuenta por cobrar o pedidos en curso."""
+    tables = panel.floor(s)["tables"]
+    busy = [t for t in tables if t["unpaid"] > 0 or t["active"] > 0]
+    states = db.rows("SELECT status, COUNT(*) AS n FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') GROUP BY status", (s.id,))
+    return {"total_mesas": len(tables), "limite_de_mesas_del_plan": auth.plan_info(s.r)["tables"],
+            "ocupadas": [{"mesa": t["label"], "por_cobrar": _m(s, t["unpaid"]), "pedidos_en_curso": t["active"]} for t in busy],
+            "libres": [t["label"] for t in tables if t not in busy],
+            "llamados_pendientes": [{"mesa": t["label"], "tipo": t["calls"]} for t in tables if t["calls"]],
+            "pedidos_en_curso_por_estado": {r["status"]: r["n"] for r in states}}
+
+
+def t_opiniones(s, a, acts):
+    lo, hi, rng = _range(s, a)
+    rows = db.rows("""SELECT table_label, rating, comment, created_at FROM feedback
+                      WHERE restaurant_id=? AND created_at>=? AND created_at<? ORDER BY created_at DESC""", (s.id, lo, hi))
+    return {**rng, "total": len(rows), "promedio_estrellas": round(sum(r["rating"] for r in rows) / len(rows), 2) if rows else None,
+            "distribucion": {str(n): sum(1 for r in rows if r["rating"] == n) for n in range(5, 0, -1)},
+            "ultimos_comentarios": [{"fecha_local": (datetime.strptime(r["created_at"], FMT) + _off(s)).strftime(FMT), "mesa": r["table_label"],
+                                     "estrellas": r["rating"], "comentario": r["comment"][:300]} for r in rows if r["comment"]][:30]}
+
+
+def t_ajustes(s, a, acts):
+    """Solo ajustes sin secretos: nada de PIN, correo, llaves de pago, NIT ni credenciales."""
+    me = panel._me(s.r, "owner")
+    r, plan = me["restaurant"], me["plan"]
+    return {"nombre": r["name"], "eslogan": r["tagline"], "moneda": r["currency"], "propina_sugerida_pct": r["tip_pct"],
+            "impuesto": {"tipo": r["tax_type"], "porcentaje": r["tax_pct"], "incluido_en_precios": bool(r["tax_included"])},
+            "zona_horaria_minutos_vs_utc": r["tz_offset"], "recibe_pedidos_desde_qr": bool(r["accepting_orders"]),
+            "whatsapp": r["whatsapp"], "enlace_resenas_google": r["google_review_url"], "enlace_de_la_carta": me["public_url"],
+            "plan": {"nombre": plan["name"], "mesas_incluidas": plan["tables"], "preguntas_al_asistente_por_mes": plan["ai_asks"],
+                     "estado": "activo" if r["subscription_status"] == "active" else "en prueba" if me["active"] else "prueba terminada (plan Gratis)",
+                     "dias_de_prueba_restantes": me["trial_days_left"]},
+            "nota": "Por seguridad no se muestran claves, PIN del equipo ni datos fiscales; el dueño los ve en la pestaña Ajustes."}
+
+
 def t_carta(s, a, acts):
     rows = db.rows("""SELECT i.name, i.price, i.available, c.name AS categoria FROM items i JOIN categories c ON c.id=i.category_id
                       WHERE i.restaurant_id=? ORDER BY c.sort, i.sort, i.name""", (s.id,))
@@ -235,7 +276,8 @@ def t_proponer(s, a, acts):
 
 
 HANDLERS = {"ventas": t_ventas, "platos": t_platos, "cocina": t_cocina, "comensales": t_comensales,
-            "desactivados": t_desactivados, "carta": t_carta, "proponer_disponibilidad": t_proponer}
+            "desactivados": t_desactivados, "mesas": t_mesas, "opiniones": t_opiniones, "ajustes": t_ajustes, "carta": t_carta,
+            "proponer_disponibilidad": t_proponer}
 
 
 def run_tool(s: Staff, name: str, args: dict, acts: list) -> dict:
