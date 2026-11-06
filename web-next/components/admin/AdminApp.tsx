@@ -10,6 +10,7 @@ import HomeTab from "./HomeTab";
 import MenuTab from "./MenuTab";
 import { TablesTab, ReviewsTab } from "./TablesTab";
 import SettingsTab from "./SettingsTab";
+import AssistantTab from "./AssistantTab";
 import FiscalTab from "./FiscalTab";
 
 export default function AdminApp({ welcome }: { welcome: boolean }) {
@@ -47,7 +48,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
 
   if (!ME || !ctx) return <div className="admin-root" />;
 
-  const tabs: [string, string][] = [["home", "📊 Resumen"], ["menu", "🍽️ Carta"], ["tables", "🔳 Mesas y QR"], ["reviews", "⭐ Opiniones"], ["settings", "⚙️ Ajustes"]];
+  const tabs: [string, string][] = [["home", "📊 Resumen"], ["menu", "🍽️ Carta"], ["tables", "🔳 Mesas y QR"], ["reviews", "⭐ Opiniones"], ["assistant", "🤖 Asistente"], ["settings", "⚙️ Ajustes"]];
   if (ME.features.payments || ME.features.invoicing) tabs.splice(3, 0, ["fiscal", "🧾 Facturas y pagos"]);
 
   const mail = `mailto:ventas@mesaya.app?subject=Activar%20${encodeURIComponent(ME.restaurant.slug)}`;
@@ -58,7 +59,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
       <div className="banner"><span>🎁 Prueba gratis: te quedan <b>{ME.trial_days_left} días</b></span><a className="btn sm" href={mail}>Elegir plan</a></div>
     );
 
-  const Tab = ({ home: HomeTab, menu: MenuTab, tables: TablesTab, fiscal: FiscalTab, reviews: ReviewsTab, settings: SettingsTab } as Record<string, React.ComponentType>)[tab];
+  const Tab = ({ home: HomeTab, menu: MenuTab, tables: TablesTab, fiscal: FiscalTab, reviews: ReviewsTab, assistant: AssistantTab, settings: SettingsTab } as Record<string, React.ComponentType>)[tab];
 
   return (
     <AdminCtx.Provider value={ctx}>

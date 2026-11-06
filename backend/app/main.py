@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from . import account, backup, config, db, events, invoicing, panel, public
+from . import account, assistant, backup, config, db, events, invoicing, panel, public
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MesaYa", docs_url=None, redoc_url=None, lifespan=lifespan)
 app.include_router(panel.router)
+app.include_router(assistant.router)
 app.include_router(account.router)
 app.include_router(public.router)
 

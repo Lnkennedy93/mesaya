@@ -46,7 +46,7 @@ textarea{min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script src="/assets/common.js"></script>
 <script>
-const TABS = [['home', '📊 Resumen'], ['menu', '🍽️ Carta'], ['tables', '🔳 Mesas y QR'], ['reviews', '⭐ Opiniones'], ['settings', '⚙️ Ajustes']];
+const TABS = [['home', '📊 Resumen'], ['menu', '🍽️ Carta'], ['tables', '🔳 Mesas y QR'], ['reviews', '⭐ Opiniones'], ['assistant', '🤖 Asistente'], ['settings', '⚙️ Ajustes']];
 let ME, money, tab = 'home', MENU = [], days = 7;
 const FACTOR = () => Math.pow(10, ME.restaurant.decimals);
 const toMajor = v => v / FACTOR(), toMinor = v => Math.round(parseFloat(v || 0) * FACTOR());
@@ -80,7 +80,7 @@ const planBanner = () => {
 };
 async function show() {
   const m = $('#main'); m.innerHTML = planBanner() + '<p class="muted">Cargando…</p>';
-  try { await ({ home, menu, tables, fiscal, reviews, settings }[tab])(m); } catch (e) { toast(e.message, true); }
+  try { await ({ home, menu, tables, fiscal, reviews, assistant, settings }[tab])(m); } catch (e) { toast(e.message, true); }
 }
 const frame = (m, html) => { m.innerHTML = planBanner() + html; };
 
@@ -308,6 +308,47 @@ async function settings(m) {
     } catch (e) { toast(e.message, true); }
   };
 }
+// ------------------------------------------------------------ asistente (preguntas sobre tu negocio)
+let chat = [], asksLeft = null, applied = {}, chatBusy = false, chatDraft = '';
+const IDEAS = ['¿Cuántos platos vendí esta semana?', '¿Cuánta plata se movió hoy?', '¿Cuánto se demora la cocina en sacar un pedido?', '¿Qué platos están apagados?'];
+function assistant(m) {
+  if (!ME.plan.ai_asks) return frame(m, `<h1>Asistente</h1><div class="card"><b>Pregúntale a tu negocio</b>
+    <p class="muted">Cuántos platos se vendieron, cuánto dinero se movió, cuánto demora la cocina y qué platos se apagaron, en una sola pregunta.</p>
+    <p>Disponible en los planes <b>Pro</b> y <b>Cadena</b>.</p><a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20Pro%20${esc(ME.restaurant.slug)}">Pasar a Pro</a></div>`);
+  const bubble = (mine, text) => `<div style="margin:.7rem 0;text-align:${mine ? 'right' : 'left'}"><div style="display:inline-block;max-width:min(46rem,92%);padding:.6rem .9rem;border-radius:12px;white-space:pre-wrap;text-align:left;
+    background:${mine ? 'var(--brand)' : 'color-mix(in srgb,var(--ink) 7%,transparent)'};color:${mine ? 'var(--brand-ink)' : 'inherit'}">${esc(text)}</div>`;
+  const paint = () => {
+    if (tab !== 'assistant') return;
+    frame(m, `<div class="row spread wrap"><h1>Asistente</h1>${asksLeft !== null ? `<span class="muted small">${asksLeft} preguntas restantes este mes</span>` : ''}</div>
+    <div class="card" style="min-height:260px">${chat.length ? chat.map((c, ci) => bubble(c.role === 'user', c.text) + (c.actions || []).map((a, ai) => {
+      const k = a.item_id + ':' + a.available;
+      return `<div style="margin-top:.4rem"><button class="btn sm" data-act="${ci}:${ai}" ${applied[k] ? 'disabled' : ''}>${applied[k] ? '✓ Hecho' : a.available ? 'Encender «' + esc(a.name) + '»' : 'Apagar «' + esc(a.name) + '»'}</button></div>`;
+    }).join('') + '</div>').join('') : `<p class="muted">Pregunta por tu negocio con tus palabras. Responde con los datos reales de tus pedidos.</p>
+      <div class="row wrap">${IDEAS.map((t, i) => `<button class="btn sm ghost" data-idea="${i}">${esc(t)}</button>`).join('')}</div>`}
+      ${chatBusy ? '<p class="muted">Consultando tus datos…</p>' : ''}</div>
+    <form class="row" id="qf" style="margin-top:.8rem"><input id="q" maxlength="500" placeholder="Escribe tu pregunta…" aria-label="Pregunta" style="flex:1" value="${esc(chatDraft)}" ${chatBusy ? 'disabled' : ''}>
+      <button class="btn" ${chatBusy ? 'disabled' : ''}>Preguntar</button></form>`);
+    $('#qf').onsubmit = e => { e.preventDefault(); ask($('#q').value); };
+    $$('[data-idea]').forEach(b => b.onclick = () => ask(IDEAS[+b.dataset.idea]));
+    $$('[data-act]').forEach(b => b.onclick = async () => {
+      const [ci, ai] = b.dataset.act.split(':').map(Number), a = chat[ci].actions[ai];
+      try { await api(`/api/items/${a.item_id}/availability`, { method: 'POST', body: { available: a.available } }); applied[a.item_id + ':' + a.available] = true; toast(a.available ? `«${a.name}» disponible` : `«${a.name}» apagado`); paint(); } catch (e) { toast(e.message, true); }
+    });
+    const q = $('#q'); if (q && !chatBusy) q.focus();
+  };
+  const ask = async text => {
+    text = (text || '').trim(); if (text.length < 2 || chatBusy) return;
+    const history = chat.map(c => ({ role: c.role, text: c.text }));
+    chat.push({ role: 'user', text }); chatDraft = ''; chatBusy = true; paint();
+    try {
+      const r = await api('/api/assistant', { method: 'POST', body: { question: text, history } });
+      chat.push({ role: 'assistant', text: r.answer, actions: r.actions }); asksLeft = r.asks_left;
+    } catch (e) { toast(e.message, true); chat.pop(); chatDraft = text; }
+    chatBusy = false; paint();
+  };
+  paint();
+}
+
 // ------------------------------------------------------------ Colombia: fiscal, facturación y pagos
 async function fiscal(m) {
   const r = ME.restaurant, I = ME.integrations, tt = ME.catalog.tax_types;

@@ -408,7 +408,11 @@ def del_item(iid: int, s: Staff = Depends(owner_dep)):
 @router.post("/items/{iid}/availability")
 def set_availability(iid: int, body: dict, s: Staff = Depends(staff_dep)):
     """Apagar un plato agotado en un toque (también lo puede hacer cocina)."""
-    db.run("UPDATE items SET available=? WHERE id=? AND restaurant_id=?", (int(bool(body.get("available"))), iid, s.id))
+    new = int(bool(body.get("available")))
+    it = db.row("SELECT name, available FROM items WHERE id=? AND restaurant_id=?", (iid, s.id))
+    db.run("UPDATE items SET available=? WHERE id=? AND restaurant_id=?", (new, iid, s.id))
+    if it and it["available"] != new:  # historial para el asistente: cuándo y cuánto estuvo apagado cada plato
+        db.run("INSERT INTO item_events(restaurant_id,item_id,name,available,created_at) VALUES (?,?,?,?,?)", (s.id, iid, it["name"], new, now()))
     events.publish(f"r{s.id}", "menu", {})
     return {"ok": True}
 

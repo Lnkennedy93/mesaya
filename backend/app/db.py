@@ -100,6 +100,15 @@ CREATE TABLE IF NOT EXISTS order_items (
   unit_price INTEGER NOT NULL,
   paid_payment_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS item_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  item_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  available INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_item_events_r ON item_events(restaurant_id, created_at);
 CREATE TABLE IF NOT EXISTS calls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -328,6 +337,8 @@ MIGRATIONS = {
         "breb_holder": "TEXT NOT NULL DEFAULT ''",
         "terms_accepted_at": "TEXT",
         "terms_version": "TEXT NOT NULL DEFAULT ''",
+        "ai_asks_used": "INTEGER NOT NULL DEFAULT 0",  # preguntas al asistente en el mes de ai_asks_month
+        "ai_asks_month": "TEXT NOT NULL DEFAULT ''",
     },
     "payments": {
         "customer": "TEXT NOT NULL DEFAULT ''",
