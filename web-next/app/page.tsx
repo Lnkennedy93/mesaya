@@ -11,6 +11,7 @@ const STEPS = [
 ];
 
 const FEATURES = [
+  ["🤖", "Asistente de IA para tu negocio", "Pregunta por ventas, mesas, carta u opiniones y responde con tus propios datos. En los planes Pro y Cadena."],
   ["📸", "Carta con foto de cada plato", "Fotos optimizadas, etiquetas (vegano, picante…) y alérgenos visibles."],
   ["⚡", "Importar con IA en minutos", "Foto, PDF o texto pegado → carta lista para revisar."],
   ["🍳", "Pantalla de cocina en vivo", "Nuevo → preparando → listo. Sonido, colores por demora y número de mesa."],
@@ -22,6 +23,14 @@ const FEATURES = [
   ["📊", "Reportes que sí sirven", "Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV."],
   ["🌎", "Carta en español e inglés", "Ideal para zonas turísticas. El cliente cambia el idioma con un toque."],
   ["⏸️", "Modo «solo carta»", "En hora pico o sin cocina, pausas pedidos y el QR sigue mostrando la carta."],
+];
+
+const ASK_TOPICS = [
+  ["📊", "Resumen", "Ventas, ticket promedio, horas pico, mesas que más venden y propinas."],
+  ["🍽️", "Carta", "Cuántos platos tienes, el más barato y el más caro, y cuáles están apagados."],
+  ["🔳", "Mesas y QR", "Cuáles están libres u ocupadas, la cuenta de cada una y los llamados al mesero."],
+  ["⭐", "Opiniones", "Promedio de estrellas, cuántas de cada nota y los últimos comentarios."],
+  ["⚙️", "Ajustes", "Tu plan, la propina, los impuestos y si estás recibiendo pedidos por QR."],
 ];
 
 const COMPARE = [
@@ -38,6 +47,8 @@ const FAQ = [
   ["¿Necesito tarjeta para probar?", "No. Son 14 días completos sin tarjeta; al terminar eliges un plan o tu QR queda solo como carta."],
   ["¿Cobran comisión por cada venta?", "No. Pagas una mensualidad fija. No cobramos nada por cada pedido."],
   ["¿Cómo se cobra la cuenta?", "Como siempre, en caja. El cliente toca «Terminar mesa» en su celular, tu equipo recibe el aviso, cobra y cierra la mesa en la pantalla de sala."],
+  ["¿Qué puede responder el asistente de IA?", "Preguntas sobre tu propio negocio: ventas, platos más y menos vendidos, tiempos de cocina, clientes por mesa, mesas libres, carta y precios, opiniones y ajustes. Si le pides apagar un plato, lo propone y tú lo confirmas con un botón."],
+  ["¿Qué pasa con mis datos cuando le pregunto algo?", "El asistente consulta solo los datos de tu restaurante y los procesa con Gemini, de Google, para redactar la respuesta. Nunca muestra tus claves ni el PIN del equipo, y no cambia nada sin tu confirmación."],
   ["¿Funciona con mi caja o sistema de facturación?", "MesaYa no reemplaza tu caja: registra los pedidos y exporta CSV. Las integraciones con POS están en el plan Cadena."],
 ];
 
@@ -57,7 +68,8 @@ export default function Landing() {
 
         <div className="hero">
           <div>
-            <span className="pill brand">Para restaurantes, cafés y bares</span>
+            <span className="pill brand">Para restaurantes, cafés y bares</span>{" "}
+            <a className="pill ok" href="#asistente" style={{ textDecoration: "none" }}>✨ Nuevo: Asistente de IA</a>
             <h1 style={{ marginTop: ".6rem" }}>
               Tu QR ya no solo muestra la carta: <em>tus clientes piden desde la mesa y la cocina lo recibe al instante</em>
             </h1>
@@ -68,7 +80,7 @@ export default function Landing() {
               <a className="btn" href="/signup">Crear mi carta gratis · 14 días</a>
               <Link className="btn ghost" href="/r/dragon-dorado?t=1&k=demo1">Ver demo en vivo</Link>
             </div>
-            <div className="muted small">Sin tarjeta de crédito · Lista en 5 minutos · Cancela cuando quieras</div>
+            <div className="muted small">Sin tarjeta de crédito · Lista en 5 minutos · Cancela cuando quieras · <a href="/catalogo-mesaya.pdf" download>Descargar catálogo (PDF)</a></div>
           </div>
           <div className="phone">
             <div className="screen">
@@ -105,6 +117,29 @@ export default function Landing() {
           </div>
         </section>
 
+        <section id="asistente">
+          <h2 className="t">Pregúntale a tu negocio</h2>
+          <p className="sub">El Asistente de IA responde con los datos reales de tu restaurante, en lenguaje normal. Incluido en los planes Pro y Cadena.</p>
+          <div className="ask">
+            <div className="feat" style={{ gridTemplateColumns: "1fr" }}>
+              {ASK_TOPICS.map(([ico, h, p]) => (
+                <div className="card" key={h}><div className="ico">{ico}</div><h3>{h}</h3><p className="muted">{p}</p></div>
+              ))}
+            </div>
+            <div className="card chat" aria-label="Ejemplo de conversación con el asistente">
+              <span className="pill brand">Ejemplo</span>
+              <div className="bub me">¿Cuánto vendí esta semana y cuál fue el plato más pedido?</div>
+              <div className="bub ai">Esta semana vendiste $3.912.000 en 50 pedidos. El plato más pedido fue la Limonada de coco, con 24 unidades.</div>
+              <div className="bub me">¿Qué mesas tengo libres ahora?</div>
+              <div className="bub ai">Están libres las mesas 2, 5 y 7. La mesa 3 tiene una cuenta por cobrar de $68.000.</div>
+              <div className="bub me">Apaga la sopa wantán, se acabó.</div>
+              <div className="bub ai">Listo para apagar «Sopa wantán». Confírmalo con el botón.</div>
+              <div className="go">Apagar «Sopa wantán»</div>
+            </div>
+          </div>
+          <p className="muted small" style={{ textAlign: "center", marginTop: "1rem" }}>Nunca muestra tus claves ni el PIN del equipo, y no cambia nada sin tu confirmación.</p>
+        </section>
+
         <section>
           <h2 className="t">El QR de siempre vs. MesaYa</h2>
           <p className="sub">&nbsp;</p>
@@ -132,13 +167,13 @@ export default function Landing() {
               <span className="pill brand" style={{ alignSelf: "flex-start" }}>Más elegido</span>
               <h3>Pro</h3>
               <div className="p">$139.000<small className="muted"> /mes</small></div>
-              <ul><li>Hasta 60 mesas</li><li>Importación de carta con IA</li><li>Opiniones y reseñas en Google</li><li>Reportes completos + CSV</li><li>Soporte prioritario</li></ul>
+              <ul><li>Hasta 60 mesas</li><li>Importación de carta con IA</li><li><b>Asistente de IA</b>: 300 preguntas al mes</li><li>Opiniones y reseñas en Google</li><li>Reportes completos + CSV</li><li>Soporte prioritario</li></ul>
               <a className="btn block" href="/signup">Empezar gratis</a>
             </div>
             <div className="card plan">
               <h3>Cadena</h3>
               <div className="p">A tu medida</div>
-              <ul><li>Varias sedes</li><li>Marca propia y dominio</li><li>Integraciones (POS, facturación)</li><li>Onboarding con tu equipo</li></ul>
+              <ul><li>Varias sedes</li><li><b>Asistente de IA</b>: 1.500 preguntas al mes</li><li>Marca propia y dominio</li><li>Integraciones (POS, facturación)</li><li>Onboarding con tu equipo</li></ul>
               <a className="btn ghost block" href="mailto:ventas@mesaya.app">Hablar con ventas</a>
             </div>
           </div>
