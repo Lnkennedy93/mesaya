@@ -25,7 +25,8 @@ MAX_ROUNDS = 5
 
 SYSTEM = (
     "Eres el asistente de datos de «{name}», un restaurante. Respondes SOLO con lo que devuelvan tus herramientas; "
-    "nunca inventes cifras y, si una herramienta no tiene el dato, dilo. Hoy es {wd} {today} (hora local); las fechas "
+    "nunca inventes cifras y, si no tienes un dato, di simplemente que no lo tienes, sin hablar de «herramientas» ni de "
+    "detalles técnicos. Hoy es {wd} {today} (hora local); las fechas "
     "van como AAAA-MM-DD. Moneda: {currency}; escribe los montos con separador de miles. Cuando hables de dinero "
     "distingue «pedido» (lo que pidieron los clientes) de «cobrado en la plataforma» (pagos registrados: el efectivo de "
     "caja puede no estar). Sé breve y directo, en español, en texto plano: sin Markdown (nada de ** ni #); para listas "
@@ -51,6 +52,7 @@ TOOLS = [{"functionDeclarations": [
      "parameters": {"type": "OBJECT", "properties": _RANGE}},
     {"name": "desactivados", "description": "Platos apagados ahora y el historial de cuándo se apagaron o encendieron (solo desde que existe el registro).",
      "parameters": {"type": "OBJECT", "properties": _RANGE}},
+    {"name": "carta", "description": "La carta actual: cuántos platos hay, sus categorías y precios, cuáles están disponibles, y los más baratos y más caros."},
     {"name": "proponer_disponibilidad", "description": "PROPONE apagar (disponible=false) o encender (true) un plato. No cambia nada: el dueño confirma con un botón.",
      "parameters": {"type": "OBJECT", "required": ["nombre", "disponible"], "properties": {
          "nombre": {"type": "STRING", "description": "Nombre del plato."}, "disponible": {"type": "BOOLEAN"}}}},
@@ -199,6 +201,21 @@ def t_desactivados(s, a, acts):
             "nota": "El historial existe solo desde que se activó el registro de cambios."}
 
 
+def t_carta(s, a, acts):
+    rows = db.rows("""SELECT i.name, i.price, i.available, c.name AS categoria FROM items i JOIN categories c ON c.id=i.category_id
+                      WHERE i.restaurant_id=? ORDER BY c.sort, i.sort, i.name""", (s.id,))
+    cats: dict[str, list] = {}
+    for r in rows[:300]:
+        cats.setdefault(r["categoria"], []).append({"plato": r["name"], "precio": _m(s, r["price"]), "disponible": bool(r["available"])})
+    priced = sorted((r for r in rows if r["price"] > 0), key=lambda r: r["price"])  # un plato sin precio (0) no es «el más barato»
+    top = lambda rs: [{"plato": r["name"], "precio": _m(s, r["price"])} for r in rs[:3]]
+    out = {"total_platos": len(rows), "disponibles": sum(1 for r in rows if r["available"]), "mas_baratos": top(priced), "mas_caros": top(priced[::-1]),
+           "categorias": [{"categoria": k, "platos": v} for k, v in cats.items()]}
+    if len(rows) > 300:
+        out["nota"] = "La lista de platos se cortó en 300; los totales y los más baratos/caros sí son de toda la carta."
+    return out
+
+
 def t_proponer(s, a, acts):
     name = str(a.get("nombre") or "").strip()
     if not name:
@@ -218,7 +235,7 @@ def t_proponer(s, a, acts):
 
 
 HANDLERS = {"ventas": t_ventas, "platos": t_platos, "cocina": t_cocina, "comensales": t_comensales,
-            "desactivados": t_desactivados, "proponer_disponibilidad": t_proponer}
+            "desactivados": t_desactivados, "carta": t_carta, "proponer_disponibilidad": t_proponer}
 
 
 def run_tool(s: Staff, name: str, args: dict, acts: list) -> dict:

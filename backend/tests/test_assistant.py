@@ -122,6 +122,12 @@ with TestClient(app) as c, TestClient(app) as other:
     mesas = {m["mesa"]: m["comensales"] for m in cm["por_mesa"]}
     check(cm["comensales"] == 4 and mesas == {"1": 3, "2": 1} and cm["por_dia"][0]["comensales"] == 4, "comensales: se distingue por nombre, celular y mesa")
     check("ana" not in str(cm).lower() and "luis" not in str(cm).lower(), "los nombres de los clientes no salen hacia el modelo")
+    cr = assistant.t_carta(s, {}, [])
+    check(cr["total_platos"] == 3 and cr["disponibles"] == 3 and cr["mas_baratos"][0] == {"plato": "Limonada", "precio": 6500}
+          and cr["mas_caros"][0] == {"plato": "Sopa", "precio": 12000} and cr["categorias"][0]["categoria"] == "Platos", "carta: 3 platos, el más barato y el más caro")
+    db.run("UPDATE items SET price=0 WHERE id=?", (items["Limonada"],))
+    check(assistant.t_carta(s, {}, [])["mas_baratos"][0]["plato"] == "Empanadas", "carta: un plato sin precio no cuenta como el más barato")
+    db.run("UPDATE items SET price=6500 WHERE id=?", (items["Limonada"],))
     menos = assistant.t_platos(s, {"orden": "menos"}, [])
     check(menos["sin_ventas_en_el_rango"] == ["Limonada"], "menos vendidos incluye platos sin ventas")
     check("Las fechas" in assistant.run_tool(s, "ventas", {"desde": "ayer"}, [])["error"], "fecha mal escrita: error legible para el modelo")
