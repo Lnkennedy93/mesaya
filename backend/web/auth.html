@@ -48,7 +48,7 @@ function render() {
     <label>Correo</label><input name="email" type="email" required autocomplete="email">
     <label>Contraseña</label><input name="password" type="password" required minlength="8" autocomplete="${s ? 'new-password' : 'current-password'}" placeholder="${s ? 'Mínimo 8 caracteres' : ''}">
     ${s ? `<div class="two"><div><label>Moneda</label><select name="currency">${['COP', 'USD', 'MXN', 'PEN', 'CLP', 'ARS', 'EUR', 'GTQ', 'DOP'].map(c => `<option>${c}</option>`).join('')}</select></div>
-      <div><label>Número de mesas</label><input name="tables" type="number" min="1" max="60" value="8"></div></div>
+      <div><label>Número de mesas</label><input name="tables" type="number" min="1" max="7" value="7"></div></div>
       <label class="terms"><input type="checkbox" name="accept_terms" required> <span>Acepto los <a href="/terminos" target="_blank" rel="noopener">Términos y condiciones</a> y autorizo el tratamiento de mis datos según la <a href="/privacidad" target="_blank" rel="noopener">Política de tratamiento de datos</a>.</span></label>` : ''}
     <button class="btn block" style="margin-top:1.2rem" id="go">${s ? 'Crear mi cuenta' : 'Entrar'}</button></form>
     ${s ? '' : '<p class="swap small" style="margin-bottom:0"><a href="/forgot" id="fg">¿Olvidaste tu contraseña?</a></p>'}

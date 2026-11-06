@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 const FEATURES = [
-  ["🤖", "Asistente de IA para tu negocio", "Pregunta por ventas, mesas, carta u opiniones y responde con tus propios datos. En los planes Pro y Cadena."],
+  ["🤖", "Asistente de IA para tu negocio", "Pregunta por ventas, mesas, carta u opiniones y responde con tus propios datos. En Pro y Cadena, o como complemento del plan Esencial."],
   ["📸", "Carta con foto de cada plato", "Fotos optimizadas, etiquetas (vegano, picante…) y alérgenos visibles."],
   ["⚡", "Importar con IA en minutos", "Foto, PDF o texto pegado → carta lista para revisar."],
   ["🍳", "Pantalla de cocina en vivo", "Nuevo → preparando → listo. Sonido, colores por demora y número de mesa."],
@@ -119,7 +119,7 @@ export default function Landing() {
 
         <section id="asistente">
           <h2 className="t">Pregúntale a tu negocio</h2>
-          <p className="sub">El Asistente de IA responde con los datos reales de tu restaurante, en lenguaje normal. Incluido en los planes Pro y Cadena.</p>
+          <p className="sub">El Asistente de IA responde con los datos reales de tu restaurante, en lenguaje normal. Incluido en Pro y Cadena; en Esencial se activa por $12.000 al mes (120 preguntas).</p>
           <div className="ask">
             <div className="feat" style={{ gridTemplateColumns: "1fr" }}>
               {ASK_TOPICS.map(([ico, h, p]) => (
@@ -159,8 +159,8 @@ export default function Landing() {
           <div className="plans">
             <div className="card plan">
               <h3>Esencial</h3>
-              <div className="p">$79.000<small className="muted"> /mes</small></div>
-              <ul><li>Hasta 15 mesas</li><li>Carta con fotos y QR por mesa</li><li>Pantalla de cocina</li><li>Cuenta y cierre de mesa desde el celular</li><li>Reportes básicos</li></ul>
+              <div className="p">$75.000<small className="muted"> /mes</small></div>
+              <ul><li>Mesas 1 a 7 incluidas</li><li>Mesa adicional: $5.000 al mes</li><li>Carta con fotos y QR por mesa</li><li>Pantalla de cocina</li><li>Cuenta y cierre de mesa desde el celular</li><li>Reportes básicos</li><li>Opcional: <b>Asistente de IA</b>, 120 preguntas al mes por $12.000</li></ul>
               <a className="btn ghost block" href="/signup">Empezar gratis</a>
             </div>
             <div className="card plan hot">

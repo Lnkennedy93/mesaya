@@ -339,6 +339,8 @@ MIGRATIONS = {
         "terms_version": "TEXT NOT NULL DEFAULT ''",
         "ai_asks_used": "INTEGER NOT NULL DEFAULT 0",  # preguntas al asistente en el mes de ai_asks_month
         "ai_asks_month": "TEXT NOT NULL DEFAULT ''",
+        "extra_tables": "INTEGER NOT NULL DEFAULT 0",  # mesas adicionales contratadas en el plan Esencial
+        "ai_addon": "INTEGER NOT NULL DEFAULT 0",  # 1 = complemento de IA del plan Esencial
     },
     "payments": {
         "customer": "TEXT NOT NULL DEFAULT ''",

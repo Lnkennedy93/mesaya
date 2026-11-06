@@ -80,6 +80,26 @@ with TestClient(app) as c, TestClient(app) as other:
     check(r.status_code == 402 and "Pro" in r.json()["error"], "Esencial/prueba: asistente bloqueado con aviso de plan")
     check(not sent, "sin plan no se llama a Google")
 
+    # complemento de IA en Esencial: 120 preguntas al mes; sin él vuelve a bloquear
+    def act(email, **b):
+        return c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "basic", "email": email, **b}).status_code
+    check(act("uno@b.co", ai_addon=True) == 200, "complemento de IA activado")
+    script[:] = [model_turn({"text": "Hola"})]
+    r = c.post("/api/assistant", json={"question": "hola"})
+    check(r.status_code == 200 and r.json()["asks_left"] == 119, "Esencial con complemento: 120 preguntas al mes")
+    check(act("uno@b.co", ai_addon=False) == 200 and c.post("/api/assistant", json={"question": "hola"}).status_code == 402, "sin complemento se bloquea otra vez")
+    db.run("UPDATE restaurants SET ai_asks_used=0, ai_asks_month='' WHERE email='uno@b.co'")
+    sent.clear()
+
+    # mesas: 7 incluidas + las adicionales contratadas (el registro nunca crea más de 7)
+    with TestClient(app) as t3:
+        t3.post("/api/signup", json={"accept_terms": True, "name": "Café Tres", "email": "tres@b.co", "password": "secreto123", "tables": 20})
+        check(len(t3.get("/api/tables").json()["tables"]) == 7, "el registro crea como máximo las 7 mesas del plan Esencial")
+        check(t3.post("/api/tables", json={"count": 1}).status_code == 402, "la mesa 8 no cabe sin mesas adicionales")
+        check(act("tres@b.co", extra_tables=2) == 200 and t3.post("/api/tables", json={"count": 3}).status_code == 402, "2 adicionales: la 10 no cabe")
+        check(t3.post("/api/tables", json={"count": 2}).status_code == 200, "2 mesas adicionales contratadas caben (9)")
+        check(act("tres@b.co") == 200 and t3.post("/api/tables", json={"count": 1}).status_code == 402, "reactivar sin indicar extras los conserva")
+
     check(c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "pro", "email": "uno@b.co"}).status_code == 200, "plan Pro activado")
     order(c, slug, items["Empanadas"], 2, "d1")
     order(c, slug, items["Sopa"], 1, "d2")

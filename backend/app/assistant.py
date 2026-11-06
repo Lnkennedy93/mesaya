@@ -361,7 +361,7 @@ def _clean_history(h: list[dict]) -> list[dict]:
 async def assistant(body: AskIn, s: Staff = Depends(owner_dep)):
     limit = auth.plan_info(s.r)["ai_asks"]
     if limit <= 0:
-        raise HTTPException(402, "El asistente está disponible en los planes Pro y Cadena.")
+        raise HTTPException(402, "El asistente viene en los planes Pro y Cadena, o como complemento del plan Esencial.")
     if not available():
         raise HTTPException(503, "El asistente no está configurado (falta GEMINI_API_KEY).")
     month = datetime.now(timezone.utc).strftime("%Y-%m")

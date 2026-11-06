@@ -314,7 +314,7 @@ const IDEAS = ['¿Cuántos platos vendí esta semana?', '¿Cuánta plata se movi
 function assistant(m) {
   if (!ME.plan.ai_asks) return frame(m, `<h1>Asistente</h1><div class="card"><b>Pregúntale a tu negocio</b>
     <p class="muted">Cuántos platos se vendieron, cuánto dinero se movió, cuánto demora la cocina y qué platos se apagaron, en una sola pregunta.</p>
-    <p>Disponible en los planes <b>Pro</b> y <b>Cadena</b>.</p><a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20Pro%20${esc(ME.restaurant.slug)}">Pasar a Pro</a></div>`);
+    <p>Incluido en <b>Pro</b> y <b>Cadena</b>. En el plan Esencial se activa como complemento: <b>120 preguntas al mes por $12.000</b>.</p><a class="btn sm" href="mailto:ventas@mesaya.app?subject=Activar%20asistente%20IA%20${esc(ME.restaurant.slug)}">Activar el asistente</a></div>`);
   const bubble = (mine, text) => `<div style="margin:.7rem 0;text-align:${mine ? 'right' : 'left'}"><div style="display:inline-block;max-width:min(46rem,92%);padding:.6rem .9rem;border-radius:12px;white-space:pre-wrap;text-align:left;
     background:${mine ? 'var(--brand)' : 'color-mix(in srgb,var(--ink) 7%,transparent)'};color:${mine ? 'var(--brand-ink)' : 'inherit'}">${esc(text)}</div>`;
   const paint = () => {

@@ -31,8 +31,8 @@ export default function AssistantTab() {
         <div className="card">
           <b>Pregúntale a tu negocio</b>
           <p className="muted">Cuántos platos se vendieron, cuánto dinero se movió, cuánto demora la cocina y qué platos se apagaron, en una sola pregunta.</p>
-          <p>Disponible en los planes <b>Pro</b> y <b>Cadena</b>.</p>
-          <a className="btn sm" href={`mailto:ventas@mesaya.app?subject=Activar%20Pro%20${encodeURIComponent(ME.restaurant.slug)}`}>Pasar a Pro</a>
+          <p>Incluido en <b>Pro</b> y <b>Cadena</b>. En el plan Esencial se activa como complemento: <b>120 preguntas al mes por $12.000</b>.</p>
+          <a className="btn sm" href={`mailto:ventas@mesaya.app?subject=Activar%20asistente%20IA%20${encodeURIComponent(ME.restaurant.slug)}`}>Activar el asistente</a>
         </div>
       </>
     );

@@ -94,7 +94,7 @@ export default function AuthForm({ mode, token = "" }: { mode: AuthMode; token?:
                   <>
                     <div className="two">
                       <div><label>Moneda</label><select name="currency">{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-                      <div><label>Número de mesas</label><input name="tables" type="number" min={1} max={60} defaultValue={8} /></div>
+                      <div><label>Número de mesas</label><input name="tables" type="number" min={1} max={7} defaultValue={7} /></div>
                     </div>
                     <label className="terms">
                       <input type="checkbox" name="accept_terms" required />{" "}

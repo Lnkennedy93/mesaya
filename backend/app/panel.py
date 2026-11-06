@@ -27,7 +27,7 @@ class SignupIn(BaseModel):
     email: str = Field(min_length=5, max_length=120)
     password: str = Field(min_length=8, max_length=100)
     currency: str = "COP"
-    tables: int = Field(default=8, ge=1, le=60)
+    tables: int = Field(default=7, ge=1, le=60)
     accept_terms: bool = False
 
 
@@ -90,7 +90,7 @@ def signup(body: SignupIn, request: Request, response: Response):
             (slug, body.name.strip(), body.name.strip(), email, auth.hash_password(body.password), pin, cur,
              service.decimals_for(cur), "INC" if co else "NONE", 8 if co else 0, 1, trial_end, now(),
              now(), config.TERMS_VERSION)).lastrowid
-        for n in range(1, body.tables + 1):
+        for n in range(1, min(body.tables, config.PLANS["basic"]["tables"]) + 1):  # la prueba es plan Esencial
             c.execute("INSERT INTO tables_(restaurant_id,label,secret) VALUES (?,?,?)", (rid, str(n), service.new_secret()))
     _set_cookie(response, auth.create_session(rid, "owner"))
     return _me(db.row("SELECT * FROM restaurants WHERE id=?", (rid,)), "owner")
@@ -652,7 +652,7 @@ def add_tables(body: dict, s: Staff = Depends(owner_dep)):
         start = have + 1
         labels += [str(n) for n in range(start, start + min(int(body["count"]), 100))]
     if have + len(labels) > limit:
-        raise HTTPException(402, f"Tu plan permite {limit} mesas. Mejora tu plan para agregar más.")
+        raise HTTPException(402, f"Tu plan incluye {limit} mesas. Pide mesas adicionales o mejora tu plan para agregar más.")
     added = 0
     for lb in labels:
         if lb and not db.row("SELECT 1 FROM tables_ WHERE restaurant_id=? AND label=?", (s.id, lb)):
@@ -874,8 +874,10 @@ def sa_activate(body: dict, request: Request):
     if plan not in config.PLANS:
         raise HTTPException(400, "Plan inválido")
     status = body.get("status", "active")
-    db.run("UPDATE restaurants SET plan=?, subscription_status=? WHERE email=?",
-           (plan, status, str(body.get("email", "")).lower()))
+    extra, ai = body.get("extra_tables"), body.get("ai_addon")  # opcionales: si no vienen, se conservan
+    db.run("UPDATE restaurants SET plan=?, subscription_status=?, extra_tables=COALESCE(?,extra_tables), ai_addon=COALESCE(?,ai_addon) WHERE email=?",
+           (plan, status, None if extra is None else max(0, int(extra)), None if ai is None else int(bool(ai)),
+            str(body.get("email", "")).lower()))
     return {"ok": True}
 
 
