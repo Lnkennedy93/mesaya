@@ -15,5 +15,6 @@ backend/tests
 **/node_modules
 **/.next
 *.pdf
+!web-next/public/catalogo-mesaya.pdf
 *.zip
 *.db
