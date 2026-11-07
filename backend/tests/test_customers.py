@@ -58,7 +58,7 @@ with TestClient(app) as a, TestClient(app) as b:
         check(anon.get("/api/customers.xlsx").status_code == 401, "exportar exige sesión")
     check(len(ET.fromstring(zipfile.ZipFile(io.BytesIO(b.get("/api/customers.xlsx").content)).read("xl/worksheets/sheet1.xml")).find("m:sheetData", ns)) == 2,
           "exportar: cada negocio solo recibe sus clientes")
-    a.delete("/api/customers/" + str(next(c2["id"] for c2 in a.get("/api/customers").json()["customers"] if c2["document"] == "12345678")))
+    a.delete("/api/customers/" + str(next(c2["id"] for c2 in a.get("/api/customers").json()["customers"] if c2["document"] == "0012345678")))
 
     cid = c[0]["id"]
     check(b.delete(f"/api/customers/{cid}").status_code == 200 and len(a.get("/api/customers").json()["customers"]) == 1, "otro negocio no puede borrar mis clientes")

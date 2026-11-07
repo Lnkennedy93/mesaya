@@ -73,7 +73,7 @@ COMPANY = {
     "email": os.getenv("MESAYA_COMPANY_EMAIL", "[CORREO PARA PETICIONES, QUEJAS Y RECLAMOS]"),
     "phone": os.getenv("MESAYA_COMPANY_PHONE", "[TELÉFONO / WHATSAPP]"),
 }
-TERMS_VERSION = "2026-10-27"  # súbela cuando cambies Términos o Política: se vuelve a pedir aceptación
+TERMS_VERSION = "2026-11-07"  # súbela cuando cambies Términos o Política: se vuelve a pedir aceptación
 
 # --- correo saliente (recuperar contraseña). Sin SMTP el dueño recibe el enlace por soporte (ver README)
 SMTP_HOST = os.getenv("MESAYA_SMTP_HOST", "")
