@@ -328,6 +328,9 @@ def connect():
 # Columnas añadidas después de la v1 (se aplican también a bases existentes).
 MIGRATIONS = {
     "restaurants": {
+        "takeaway": "INTEGER NOT NULL DEFAULT 0",  # recibe pedidos para llevar (un QR, máximo TAKEAWAY_MAX a la vez)
+        "takeaway_key": "TEXT NOT NULL DEFAULT ''",
+        "disabled_modules": "TEXT NOT NULL DEFAULT '[]'",  # funciones del panel que el superusuario apagó (lista JSON)
         "legal_name": "TEXT NOT NULL DEFAULT ''",
         "nit": "TEXT NOT NULL DEFAULT ''",
         "nit_dv": "TEXT NOT NULL DEFAULT ''",

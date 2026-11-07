@@ -48,7 +48,7 @@ def _me(r: dict, role: str) -> dict:
         "restaurant": {k: r[k] for k in (
             "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "tagline", "logo",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
-            "accepting_orders", "online_payments", "plan", "subscription_status", "trial_ends_at",
+            "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
             "inv_provider", "inv_env", "inv_range_id", "wompi_env", "nequi_enabled", "breb_enabled", "breb_key",
             "breb_key_type", "breb_holder")},
@@ -64,6 +64,9 @@ def _me(r: dict, role: str) -> dict:
         "features": {"payments": config.ONLINE_PAYMENTS, "invoicing": config.INVOICING},
         "plan": plan, "trial_days_left": left, "active": auth.is_active(r),
         "public_url": f"{config.BASE_URL}/r/{r['slug']}",
+        "modules": {m: auth.module_on(r, m) for m in auth.MODULES},  # funciones del panel que el superusuario dejó encendidas
+        "takeaway_url": f"{config.BASE_URL}/r/{r['slug']}?pl={r['takeaway_key']}" if r["takeaway_key"] else "",
+        "takeaway_max": config.TAKEAWAY_MAX,
         "ai_available": ai_import.ai_available(), "ai_provider": ai_import.provider(), "ocr_available": menu_reader.ocr_available(), "menu_reader": config.MENU_READER, "max_import_mb": config.MAX_IMPORT_MB,
     }
 
@@ -697,6 +700,24 @@ def table_url(r: dict, t: dict) -> str:
     return f"{config.BASE_URL}/r/{r['slug']}?t={t['label']}&k={t['secret']}"
 
 
+@router.post("/takeaway")
+def set_takeaway(body: dict, s: Staff = Depends(owner_dep)):
+    """Enciende o apaga los pedidos para llevar. `rotate` genera un QR nuevo e invalida el impreso."""
+    key = secrets.token_urlsafe(9) if body.get("rotate") or not s.r["takeaway_key"] else s.r["takeaway_key"]
+    db.run("UPDATE restaurants SET takeaway=?, takeaway_key=? WHERE id=?", (1 if body.get("enabled") else 0, key, s.id))
+    return _me(db.row("SELECT * FROM restaurants WHERE id=?", (s.id,)), s.role)
+
+
+@router.get("/qr/takeaway.svg")
+def qr_takeaway(s: Staff = Depends(staff_dep)):
+    if not s.r["takeaway_key"]:
+        raise HTTPException(404)
+    buf = io.BytesIO()
+    segno.make(f"{config.BASE_URL}/r/{s.r['slug']}?pl={s.r['takeaway_key']}", error="m").save(
+        buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False, svgns=True, nl=False)
+    return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
+
+
 @router.get("/qr/{tid}.svg")
 def qr_svg(tid: int, s: Staff = Depends(staff_dep)):
     t = db.row("SELECT * FROM tables_ WHERE id=? AND restaurant_id=?", (tid, s.id))
@@ -848,7 +869,8 @@ def analytics(days: int = 7, s: Staff = Depends(owner_dep)):
     sales = sum(o["total"] for o in ords)
     tables = {}
     for o in ords:
-        tables[o["table_label"]] = tables.get(o["table_label"], 0) + o["total"]
+        lb = "Para llevar" if o["table_label"].startswith(service.TAKEAWAY_PREFIX) else o["table_label"]  # un solo renglón, no uno por cliente
+        tables[lb] = tables.get(lb, 0) + o["total"]
     return {
         "days": days, "sales": sales, "orders": len(ords), "avg_ticket": round(sales / len(ords)) if ords else 0,
         "avg_prep_min": round(sum(prep_secs) / len(prep_secs) / 60, 1) if prep_secs else None,
@@ -965,12 +987,13 @@ def _admin(request: Request):
 def sa_list(request: Request):
     _admin(request)
     out = db.rows(
-        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,created_at,extra_tables,ai_addon,
+        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,created_at,extra_tables,ai_addon,disabled_modules,
                   (SELECT COUNT(*) FROM tables_ t WHERE t.restaurant_id=restaurants.id) AS tables_used
            FROM restaurants ORDER BY id DESC""")
     for r in out:  # lo que el negocio recibe hoy, ya calculado con las mismas reglas que la app
         p = auth.plan_info(r)
-        r.update(active=auth.is_active(r), effective_plan=p["name"], tables_limit=p["tables"], ai_asks=p["ai_asks"])
+        r.update(active=auth.is_active(r), effective_plan=p["name"], tables_limit=p["tables"], ai_asks=p["ai_asks"],
+                 disabled_modules=auth.disabled_modules(r))
     return {"restaurants": out}
 
 
@@ -991,6 +1014,20 @@ def sa_activate(body: dict, request: Request):
               trial_ends_at=CASE WHEN ?='active' THEN trial_ends_at ELSE ? END WHERE email=?""",
            (plan, status, None if extra is None else max(0, min(int(extra), 500)), None if ai is None else int(bool(ai)),
             status, auth.now(), email))
+    return {"ok": True}
+
+
+@router.post("/superadmin/modules")
+def sa_modules(body: dict, request: Request):
+    """Enciende o apaga funciones del panel de un negocio. `disabled` es la lista de las que quedan apagadas."""
+    _admin(request)
+    off = body.get("disabled")
+    if not isinstance(off, list) or any(m not in auth.MODULES for m in off):
+        raise HTTPException(400, "Funciones inválidas: " + ", ".join(auth.MODULES))
+    email = str(body.get("email", "")).strip().lower()
+    if not db.row("SELECT 1 FROM restaurants WHERE email=?", (email,)):
+        raise HTTPException(404, "No existe una cuenta con ese correo")
+    db.run("UPDATE restaurants SET disabled_modules=? WHERE email=?", (json.dumps([m for m in auth.MODULES if m in off]), email))
     return {"ok": True}
 
 

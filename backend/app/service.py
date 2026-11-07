@@ -1,4 +1,5 @@
 """Lógica de negocio compartida: cuentas, totales, validación de pedidos."""
+import hmac
 import re
 import secrets
 import unicodedata
@@ -6,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
-from . import db, events, invoicing
+from . import auth, config, db, events, invoicing
 from .auth import now
 
 RESERVED_SLUGS = {"admin", "api", "kitchen", "login", "signup", "r", "print", "uploads", "static", "qr", "assets"}
@@ -96,7 +97,27 @@ def price_lines(r: dict, raw_items: list[dict]) -> list[dict]:
     return lines
 
 
+TAKEAWAY_PREFIX = "PL-"  # «mesas» virtuales de los pedidos para llevar: una por cliente, así cada uno solo ve lo suyo
+
+
+def takeaway_key(r: dict, label: str) -> str:
+    """Clave de una «mesa» para llevar: se deriva de la clave del QR, así no hace falta guardar una fila por cliente."""
+    return hmac.new(r["takeaway_key"].encode(), label.encode(), "sha256").hexdigest()[:16]
+
+
+def takeaway_status(rid: int) -> dict:
+    n = db.row("SELECT COUNT(*) AS n FROM orders WHERE restaurant_id=? AND substr(table_label,1,3)=? AND status IN ('new','preparing','ready')",
+               (rid, TAKEAWAY_PREFIX))["n"]
+    return {"active": n, "max": config.TAKEAWAY_MAX, "full": n >= config.TAKEAWAY_MAX}
+
+
 def table_by_label(rid: int, label: str, key: str | None = None, require_key=True):
+    if label.startswith(TAKEAWAY_PREFIX):
+        r = db.row("SELECT * FROM restaurants WHERE id=?", (rid,))
+        if (not r or not r["takeaway"] or not r["takeaway_key"] or not auth.module_on(r, "takeaway")
+                or (require_key and not secrets.compare_digest(takeaway_key(r, label), key or ""))):
+            raise HTTPException(403, "Código no válido. Escanea de nuevo el QR para llevar.")
+        return {"label": label}
     t = db.row("SELECT * FROM tables_ WHERE restaurant_id=? AND label=?", (rid, label))
     if not t or (require_key and not secrets.compare_digest(t["secret"], key or "")):
         raise HTTPException(403, "Mesa no válida. Escanea de nuevo el QR de tu mesa.")

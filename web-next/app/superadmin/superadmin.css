@@ -8,4 +8,6 @@
 .sa .ctl .sw{display:flex;align-items:center;gap:.6rem;margin-top:.4rem}
 .sa .ctl .sw span{font-size:.9rem}
 .sa .acts{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+.sa .mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.7rem;margin-top:.5rem}
+.sa .mods label{display:flex;align-items:center;gap:.6rem;margin:0;font-weight:600;color:var(--ink)}
 .sa .stat{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}

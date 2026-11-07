@@ -5,6 +5,7 @@ import { api, setBrand } from "@/lib/api";
 
 export default function PrintQR() {
   const [data, setData] = useState<{ me: any; tables: any[] } | null>(null);
+  const solo = typeof location !== "undefined" && new URLSearchParams(location.search).get("solo") === "llevar"; // solo el QR para llevar
   useEffect(() => {
     (async () => {
       try {
@@ -24,7 +25,16 @@ export default function PrintQR() {
         <button className="btn" onClick={() => window.print()}>Imprimir</button>
       </div>
       <div className="sheet">
-        {data?.tables.map((t) => (
+        {data?.me.restaurant.takeaway && data.me.modules.takeaway ? (
+          <div className="tent">
+            <div className="name">{data.me.restaurant.name}</div>
+            <div className="num">🥡 Para llevar</div>
+            <img src="/api/qr/takeaway.svg" alt="QR para llevar" />
+            <div className="how"><b>Escanea y pide</b> desde tu celular.<br />Te avisamos cuando esté listo.</div>
+            <div className="foot">{String(data.me.public_url).replace(/^https?:\/\//, "")}</div>
+          </div>
+        ) : null}
+        {!solo && data?.tables.map((t) => (
           <div className="tent" key={t.id}>
             <div className="name">{data.me.restaurant.name}</div>
             <div className="num">Mesa {t.label}</div>

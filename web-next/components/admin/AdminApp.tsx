@@ -13,6 +13,7 @@ import SettingsTab from "./SettingsTab";
 import AssistantTab from "./AssistantTab";
 import FiscalTab from "./FiscalTab";
 import CustomersTab from "./CustomersTab";
+import TakeawayTab from "./TakeawayTab";
 
 export default function AdminApp({ welcome }: { welcome: boolean }) {
   const [ME, setMEState] = useState<Any>(null);
@@ -49,8 +50,11 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
 
   if (!ME || !ctx) return <div className="admin-root" />;
 
-  const tabs: [string, string][] = [["home", "📊 Resumen"], ["menu", "🍽️ Carta"], ["tables", "🔳 Mesas y QR"], ["reviews", "⭐ Opiniones"], ["customers", "🎁 Fidelización Clientes"], ["assistant", "🤖 Asistente"], ["settings", "⚙️ Ajustes"]];
+  const tabs: [string, string][] = [["home", "📊 Resumen"], ["menu", "🍽️ Carta"], ["tables", "🔳 Mesas y QR"], ["takeaway", "🥡 Para llevar"], ["reviews", "⭐ Opiniones"], ["customers", "🎁 Fidelización Clientes"], ["assistant", "🤖 Asistente"], ["settings", "⚙️ Ajustes"]];
   if (ME.features.payments || ME.features.invoicing) tabs.splice(3, 0, ["fiscal", "🧾 Facturas y pagos"]);
+  // funciones que el superusuario dejó apagadas para este negocio: no se muestran (y el servidor las rechaza)
+  const shownTabs = tabs.filter(([k]) => k === "fiscal" || ME.modules?.[k] !== false);
+  const cur = shownTabs.some(([k]) => k === tab) ? tab : shownTabs[0]?.[0] ?? "";
 
   const mail = `mailto:ventas@mesaya.app?subject=Activar%20${encodeURIComponent(ME.restaurant.slug)}`;
   const banner =
@@ -60,7 +64,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
       <div className="banner"><span>🎁 Prueba gratis: te quedan <b>{ME.trial_days_left} días</b></span><a className="btn sm" href={mail}>Elegir plan</a></div>
     );
 
-  const Tab = ({ home: HomeTab, menu: MenuTab, tables: TablesTab, fiscal: FiscalTab, reviews: ReviewsTab, customers: CustomersTab, assistant: AssistantTab, settings: SettingsTab } as Record<string, React.ComponentType>)[tab];
+  const Tab = ({ home: HomeTab, menu: MenuTab, tables: TablesTab, fiscal: FiscalTab, reviews: ReviewsTab, customers: CustomersTab, takeaway: TakeawayTab, assistant: AssistantTab, settings: SettingsTab } as Record<string, React.ComponentType>)[cur];
 
   return (
     <AdminCtx.Provider value={ctx}>
@@ -69,8 +73,8 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
           <nav>
             <div className="logo">Mesa<b>Ya</b></div>
             <div>
-              {tabs.map(([k, l]) => (
-                <button key={k} className={k === tab ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
+              {shownTabs.map(([k, l]) => (
+                <button key={k} className={k === cur ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
               ))}
             </div>
             <div className="sp"></div>
@@ -80,7 +84,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
           </nav>
           <main>
             {banner}
-            <Tab key={tab} />
+            {Tab ? <Tab key={cur} /> : <p className="muted">Tu cuenta no tiene funciones activas por ahora. Escríbenos y las activamos.</p>}
           </main>
         </div>
 

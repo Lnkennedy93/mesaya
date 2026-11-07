@@ -95,6 +95,7 @@ PLANS = {
     "pro": {"name": "Pro", "tables": 13, "ai_imports": 50, "ai_asks": 300},  # ai_asks = preguntas al asistente por mes
     "chain": {"name": "Cadena", "tables": 500, "ai_imports": 500, "ai_asks": 1500},
 }
+TAKEAWAY_MAX = 10  # pedidos para llevar en curso a la vez; con 10 en curso no entra ninguno más hasta que se entregue uno
 BASIC_AI_ADDON_ASKS = 120  # preguntas al mes del complemento de IA del plan Esencial
 
 

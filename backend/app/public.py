@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import colombia, config, db, events, invoicing, payments, service
-from .auth import client_ip, is_active, now, rate_check, rate_hit, rate_limit
+from .auth import client_ip, is_active, module_on, now, rate_check, rate_hit, rate_limit
 
 router = APIRouter(prefix="/api/public/{slug}")
 
@@ -40,11 +40,24 @@ def _table(r: dict, label: str, key: str, request: Request) -> dict:
 
 def _plan_allows(r: dict, label: str) -> bool:
     """Con plan Gratis solo las primeras mesas (las que cubre el plan) reciben pedidos digitales."""
+    if label.startswith(service.TAKEAWAY_PREFIX):
+        return is_active(r)  # para llevar no depende de mesas: requiere plan activo o prueba
     if is_active(r):
         return True
     first = db.rows("SELECT label FROM tables_ WHERE restaurant_id=? ORDER BY CAST(label AS INTEGER), label LIMIT ?",
                     (r["id"], config.PLANS["free"]["tables"]))
     return label in {t["label"] for t in first}
+
+
+@router.post("/takeaway/start")
+def takeaway_start(slug: str, body: dict, request: Request):
+    """El QR para llevar trae la clave del negocio; aquí se canjea por una «mesa» propia de este cliente (PL-xxxxxx + clave)."""
+    r = _resto(slug)
+    rate_limit(f"pl:start:{_ip(request)}:{r['id']}", 60, 600)
+    if not (r["takeaway"] and r["takeaway_key"] and module_on(r, "takeaway")) or not secrets.compare_digest(str(body.get("pl", "")), r["takeaway_key"]):
+        raise HTTPException(403, "Este código para llevar ya no es válido. Pide uno nuevo en el mostrador.")
+    label = service.TAKEAWAY_PREFIX + secrets.token_hex(3).upper()
+    return {"table": label, "key": service.takeaway_key(r, label)}
 
 
 @router.get("/menu")
@@ -109,8 +122,13 @@ def create_order(slug: str, body: OrderIn, request: Request):
     if not _plan_allows(r, body.table):
         raise HTTPException(402, "Esta mesa no tiene pedidos digitales en el plan Gratis. Pide al mesero.")
     rate_limit(f"order:t:{r['id']}:{body.table}", 15, 600)
+    takeaway = body.table.startswith(service.TAKEAWAY_PREFIX)
+    if takeaway and not body.diner_name.strip():
+        raise HTTPException(400, "Escribe tu nombre para entregarte el pedido")
     lines = service.price_lines(r, [i.model_dump() for i in body.items])
-    with db.tx() as c:
+    with db.tx() as c:  # (la transacción serializa las escrituras: contar y luego insertar no se pisa)
+        if takeaway and service.takeaway_status(r["id"])["full"]:
+            raise HTTPException(409, f"Estamos al tope de pedidos para llevar ({config.TAKEAWAY_MAX}). Podrás pedir apenas se entregue uno.")
         today = now()[:10] + " 00:00:00"
         seq = c.execute("SELECT COALESCE(MAX(seq),0)+1 FROM orders WHERE restaurant_id=? AND created_at>=?",
                         (r["id"], today)).fetchone()[0]
@@ -135,7 +153,10 @@ def bill(slug: str, table: str, k: str, request: Request):
     lines = service.bill_lines(r["id"], table)
     calls = db.rows("SELECT type FROM calls WHERE restaurant_id=? AND table_label=? AND resolved_at IS NULL",
                     (r["id"], table))
-    return {"lines": lines, "calls": [c["type"] for c in calls], "closed": service.table_closed(lines)}
+    out = {"lines": lines, "calls": [c["type"] for c in calls], "closed": service.table_closed(lines)}
+    if table.startswith(service.TAKEAWAY_PREFIX):
+        out["takeaway"] = service.takeaway_status(r["id"])  # cupo: se refresca con cada consulta de la cuenta
+    return out
 
 
 @router.get("/stream")
@@ -176,6 +197,8 @@ def call(slug: str, body: CallIn, request: Request):
     rate_limit(f"call:t:{r['id']}:{body.table}", 6, 300)
     if body.type not in ("waiter", "bill"):
         raise HTTPException(400, "Tipo inválido")
+    if body.table.startswith(service.TAKEAWAY_PREFIX):
+        raise HTTPException(400, "Los pedidos para llevar se recogen en el mostrador")
     if service.table_closed(service.bill_lines(r["id"], body.table)):  # mesa cerrada en sala: ya no hay a quién llamar ni cuenta que pedir
         raise HTTPException(409, "La mesa ya fue cerrada. ¡Gracias por tu visita!")
     if body.type == "bill":

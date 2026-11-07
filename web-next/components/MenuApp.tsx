@@ -19,6 +19,7 @@ const STATUS_IDX: Record<string, number> = { new: 0, preparing: 1, ready: 2, ser
 const initial = (n: string) => n.trim().charAt(0).toUpperCase();
 
 export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView, justPaid }: { slug: string; table: string; tableKey: string; initialView: "menu" | "bill"; justPaid: boolean }) {
+  const TAKEAWAY = TABLE.startsWith("PL-"); // pedido para llevar: una «mesa» virtual por cliente, sin mesero ni cuenta de mesa
   const [lang, setLang] = useState("es");
   const [M, setM] = useState<Any>(null);
   const [error, setError] = useState("");
@@ -220,6 +221,8 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
   if (!M) return <div className="menu-root" />;
 
   const R = M.restaurant;
+  const full = TAKEAWAY && !!bill.takeaway?.full; // ya hay 10 pedidos en curso: se puede mirar la carta pero no pedir
+  const canOrder = M.can_order && !full;
 
   function taxRow(subtotal: number) {
     if (!R.tax_pct || R.tax_label.startsWith("No ")) return null;
@@ -354,6 +357,32 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
 
   function billView() {
     const L: Any[] = bill.lines;
+    if (TAKEAWAY) { // para llevar: sin cuenta de mesa ni mesero, solo el estado de mis pedidos hasta que me los entregan
+      const mine = [...new Set(L.map((l) => l.order_id))].map((id) => L.find((l) => l.order_id === id)).filter((o) => o.order_status !== "served");
+      return (
+        <main>
+          {mine.map((o) => {
+            const idx = STATUS_IDX[o.order_status] ?? 0;
+            const lines = L.filter((l) => l.order_id === o.order_id);
+            return (
+              <div className="card" style={{ marginTop: ".8rem" }} key={o.order_id}>
+                <div className="row spread"><b>#{o.seq} · {o.diner_name}</b><span className={"pill " + (idx >= 2 ? "ok" : "warn")}>{T("status")[idx]}</span></div>
+                <div className="steps">{[0, 1, 2, 3].map((i) => <i key={i} className={i <= idx ? "on" : ""} />)}</div>
+                {o.order_status === "ready" && <p style={{ textAlign: "center", fontWeight: 700, margin: ".6rem 0 0" }}>✅ {T("takeawayReady")}</p>}
+                {lines.map((l) => <div className="line" key={l.id}><div className="grow"><b>{l.qty}× {l.name}</b></div><b>{money(l.line_total)}</b></div>)}
+                <div className="row spread" style={{ marginTop: ".4rem" }}><span className="muted">{T("total")}</span><b>{money(lines.reduce((a, l) => a + l.line_total, 0))}</b></div>
+              </div>
+            );
+          })}
+          {!mine.length && (
+            <div className="card" style={{ marginTop: "1rem", textAlign: "center" }}>
+              <p className="muted">{T("takeawayNone")}</p>
+              <button className="btn" onClick={() => setView("menu")}>{T("menu")}</button>
+            </div>
+          )}
+        </main>
+      );
+    }
     if (bill.closed) // mesa cerrada en sala: solo queda opinar, y llamar al mesero ya no se puede
       return (
         <main>
@@ -451,7 +480,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       <div className="hero">
         <div className="thumb logo">{R.logo ? <img src={R.logo} alt="" /> : initial(R.name)}</div>
         <div className="grow"><h1>{R.name}</h1><div className="muted small">{R.tagline || ""}</div></div>
-        {M.table_ok && <div className="tablebadge">{T("table")} {M.table}</div>}
+        {M.table_ok && <div className="tablebadge">{TAKEAWAY ? "🥡 " + T("takeaway") : `${T("table")} ${M.table}`}</div>}
         <div className="langs">
           {["es", "en"].map((l) => (
             <button key={l} onClick={() => changeLang(l)} style={l === lang ? { background: "var(--ink)", color: "var(--bg)" } : undefined}>{l.toUpperCase()}</button>
@@ -461,17 +490,18 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       {!M.subscription_ok ? <div className="notice">{T("menuOnly")}</div>
         : M.paused ? <div className="notice">{T("paused")}</div>
         : !M.table_ok ? <div className="notice">{TABLE ? T("badQr") : T("scan")}</div> : null}
+      {full && <div className="notice">{T("takeawayFull").replace("{n}", bill.takeaway.active).replace("{max}", bill.takeaway.max)}</div>}
 
       {view === "menu" ? menuView : billView()}
 
       {M.table_ok && (
         <div className="bar">
           <button className={"btn " + (view === "menu" ? "dark" : "ghost")} onClick={() => setView("menu")}>{T("menu")}</button>
-          {cartCount && M.can_order ? (
+          {cartCount && canOrder ? (
             <button className="btn" onClick={() => setDlg({ t: "cart" })}>{T("viewOrder")} · {cartCount} · {money(cartTotal)}</button>
           ) : (
             <button className={"btn " + (view === "bill" ? "dark" : "ghost")} onClick={async () => { await refreshBill(); setView("bill"); window.scrollTo(0, 0); }}>
-              {T("myBill")}{unpaidMine ? ` · ${unpaidMine}` : ""}
+              {TAKEAWAY ? T("takeawayBar") : T("myBill")}{unpaidMine && !TAKEAWAY ? ` · ${unpaidMine}` : ""}
             </button>
           )}
         </div>
@@ -479,7 +509,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
 
       <Modal open={!!dlg} onClose={() => { if (dlg?.t === "nequi" || dlg?.t === "breb") { if (pollTimer.current) clearInterval(pollTimer.current); } setDlg(null); refreshBill(); }}>
         {dlg?.t === "item" && (
-          <ItemDialog it={findItem(dlg.id)} money={money} T={T} canOrder={M.can_order} onClose={() => setDlg(null)} toast={toast}
+          <ItemDialog it={findItem(dlg.id)} money={money} T={T} canOrder={canOrder} onClose={() => setDlg(null)} toast={toast}
             onAdd={(line) => { saveCart([...cart, line]); setDlg(null); }} />
         )}
         {dlg?.t === "cart" && (
@@ -489,7 +519,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
               setDinerName(name); ls("mesaya_name", name);
               try {
                 await api(`/api/public/${slug}/orders`, { method: "POST", body: { table: TABLE, key: KEY, diner_id: dinerId.current, diner_name: name, note, items: cart.map((l) => ({ item_id: l.item_id, qty: l.qty, options: l.options, note: l.note })) } });
-                saveCart([]); setDlg(null); await refreshBill(); setView("bill"); toast("✅ " + T("sent") + " " + T("sentSub"));
+                saveCart([]); setDlg(null); await refreshBill(); setView("bill"); toast("✅ " + (TAKEAWAY ? T("takeawaySent") : T("sent") + " " + T("sentSub")));
                 return true;
               } catch (e: Any) { toast(e.message, true); return false; }
             }} />
@@ -606,6 +636,7 @@ function ItemDialog({ it, money, T, canOrder, onClose, onAdd, toast }: { it: Any
 
 function CartDialog({ cart, T, money, table, dinerName, onClose, onChange, onSend }: { cart: CartLine[]; T: (k: string) => Any; money: (v: number) => string; table: string; dinerName: string; onClose: () => void; onChange: (c: CartLine[]) => void; onSend: (name: string, note: string) => Promise<boolean> }) {
   const [name, setName] = useState(dinerName);
+  const needName = table.startsWith("PL-"); // para llevar: el nombre es obligatorio, es lo que se grita al entregar
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (!cart.length) onClose(); }, [cart.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -613,7 +644,7 @@ function CartDialog({ cart, T, money, table, dinerName, onClose, onChange, onSen
   const step = (i: number, d: number) => onChange(cart.map((l, j) => (j === i ? { ...l, qty: Math.min(Math.max(1, l.qty + d), 20) } : l)));
   return (
     <>
-      <div className="sheet-h"><h2 style={{ margin: 0 }}>{T("viewOrder")} · {T("table")} {table}</h2><button className="x" onClick={onClose}>×</button></div>
+      <div className="sheet-h"><h2 style={{ margin: 0 }}>{T("viewOrder")} · {needName ? "🥡 " + T("takeaway") : `${T("table")} ${table}`}</h2><button className="x" onClick={onClose}>×</button></div>
       {cart.map((l, i) => (
         <div className="line" key={i}>
           <div className="grow"><b>{l.name}</b><div className="muted small">{l.options.map((o) => o.name).join(", ")}{l.note ? ` · “${l.note}”` : ""}</div></div>
@@ -626,13 +657,13 @@ function CartDialog({ cart, T, money, table, dinerName, onClose, onChange, onSen
           <button className="rm" aria-label={T("remove")} title={T("remove")} onClick={() => onChange(cart.filter((_, j) => j !== i))}>×</button>
         </div>
       ))}
-      <label>{T("yourName")}</label>
+      <label>{needName ? T("takeawayName") : T("yourName")}</label>
       <input maxLength={40} value={name} autoComplete="given-name" onChange={(e) => setName(e.target.value)} />
       <label>{T("notes")}</label>
       <input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />
       <div className="row spread" style={{ margin: "1rem 0" }}><span className="big">{T("total")}</span><span className="big">{money(total)}</span></div>
       <p className="muted small" style={{ margin: ".6rem 0 0", textAlign: "center" }}>{T("privacyNote")} <a href="/privacidad" target="_blank" rel="noopener">{T("privacyLink")}</a></p>
-      <button className="btn block" style={{ marginTop: ".6rem" }} disabled={busy} onClick={async () => { setBusy(true); const ok = await onSend(name.trim(), note); if (!ok) setBusy(false); }}>{T("send")}</button>
+      <button className="btn block" style={{ marginTop: ".6rem" }} disabled={busy || (needName && !name.trim())} onClick={async () => { setBusy(true); const ok = await onSend(name.trim(), note); if (!ok) setBusy(false); }}>{T("send")}</button>
     </>
   );
 }

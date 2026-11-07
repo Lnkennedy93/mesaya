@@ -134,7 +134,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
                   const cls = st === "ready" ? "" : mins > 15 ? "late" : mins > 8 ? "warn" : "";
                   return (
                     <div className={"ticket " + cls} key={o.id}>
-                      <div className="row spread"><span className="t">Mesa {o.table_label}</span><span className="muted">#{o.seq} · {Math.floor(mins)} min</span></div>
+                      <div className="row spread"><span className="t">{String(o.table_label).startsWith("PL-") ? "🥡 Para llevar" : `Mesa ${o.table_label}`}</span><span className="muted">#{o.seq} · {Math.floor(mins)} min</span></div>
                       <ul>
                         {o.items.map((i: Any, n: number) => (
                           <li key={n}>

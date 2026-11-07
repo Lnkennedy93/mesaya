@@ -1,4 +1,5 @@
 import MenuApp from "@/components/MenuApp";
+import TakeawayEntry from "@/components/TakeawayEntry";
 import "./menu.css";
 
 export const metadata = { title: "Carta", description: undefined };
@@ -14,5 +15,6 @@ export default async function MenuPage({
   const { slug } = await params;
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || "";
+  if (one(sp.pl) && !one(sp.t)) return <TakeawayEntry slug={slug} pl={one(sp.pl)} />; // QR para llevar
   return <MenuApp slug={slug} table={one(sp.t)} tableKey={one(sp.k)} initialView={one(sp.view) === "bill" ? "bill" : "menu"} justPaid={one(sp.paid) === "1"} />;
 }

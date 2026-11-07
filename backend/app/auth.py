@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -66,6 +67,46 @@ def current(request: Request, optional=False):
 
 def staff_dep(request: Request) -> Staff:
     return current(request)
+
+
+# Funciones del panel que el superusuario puede encender o apagar por negocio.
+MODULES = ("home", "menu", "tables", "reviews", "customers", "assistant", "settings", "takeaway")
+
+
+def disabled_modules(r: dict) -> list[str]:
+    try:
+        return [m for m in json.loads(r["disabled_modules"] or "[]") if m in MODULES]
+    except ValueError:
+        return []
+
+
+def module_on(r: dict, name: str) -> bool:
+    return name not in disabled_modules(r)
+
+
+# (método o None, prefijo de ruta, función): qué función del panel usa cada ruta. El orden importa: gana la primera coincidencia.
+_GATES = (
+    (None, "/api/analytics", "home"), (None, "/api/export", "home"),
+    (None, "/api/categories", "menu"), (None, "/api/items", "menu"), (None, "/api/import", "menu"), ("DELETE", "/api/menu", "menu"),
+    (None, "/api/qr/takeaway", "takeaway"), (None, "/api/takeaway", "takeaway"),
+    ("POST", "/api/tables", "tables"), ("DELETE", "/api/tables", "tables"), (None, "/api/qr", "tables"),
+    (None, "/api/feedback", "reviews"), (None, "/api/customers", "customers"), (None, "/api/assistant", "assistant"),
+    ("PUT", "/api/settings", "settings"), (None, "/api/integrations", "settings"), (None, "/api/logo", "settings"),
+)
+
+
+def module_guard(request: Request):
+    """Rechaza (403) lo que el dueño intenta en una función que el superusuario le apagó. La cocina y la sala no se tocan:
+    cambiar un plato agotado o cobrar una mesa siguen funcionando."""
+    path = request.url.path
+    if path.endswith("/availability"):
+        return
+    for method, prefix, mod in _GATES:
+        if path.startswith(prefix) and method in (None, request.method):
+            s = current(request, optional=True)
+            if s and s.role == "owner" and not module_on(s.r, mod):
+                raise HTTPException(403, "Esta función está desactivada para tu cuenta. Escríbenos si la necesitas.")
+            return
 
 
 def owner_dep(request: Request) -> Staff:

@@ -7,8 +7,11 @@ import { useToast } from "@/components/useToast";
 type Biz = {
   id: number; slug: string; name: string; email: string; plan: string; subscription_status: string; trial_ends_at: string;
   created_at: string; extra_tables: number; ai_addon: number; tables_used: number; active: boolean; effective_plan: string;
-  tables_limit: number; ai_asks: number;
+  tables_limit: number; ai_asks: number; disabled_modules: string[];
 };
+
+const MODS: [string, string][] = [["home", "Resumen"], ["menu", "Carta"], ["tables", "Mesas y QR"], ["reviews", "Opiniones"], ["customers", "Fidelización Clientes"],
+  ["assistant", "Asistente"], ["settings", "Ajustes"], ["takeaway", "Para llevar"]];
 
 const PLAN_LABEL: Record<string, string> = { basic: "Esencial", pro: "Pro", chain: "Cadena" };
 
@@ -18,6 +21,7 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
   const [extra, setExtra] = useState(String(b.extra_tables));
   const [ai, setAi] = useState(!!b.ai_addon);
   const [pw, setPw] = useState("");
+  const [off, setOff] = useState<string[]>(b.disabled_modules || []);
   const status = b.subscription_status === "active" ? <span className="pill ok">Activa</span>
     : b.active ? <span className="pill warn">En prueba</span> : <span className="pill bad">Sin licencia (Gratis)</span>;
   const save = (st: "active" | "inactive") =>
@@ -34,6 +38,7 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
           <span className="pill brand">{b.effective_plan}</span>
           <span className="pill">{b.tables_used}/{b.tables_limit} mesas</span>
           {b.ai_asks > 0 && <span className="pill ok">IA {b.ai_asks}/mes</span>}
+          {b.disabled_modules.length > 0 && <span className="pill warn">{b.disabled_modules.length} funciones apagadas</span>}
         </div>
       </div>
       {open && (
@@ -61,6 +66,16 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
             <button className="btn ok sm" onClick={() => save("active")}>Guardar y activar licencia</button>
             <button className="btn bad sm" onClick={() => confirm(`¿Desactivar la licencia de ${b.name}? Pasará al plan Gratis.`) && save("inactive")}>Desactivar licencia</button>
           </div>
+          <label style={{ marginTop: "1rem" }}>Funciones del panel (apaga las que este negocio no debe usar)</label>
+          <div className="mods">
+            {MODS.map(([k, l]) => (
+              <label key={k}>
+                <span className="switch"><input type="checkbox" checked={!off.includes(k)} onChange={(e) => setOff(e.target.checked ? off.filter((x) => x !== k) : [...off, k])} /><span /></span>
+                {l}
+              </label>
+            ))}
+          </div>
+          <div className="acts"><button className="btn dark sm" onClick={() => call("modules", { email: b.email, disabled: off }, "Funciones guardadas")}>Guardar funciones</button></div>
           <div className="ctl">
             <div>
               <label>Nueva contraseña (mínimo 8)</label>
