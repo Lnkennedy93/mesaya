@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Catálogo de funciones · MesaYa</title>
+<style>
+@page{size:A4;margin:0}
+*{box-sizing:border-box;margin:0}
+:root{--o:#e4572e;--ink:#1d1a16;--mu:#5b544b;--bg:#faf7f2;--line:#e8e0d4}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--ink);font-size:10.8pt;line-height:1.46}
+.page{width:210mm;height:297mm;position:relative;overflow:hidden;background:var(--bg);page-break-after:always;padding:16mm 15mm 16mm}
+.page:last-child{page-break-after:auto}
+.logo{font-weight:900;letter-spacing:-.02em}.logo b{color:var(--o)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7mm;font-size:9pt;color:var(--mu)}
+.top .logo{font-size:15pt;color:var(--ink)}
+.foot{position:absolute;left:15mm;right:15mm;bottom:8mm;display:flex;justify-content:space-between;font-size:8pt;color:var(--mu)}
+h1{font-size:30pt;line-height:1.02;font-weight:900;letter-spacing:-.03em}
+h2{font-size:21pt;line-height:1.05;font-weight:900;letter-spacing:-.025em;margin-bottom:2mm}
+h3{font-size:11.5pt;font-weight:800;margin-bottom:1.2mm}
+.lead{font-size:11.5pt;color:var(--mu);max-width:150mm;margin-bottom:5mm}
+.pill{display:inline-block;background:#fbe3da;color:var(--o);font-weight:800;font-size:8.5pt;padding:.8mm 3mm;border-radius:99px}
+ul.f{list-style:none;padding:0}ul.f li{padding-left:5mm;position:relative;margin-bottom:2mm}
+ul.f li:before{content:"";position:absolute;left:0;top:.52em;width:2mm;height:2mm;border-radius:50%;background:var(--o)}
+.card{background:#fff;border:1px solid var(--line);border-radius:3.5mm;padding:4.5mm}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:5mm}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
+.win{border-radius:3mm;overflow:hidden;border:1px solid var(--line);box-shadow:0 3mm 8mm rgba(80,40,10,.14);background:#fff}
+.win img{display:block;width:100%}
+.ph{border-radius:6mm;background:#1d1a16;padding:1.6mm;box-shadow:0 3mm 8mm rgba(80,40,10,.2)}.ph img{display:block;width:100%;border-radius:4.6mm}
+.cap{font-size:8.5pt;color:var(--mu);margin-top:1.5mm;text-align:center}
+.num{display:inline-grid;place-items:center;width:7mm;height:7mm;border-radius:50%;background:var(--o);color:#fff;font-weight:900;font-size:10pt;margin-bottom:2mm}
+table{width:100%;border-collapse:collapse;font-size:9.4pt}
+th,td{padding:2.7mm 3mm;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#fff;font-weight:800}td.c,th.c{text-align:center}
+tr.hot td,th.hot{background:#fdf0ea}
+.cover{background:var(--o);color:#fff;padding:22mm 18mm}
+.cover .logo{font-size:34pt}.cover .logo b{color:var(--ink)}
+.cover h1{font-size:44pt;margin-top:46mm}.cover p{font-size:15pt;margin-top:8mm;max-width:150mm;opacity:.96}
+.cover .meta{position:absolute;left:18mm;right:18mm;bottom:18mm;display:flex;justify-content:space-between;font-size:11pt}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:3.5mm;padding:5mm}.kpi b{display:block;font-size:19pt;color:var(--o);line-height:1.05}
+.note{font-size:8.6pt;color:var(--mu)}
+.tag{display:inline-block;font-size:8pt;font-weight:800;border-radius:99px;padding:.4mm 2.4mm;margin-right:1mm}
+.ok{background:#dcf2e4;color:#15803d}.soon{background:#fdecc8;color:#a16207}
+.row{display:grid;grid-template-columns:68mm 1fr;gap:6mm;align-items:center;margin-bottom:5.5mm}
+.cols2{columns:2;column-gap:7mm}.cols2 li{break-inside:avoid}
+</style></head><body>
+
+<!-- 1 · PORTADA -->
+<section class="page cover">
+  <div class="logo">Mesa<b>Ya</b></div>
+  <h1>Catálogo de funciones</h1>
+  <p>Menú QR con pedidos desde la mesa, cocina en vivo y asistente de IA para restaurantes, cafés y bares.</p>
+  <div style="position:absolute;left:18mm;right:18mm;bottom:38mm;display:flex;gap:9mm;align-items:flex-end">
+    <div class="win" style="width:118mm;border:0"><img src="shots_jpg/10-cocina.jpg"></div>
+    <div class="ph" style="width:46mm"><img src="shots_jpg/04-cliente-carta.jpg"></div>
+  </div>
+  <div class="meta"><span>Noviembre 2026 · Versión 1</span><span>ventas@mesaya.app</span></div>
+</section>
+
+<!-- 2 · QUÉ ES -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <h2>Tu QR ya no solo muestra la carta</h2>
+  <p class="lead">Tus clientes piden desde la mesa y la cocina lo recibe al instante, con el número de mesa. Sin descargar ninguna app y sin comisión por pedido.</p>
+  <div class="g3" style="grid-template-columns:repeat(4,1fr);margin-bottom:6mm">
+    <div class="kpi"><b>0 %</b>comisión por pedido</div>
+    <div class="kpi"><b>Sin app</b>ni registro del cliente</div>
+    <div class="kpi"><b>5 min</b>para tener tu carta lista</div>
+    <div class="kpi"><b>14 días</b>gratis, sin tarjeta</div>
+  </div>
+  <h3 style="font-size:14pt;margin-bottom:3mm">Del QR a la cocina en 5 pasos</h3>
+  <div class="g3" style="grid-template-columns:repeat(5,1fr);gap:3mm;margin-bottom:7mm">
+    <div class="card"><span class="num">1</span><h3>Sube tu carta</h3><p class="note">Pega el texto o sube foto, PDF, Word o Excel.</p></div>
+    <div class="card"><span class="num">2</span><h3>Pega el QR en la mesa</h3><p class="note">Uno por mesa, con código secreto propio.</p></div>
+    <div class="card"><span class="num">3</span><h3>El cliente pide</h3><p class="note">Escanea, elige, personaliza y envía.</p></div>
+    <div class="card"><span class="num">4</span><h3>Llega a cocina</h3><p class="note">Pantalla en vivo con alertas y cronómetro.</p></div>
+    <div class="card"><span class="num">5</span><h3>Termina la mesa</h3><p class="note">Pide la cuenta desde el celular; tu equipo cobra en caja.</p></div>
+  </div>
+  <h3 style="font-size:14pt;margin-bottom:3mm">El QR de siempre vs. MesaYa</h3>
+  <table>
+    <tr><th></th><th class="c">QR que solo muestra un PDF</th><th class="c hot">MesaYa</th></tr>
+    <tr><td>El cliente puede pedir</td><td class="c">No: espera al mesero</td><td class="c hot">Sí, desde su celular</td></tr>
+    <tr><td>Pedido llega a cocina con la mesa</td><td class="c">No</td><td class="c hot">Sí, en vivo</td></tr>
+    <tr><td>Plato agotado</td><td class="c">Se entera al pedir</td><td class="c hot">Se apaga con un toque</td></tr>
+    <tr><td>Pedir la cuenta / terminar mesa</td><td class="c">Hay que llamar al mesero</td><td class="c hot">Desde el celular</td></tr>
+    <tr><td>Fotos y alérgenos</td><td class="c">Texto plano</td><td class="c hot">Sí</td></tr>
+    <tr><td>Preguntarle a tu negocio</td><td class="c">No</td><td class="c hot">Asistente de IA (Pro, Cadena o complemento)</td></tr>
+    <tr><td>Comisión por pedido</td><td class="c">—</td><td class="c hot">0 %</td></tr>
+  </table>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>2</span></div>
+</section>
+
+<!-- 3 · CLIENTE -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <span class="pill">Para tus clientes</span>
+  <h2 style="margin-top:2mm">La experiencia en el celular de la mesa</h2>
+  <p class="lead">Se abre en el navegador al escanear el QR. Nada que instalar.</p>
+  <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:5mm;margin:2mm 0 7mm">
+    <div><div class="ph"><img src="shots_jpg/04-cliente-carta.jpg"></div><p class="cap">Carta</p></div>
+    <div><div class="ph"><img src="shots_jpg/05-cliente-opciones.jpg"></div><p class="cap">Opciones y extras</p></div>
+    <div><div class="ph"><img src="shots_jpg/09-cliente-enviado.jpg"></div><p class="cap">Pedido enviado</p></div>
+    <div><div class="ph"><img src="shots_jpg/12-cliente-cuenta.jpg"></div><p class="cap">Mi cuenta</p></div>
+  </div>
+  <ul class="f cols2">
+    <li><b>Carta clara:</b> buscador, categorías, foto de cada plato, etiquetas (vegano, picante…) y alérgenos visibles.</li>
+    <li><b>Español e inglés</b> con un toque, ideal para zonas turísticas.</li>
+    <li><b>Opciones y adicionales:</b> tamaño, término, salsas y extras con recargo, más notas para cocina.</li>
+    <li><b>Pedido con su nombre</b> y el número de mesa. El precio lo calcula el servidor, nunca el celular.</li>
+    <li><b>Seguimiento en vivo</b> del pedido: recibido, en preparación, listo.</li>
+    <li><b>Mi cuenta:</b> lo consumido, impuestos incluidos y propina voluntaria sugerida.</li>
+    <li><b>Llamar al mesero</b> o pedir la cuenta sin levantar la mano. «Terminar mesa» avisa a tu equipo.</li>
+    <li><b>Opinión al terminar:</b> las de 4 y 5 estrellas se invitan a tu perfil de Google.</li>
+    <li><b>Plato agotado</b> desaparece al instante de todos los celulares.</li>
+  </ul>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>3</span></div>
+</section>
+
+<!-- 4 · COCINA Y SALA -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <span class="pill">Para tu equipo</span>
+  <h2 style="margin-top:2mm">Cocina y sala en vivo</h2>
+  <p class="lead">Una pantalla para cocina y otra para sala, con el PIN del equipo: nadie necesita la contraseña del dueño.</p>
+  <div class="win" style="margin-bottom:2mm"><img src="shots_jpg/10-cocina.jpg"></div>
+  <p class="cap" style="margin-bottom:5mm">Pantalla de cocina: Nuevos → En preparación → Listos para servir</p>
+  <div class="g2">
+    <ul class="f">
+      <li><b>Pedidos al instante</b> con número de mesa, nombre del comensal, opciones y notas.</li>
+      <li><b>Cronómetro por pedido</b> y colores según la demora, con sonido de aviso.</li>
+      <li><b>Llamados</b> del cliente (mesero o cuenta) con botón «Atendido».</li>
+      <li><b>Agotados:</b> apaga o enciende platos desde la misma pantalla.</li>
+    </ul>
+    <div>
+      <div class="win"><img src="shots_jpg/11-sala.jpg" style="height:34mm;object-fit:cover;object-position:top"></div>
+      <ul class="f" style="margin-top:2.5mm">
+        <li><b>Sala:</b> estado de cada mesa (libre, en cocina, por cobrar) y valor pendiente.</li>
+        <li><b>Cobro en caja</b> y cierre de mesa, como siempre.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>4</span></div>
+</section>
+
+<!-- 5 · PANEL 1 -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <span class="pill">Panel del dueño · 1 de 2</span>
+  <h2 style="margin-top:2mm;margin-bottom:5mm">Resumen, carta e importación</h2>
+  <div class="row"><div><h3>📊 Resumen</h3><ul class="f">
+      <li>Ventas, pedidos, ticket promedio y tiempo de cocina.</li><li>Ventas por día y horas pico.</li><li>Platos más vendidos y mesas que más venden.</li><li>Opiniones y exportación de pedidos a CSV.</li></ul></div>
+    <div class="win"><img src="shots_jpg/14-resumen.jpg"></div></div>
+  <div class="row"><div><h3>🍽️ Carta</h3><ul class="f">
+      <li>Categorías ordenables; platos con precio, descripción y foto.</li><li>Etiquetas, alérgenos y plato destacado ★.</li><li>Opciones y adicionales con recargo.</li><li>Interruptor para apagar lo agotado.</li></ul></div>
+    <div class="win"><img src="shots_jpg/02-carta.jpg"></div></div>
+  <div class="row"><div><h3>⚡ Importar carta</h3><ul class="f">
+      <li>Pega el texto o sube foto, PDF, Word, Excel o CSV.</li><li>Los PDF con texto, Word y Excel se leen en el servidor, sin enviar nada a terceros; la IA ayuda con fotos y PDF escaneados.</li><li>Siempre revisas antes de agregar.</li></ul></div>
+    <div class="win"><img src="shots_jpg/01-importar-carta.jpg"></div></div>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>5</span></div>
+</section>
+
+<!-- 6 · PANEL 2 -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <span class="pill">Panel del dueño · 2 de 2</span>
+  <h2 style="margin-top:2mm;margin-bottom:5mm">Mesas y QR, opiniones y ajustes</h2>
+  <div class="row"><div><h3>🔳 Mesas y QR</h3><ul class="f">
+      <li>Un QR por mesa con código secreto propio.</li><li><b>Renovar</b> invalida el QR anterior al instante.</li><li>Agrega o elimina mesas según tu plan.</li><li>Impresión de todos los QR listos para pegar.</li></ul></div>
+    <div class="win"><img src="shots_jpg/03-mesas-qr.jpg"></div></div>
+  <div class="row"><div><h3>⭐ Opiniones</h3><ul class="f">
+      <li>Se piden al terminar la mesa.</li><li>4–5 estrellas se invitan a tu reseña de Google; el resto llega solo a ti.</li><li>Lista de comentarios con mesa y fecha.</li></ul></div>
+    <div class="win"><img src="shots_jpg/13-opiniones.jpg" style="height:50mm;object-fit:cover;object-position:left top"></div></div>
+  <div class="row"><div><h3>⚙️ Ajustes</h3><ul class="f">
+      <li>Nombre, eslogan, logo y color de marca.</li><li>Moneda, propina sugerida e impuestos (INC/IVA, incluido o no).</li><li><b>Modo «solo carta»</b> para pausar pedidos en hora pico.</li><li>PIN del equipo y cambio de contraseña.</li></ul></div>
+    <div class="win"><img src="shots_jpg/15-ajustes.jpg"></div></div>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>6</span></div>
+</section>
+
+<!-- 7 · ASISTENTE -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <span class="pill">Nuevo · Pro, Cadena o complemento de Esencial</span>
+  <h2 style="margin-top:2mm">Asistente de IA: pregúntale a tu negocio</h2>
+  <p class="lead" style="margin-bottom:4mm">Escribe como le hablarías a una persona y recibe la respuesta con los datos reales de tu restaurante.</p>
+  <div class="win" style="margin-bottom:5mm"><img src="shots_jpg/20-asistente-accion.jpg" style="height:90mm;object-fit:cover;object-position:top"></div>
+  <div class="g2">
+    <div class="card"><h3>Qué puede responder</h3>
+      <ul class="f" style="margin-top:1mm">
+        <li><b>Resumen:</b> ventas, ticket promedio, horas pico, mesas que más venden, propinas, cocina y clientes.</li>
+        <li><b>Carta:</b> cuántos platos hay, el más barato y el más caro, y cuáles están apagados.</li>
+        <li><b>Mesas y QR:</b> cuáles están libres u ocupadas y la cuenta de cada una.</li>
+        <li><b>Opiniones:</b> promedio, cuántas de cada nota y los últimos comentarios.</li>
+        <li><b>Ajustes:</b> tu plan, propina, impuestos y pedidos por QR.</li>
+      </ul></div>
+    <div class="card"><h3>Tú decides, y tus datos se protegen</h3>
+    <ul class="f" style="margin-top:1mm">
+      <li>Si pide apagar un plato, lo <b>propone</b> y solo cambia cuando lo confirmas con un botón.</li>
+      <li>Consulta únicamente <b>tu</b> restaurante.</li>
+      <li><b>Nunca muestra</b> claves, PIN del equipo ni datos fiscales.</li>
+      <li>Las respuestas se redactan con Gemini (Google). Incluye 300 preguntas al mes en Pro y 1.500 en Cadena; en Esencial se activa por $12.000 al mes con 120 preguntas.</li>
+    </ul></div>
+  </div>
+  
+  <p class="note" style="margin-top:3mm">Cifras de la imagen: restaurante de demostración. Los clientes se cuentan por el nombre que escriben al pedir; no incluye a quien se sienta y no pide.</p>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>7</span></div>
+</section>
+
+<!-- 8 · SEGURIDAD -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <h2>Seguridad y tus datos</h2>
+  <p class="lead">Pensado para que nadie pueda mandar pedidos falsos y para que tus datos sigan siendo tuyos.</p>
+  <div class="g2">
+    <div class="card"><h3>🔒 QR seguro por mesa</h3><p>Cada QR lleva un código secreto. Sin él, el pedido se rechaza: nadie manda pedidos falsos a tu cocina desde su casa. Si un QR se filtra, lo renuevas en un toque.</p></div>
+    <div class="card"><h3>🧮 Precios calculados en el servidor</h3><p>El celular del cliente nunca decide cuánto cuesta algo. El servidor recalcula cada pedido con tu carta, opciones y recargos.</p></div>
+    <div class="card"><h3>👥 Accesos separados</h3><p>El dueño entra con correo y contraseña. Cocina y meseros entran con un PIN del equipo y solo ven lo que necesitan.</p></div>
+    <div class="card"><h3>🔑 Credenciales protegidas</h3><p>Las llaves de integraciones se guardan cifradas y nunca se devuelven al navegador. El asistente de IA tampoco puede mostrarlas.</p></div>
+    <div class="card"><h3>📄 Términos y política de datos</h3><p>Aceptación registrada con versión y fecha. El comensal no necesita cuenta; solo se guarda un identificador anónimo y el nombre que escribe.</p></div>
+    <div class="card"><h3>🗑️ Tus datos son tuyos</h3><p>Exporta todos tus pedidos en CSV cuando quieras y borra tu cuenta con todos sus datos (derecho de supresión).</p></div>
+  </div>
+  <div class="card" style="margin-top:5mm"><h3>Sin comisión, sin letra pequeña</h3><p>Pagas una mensualidad fija. No cobramos nada por cada pedido, y puedes cancelar cuando quieras: si no pagas, tu QR sigue como carta con 3 mesas gratis.</p></div>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>8</span></div>
+</section>
+
+<!-- 9 · PLANES -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <h2>Planes y precios</h2>
+  <p class="lead">14 días gratis sin tarjeta. Si no pagas, te quedas gratis con 3 mesas. Precios en pesos colombianos, por mes.</p>
+  <table>
+    <tr><th></th><th class="c">Gratis</th><th class="c">Esencial</th><th class="c hot">Pro</th><th class="c">Cadena</th></tr>
+    <tr><td><b>Precio</b></td><td class="c">$0</td><td class="c">$75.000</td><td class="c hot">$139.000</td><td class="c">A tu medida</td></tr>
+    <tr><td>Mesas incluidas</td><td class="c">3</td><td class="c">7</td><td class="c hot">60</td><td class="c">500</td></tr>
+    <tr><td>Mesa adicional (por mesa al mes)</td><td class="c">—</td><td class="c">$5.000</td><td class="c hot">—</td><td class="c">—</td></tr>
+    <tr><td>Carta con fotos y QR por mesa</td><td class="c">✓</td><td class="c">✓</td><td class="c hot">✓</td><td class="c">✓</td></tr>
+    <tr><td>Pantalla de cocina y sala en vivo</td><td class="c">✓</td><td class="c">✓</td><td class="c hot">✓</td><td class="c">✓</td></tr>
+    <tr><td>Cuenta y cierre de mesa desde el celular</td><td class="c">✓</td><td class="c">✓</td><td class="c hot">✓</td><td class="c">✓</td></tr>
+    <tr><td>Reportes</td><td class="c">Básicos</td><td class="c">Básicos</td><td class="c hot">Completos + CSV</td><td class="c">Completos + CSV</td></tr>
+    <tr><td>Importar carta con IA (lecturas)</td><td class="c">—</td><td class="c">3</td><td class="c hot">50</td><td class="c">500</td></tr>
+    <tr><td>Opiniones y reseñas en Google</td><td class="c">—</td><td class="c">—</td><td class="c hot">✓</td><td class="c">✓</td></tr>
+    <tr><td><b>Asistente de IA</b> (preguntas al mes)</td><td class="c">—</td><td class="c">Opcional: 120 (+$12.000)</td><td class="c hot"><b>300</b></td><td class="c"><b>1.500</b></td></tr>
+    <tr><td>Soporte prioritario</td><td class="c">—</td><td class="c">—</td><td class="c hot">✓</td><td class="c">✓</td></tr>
+    <tr><td>Varias sedes, marca propia y dominio</td><td class="c">—</td><td class="c">—</td><td class="c hot">—</td><td class="c">✓</td></tr>
+    <tr><td>Onboarding con tu equipo</td><td class="c">—</td><td class="c">—</td><td class="c hot">—</td><td class="c">✓</td></tr>
+  </table>
+  <p class="note" style="margin-top:3mm">Los límites de mesas y de lecturas y preguntas con IA se aplican en el producto. Las condiciones comerciales pueden ajustarse; confirma con ventas antes de contratar.</p>
+  <div class="card" style="margin-top:6mm;background:var(--ink);color:#fff;border:0">
+    <h3 style="font-size:15pt">Empieza hoy, sin tarjeta</h3>
+    <p style="opacity:.9">Crea tu carta, imprime los QR y recibe pedidos en tu cocina el mismo día.</p>
+  </div>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>9</span></div>
+</section>
+
+<!-- 10 · ESTADO -->
+<section class="page">
+  <div class="top"><span class="logo">Mesa<b>Ya</b></span><span>Catálogo de funciones</span></div>
+  <h2>Qué hay hoy y qué viene</h2>
+  <p class="lead">Somos claros con lo que está disponible ahora y con lo que está en preparación.</p>
+  <div class="g2">
+    <div class="card">
+      <span class="tag ok">Disponible hoy</span>
+      <ul class="f" style="margin-top:2.5mm">
+        <li>Carta digital con QR seguro por mesa</li><li>Pedidos desde el celular, sin app</li><li>Cocina y sala en vivo</li>
+        <li>Llamar al mesero, pedir la cuenta y terminar mesa</li><li>Importación de carta (texto, foto, PDF, Word, Excel)</li>
+        <li>Opciones, adicionales, alérgenos y etiquetas</li><li>Opiniones con envío a reseñas de Google</li>
+        <li>Reportes y exportación CSV</li><li>Carta en español e inglés</li><li>Asistente de IA (Pro y Cadena)</li>
+        <li>Plan gratis con 3 mesas</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag soon">En preparación</span>
+      <ul class="f" style="margin-top:2.5mm">
+        <li><b>Pagos desde el celular</b> (Nequi con Wompi y Bre-B asistido): desarrollados, aún no activados para clientes.</li>
+        <li><b>Factura electrónica DIAN</b> con proveedor tecnológico (Factus): desarrollada, en validación.</li>
+        <li><b>Integraciones con POS</b> (plan Cadena): se acuerdan con cada cadena.</li>
+      </ul>
+      <p class="note" style="margin-top:3mm">Hoy el cobro se hace en caja, como siempre: el cliente toca «Terminar mesa» y tu equipo recibe el aviso. MesaYa no reemplaza tu caja ni tu facturación actual.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:6mm;text-align:center;padding:9mm">
+    <div class="logo" style="font-size:22pt">Mesa<b>Ya</b></div>
+    <h3 style="font-size:16pt;margin:2mm 0">Crea tu carta gratis · 14 días sin tarjeta</h3>
+    <p>Escríbenos a <b>ventas@mesaya.app</b> o crea tu cuenta en <b>mesaya-phi.vercel.app</b></p>
+  </div>
+  <div class="foot"><span>MesaYa · Catálogo de funciones</span><span>10</span></div>
+</section>
+</body></html>

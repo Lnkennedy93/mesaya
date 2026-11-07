@@ -6,3 +6,11 @@ __pycache__/
 .env
 *.pdf
 !web-next/public/catalogo-mesaya.pdf
+
+# material de marketing generado (se regenera con marketing/*.mjs)
+marketing/audio/
+marketing/out/
+marketing/shots_jpg/
+marketing/frames/*/*.png
+.taste-skill/
+*.tsbuildinfo
