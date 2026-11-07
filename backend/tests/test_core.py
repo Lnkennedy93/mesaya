@@ -42,6 +42,17 @@ with TestClient(app) as c:
     pin = c.post("/api/login", json={"email": "s@s.co", "password": "secreto123"}).json()["restaurant"]["staff_pin"]
     check(len(c.get("/api/orders").json()["orders"]) == 1, "el pedido llega a cocina")
 
+    # sala: cuando cocina marca el pedido «Listo», aparece bajo SU mesa hasta que se entregue
+    oid = c.get("/api/orders").json()["orders"][0]["id"]
+    mesa = lambda: next(x for x in c.get("/api/floor").json()["tables"] if x["label"] == t["label"])  # noqa: E731
+    check(mesa()["ready"] == [], "sala: un pedido en cocina todavía no genera alerta")
+    c.post(f"/api/orders/{oid}/status", json={"status": "ready"})
+    alerta = mesa()["ready"]
+    check(len(alerta) == 1 and alerta[0]["id"] == oid and alerta[0]["items"] == [{"name": "Bandeja", "qty": 2}], "sala: el pedido listo aparece con sus platos bajo su mesa")
+    check(all(x["ready"] == [] for x in c.get("/api/floor").json()["tables"] if x["label"] != t["label"]), "sala: las otras mesas no reciben la alerta")
+    c.post(f"/api/orders/{oid}/status", json={"status": "served"})
+    check(mesa()["ready"] == [], "sala: al entregar el pedido la alerta desaparece")
+
     for provider in ("mock", "nequi", "breb", "stripe"):
         r = c.post(f"{base}/pay", json={"table": t["label"], "key": t["secret"], "item_ids": [1], "provider": provider})
         check(r.status_code == 400, f"el método «{provider}» no está disponible")

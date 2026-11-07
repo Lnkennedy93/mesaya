@@ -757,8 +757,11 @@ def resolve_call(cid: int, s: Staff = Depends(staff_dep)):
 
 @router.get("/floor")
 def floor(s: Staff = Depends(staff_dep)):
-    """Estado de cada mesa: cuenta pendiente, pedidos activos, llamadas."""
+    """Estado de cada mesa: cuenta pendiente, pedidos activos, llamadas y pedidos listos para servir."""
     out = []
+    ready = db.rows("SELECT id, table_label, seq FROM orders WHERE restaurant_id=? AND status='ready' ORDER BY ready_at, id", (s.id,))
+    for o in ready:
+        o["items"] = db.rows("SELECT name, qty FROM order_items WHERE order_id=? ORDER BY id", (o["id"],))
     calls = db.rows("SELECT table_label,type FROM calls WHERE restaurant_id=? AND resolved_at IS NULL", (s.id,))
     act = db.rows("SELECT table_label, COUNT(*) n FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') GROUP BY table_label", (s.id,))
     for t in db.rows("SELECT label FROM tables_ WHERE restaurant_id=? ORDER BY CAST(label AS INTEGER), label", (s.id,)):
@@ -768,6 +771,7 @@ def floor(s: Staff = Depends(staff_dep)):
             "label": t["label"], "unpaid": unpaid, "has_paid": any(l["state"] == "paid" for l in lines),
             "active": next((a["n"] for a in act if a["table_label"] == t["label"]), 0),
             "calls": [c["type"] for c in calls if c["table_label"] == t["label"]],
+            "ready": [{"id": o["id"], "seq": o["seq"], "items": o["items"]} for o in ready if o["table_label"] == t["label"]],
         })
     return {"tables": out}
 

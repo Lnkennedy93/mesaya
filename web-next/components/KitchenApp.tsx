@@ -25,7 +25,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
   const [toastNode, toast] = useToast();
 
   // lo que necesita el refresco aunque llegue desde el canal en vivo (valores "actuales", no los del primer render)
-  const live = useRef({ first: true, known: new Set<number>(), calls: [] as Any[], reviews: [] as Any[], sound: true });
+  const live = useRef({ first: true, known: new Set<number>(), ready: new Set<number>(), calls: [] as Any[], reviews: [] as Any[], sound: true });
   live.current.sound = sound;
 
   const refresh = useCallback(async () => {
@@ -37,6 +37,9 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
     if (!L.first && fresh.length && L.sound) beep();
     const newCalls = c.calls.filter((x: Any) => !L.calls.some((y) => y.id === x.id));
     if (!L.first && newCalls.length && L.sound) beep();
+    const readyNow = o.orders.filter((x: Any) => x.status === "ready").map((x: Any) => x.id as number);
+    if (!L.first && readyNow.some((id: number) => !L.ready.has(id)) && L.sound) beep(); // la cocina terminó un pedido: avisa a sala
+    L.ready = new Set(readyNow);
     L.known = new Set(o.orders.map((x: Any) => x.id));
     L.calls = c.calls;
     L.first = false;
@@ -80,6 +83,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
 
   const money = makeMoney(ME.restaurant.decimals, ME.restaurant.currency);
   const nNew = orders.filter((o) => o.status === "new").length;
+  const nReady = orders.filter((o) => o.status === "ready").length;
 
   async function act(fn: () => Promise<unknown>) {
     try { await fn(); } catch (e: Any) { toast(e.message, true); }
@@ -92,7 +96,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
         <h1>{ME.restaurant.name}</h1>
         <div className="tabs">
           <button className={tab === "kitchen" ? "on" : ""} onClick={() => setTab("kitchen")}>Cocina{nNew ? ` · ${nNew}` : ""}</button>
-          <button className={tab === "floor" ? "on" : ""} onClick={() => setTab("floor")}>Sala{calls.length ? ` · ${calls.length}` : ""}</button>
+          <button className={tab === "floor" ? "on" : ""} onClick={() => setTab("floor")}>Sala{calls.length + nReady ? ` · ${calls.length + nReady}` : ""}</button>
           <button className={tab === "stock" ? "on" : ""} onClick={() => setTab("stock")}>Agotados</button>
         </div>
         <span className="grow"></span>
@@ -159,10 +163,19 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       {tab === "floor" && (
         <div className="floor">
           {floor.map((t) => (
-            <div className={"tb " + (t.calls.length ? "call" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} key={t.label} onClick={() => setTableOpen(t.label)}>
-              <span className="muted small">Mesa</span><b>{t.label}</b>
-              {t.unpaid ? <div>{money(t.unpaid)}</div> : <div className="muted small">libre</div>}
-              <div className="small">{t.active ? `🍳 ${t.active} en cocina` : ""}{t.calls.length ? " 🔔" : ""}</div>
+            <div className="cell" key={t.label}>
+              <div className={"tb " + (t.calls.length ? "call" : t.ready.length ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} onClick={() => setTableOpen(t.label)}>
+                <span className="muted small">Mesa</span><b>{t.label}</b>
+                {t.unpaid ? <div>{money(t.unpaid)}</div> : <div className="muted small">libre</div>}
+                <div className="small">{t.active ? `🍳 ${t.active} en cocina` : ""}{t.calls.length ? " 🔔" : ""}</div>
+              </div>
+              {t.ready.map((o: Any) => (
+                <div className="ready-alert" key={o.id} role="alert">
+                  <b>✅ Pedido #{o.seq} listo</b>
+                  <div className="small">{o.items.map((i: Any) => `${i.qty}× ${i.name}`).join(", ")}</div>
+                  <button className="btn sm ok block" onClick={() => act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "served" } }))}>Entregado</button>
+                </div>
+              ))}
             </div>
           ))}
         </div>
