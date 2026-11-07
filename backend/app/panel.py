@@ -6,6 +6,7 @@ import logging
 import re
 import secrets
 import time
+import zipfile
 from datetime import datetime, timedelta, timezone
 
 import segno
@@ -836,6 +837,79 @@ def analytics(days: int = 7, s: Staff = Depends(owner_dep)):
 @router.get("/feedback")
 def list_feedback(s: Staff = Depends(owner_dep)):
     return {"feedback": db.rows("SELECT * FROM feedback WHERE restaurant_id=? ORDER BY created_at DESC LIMIT 100", (s.id,))}
+
+
+# ---------------------------------------------------------------- fidelización de clientes
+class CustomerIn(BaseModel):
+    document: str = Field(max_length=20)
+    name: str = Field(min_length=3, max_length=100)
+    email: str = Field(max_length=120)
+    phone: str = Field(max_length=20)
+    consent: bool = False
+
+
+@router.get("/customers")
+def list_customers(s: Staff = Depends(owner_dep)):
+    return {"customers": db.rows("SELECT id,document,name,email,phone,created_at FROM customers WHERE restaurant_id=? ORDER BY name", (s.id,))}
+
+
+@router.post("/customers")
+def add_customer(body: CustomerIn, s: Staff = Depends(owner_dep)):
+    doc = re.sub(r"[.\s-]", "", body.document)
+    phone = re.sub(r"[\s()-]", "", body.phone)
+    email = body.email.strip().lower()
+    if not re.fullmatch(r"\d{5,12}", doc):
+        raise HTTPException(400, "La cédula debe tener entre 5 y 12 números")
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise HTTPException(400, "El correo no es válido")
+    if not re.fullmatch(r"\+?\d{7,15}", phone):
+        raise HTTPException(400, "El celular debe tener entre 7 y 15 números")
+    if not body.consent:  # Ley 1581: el cliente debe autorizar el tratamiento de sus datos
+        raise HTTPException(400, "Confirma que el cliente autorizó el tratamiento de sus datos")
+    if db.row("SELECT 1 FROM customers WHERE restaurant_id=? AND document=?", (s.id, doc)):
+        raise HTTPException(409, "Ya hay un cliente con esa cédula")
+    t = now()
+    cid = db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at) VALUES (?,?,?,?,?,?,?)",
+                 (s.id, doc, " ".join(body.name.split()), email, phone, t, t))
+    return {"id": cid}
+
+
+@router.get("/customers.xlsx")
+def export_customers(s: Staff = Depends(owner_dep)):
+    """Excel real (.xlsx, armado con zipfile): un CSV en un Excel con configuración es-CO abre todo en una sola columna."""
+    from xml.sax.saxutils import escape
+    rows = [["Cédula", "Nombre completo", "Correo electrónico", "Celular", "Fecha de registro (UTC)"]]
+    rows += [[c["document"], c["name"], c["email"], c["phone"], c["created_at"]]
+             for c in db.rows("SELECT document,name,email,phone,created_at FROM customers WHERE restaurant_id=? ORDER BY name", (s.id,))]
+    # todo va como texto en línea: así la cédula conserva ceros y nadie puede colar una fórmula (=, +, @) en la hoja
+    clean = lambda v: escape(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", v))
+    data = "".join(f'<row r="{i}">' + "".join(f'<c r="{"ABCDE"[j]}{i}" t="inlineStr"><is><t>{clean(v)}</t></is></c>' for j, v in enumerate(r)) + "</row>"
+                   for i, r in enumerate(rows, 1))
+    sheet = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+             '<cols><col min="1" max="1" width="16" customWidth="1"/><col min="2" max="3" width="34" customWidth="1"/>'
+             '<col min="4" max="4" width="16" customWidth="1"/><col min="5" max="5" width="22" customWidth="1"/></cols>'
+             f"<sheetData>{data}</sheetData></worksheet>")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                   '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+                   '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                   '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+        z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+        z.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Clientes" sheetId="1" r:id="rId1"/></sheets></workbook>')
+        z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
+        z.writestr("xl/worksheets/sheet1.xml", sheet)
+    return Response(buf.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename=clientes-fidelizados.xlsx"})
+
+
+@router.delete("/customers/{cid}")
+def del_customer(cid: int, s: Staff = Depends(owner_dep)):
+    db.run("DELETE FROM customers WHERE id=? AND restaurant_id=?", (cid, s.id))
+    return {"ok": True}
 
 
 @router.get("/export/orders.csv")

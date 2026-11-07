@@ -163,6 +163,17 @@ CREATE TABLE IF NOT EXISTS feedback (
   comment TEXT DEFAULT '',
   created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  document TEXT NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  consent_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(restaurant_id, document)
+);
 CREATE TABLE IF NOT EXISTS rate_hits (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   k TEXT NOT NULL,
