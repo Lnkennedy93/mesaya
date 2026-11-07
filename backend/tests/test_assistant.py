@@ -150,7 +150,7 @@ with TestClient(app) as c, TestClient(app) as other:
     db.run("UPDATE items SET price=6500 WHERE id=?", (items["Limonada"],))
     # --- mesas y QR: ocupada = cuenta por cobrar o pedidos en curso (igual que la sala); al cobrar queda libre
     ms = assistant.t_mesas(s, {}, [])
-    check(ms["total_mesas"] == 2 and ms["libres"] == [] and {o["mesa"] for o in ms["ocupadas"]} == {"1", "2"} and ms["limite_de_mesas_del_plan"] == 60, "mesas: 2 ocupadas, ninguna libre, límite del plan")
+    check(ms["total_mesas"] == 2 and ms["libres"] == [] and {o["mesa"] for o in ms["ocupadas"]} == {"1", "2"} and ms["limite_de_mesas_del_plan"] == 13, "mesas: 2 ocupadas, ninguna libre, límite del plan")
     db.run("UPDATE orders SET status='served' WHERE restaurant_id=? AND table_label='2'", (s.id,))  # cocina ya lo sirvió
     check(c.post("/api/floor/2/settle", json={"method": "cash"}).status_code == 200, "se sirve y se cobra la mesa 2 en caja")
     ms = assistant.t_mesas(s, {}, [])

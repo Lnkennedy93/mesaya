@@ -92,7 +92,7 @@ BACKUP_HOOK = os.getenv("MESAYA_BACKUP_HOOK", "")  # comando opcional tras cada 
 PLANS = {
     "free": {"name": "Gratis", "tables": 3, "ai_imports": 0, "ai_asks": 0},  # lo que queda al vencer la prueba sin pagar
     "basic": {"name": "Esencial", "tables": 7, "ai_imports": 3, "ai_asks": 0},  # + mesas adicionales (restaurants.extra_tables) y complemento de IA (ai_addon)
-    "pro": {"name": "Pro", "tables": 60, "ai_imports": 50, "ai_asks": 300},  # ai_asks = preguntas al asistente por mes
+    "pro": {"name": "Pro", "tables": 13, "ai_imports": 50, "ai_asks": 300},  # ai_asks = preguntas al asistente por mes
     "chain": {"name": "Cadena", "tables": 500, "ai_imports": 500, "ai_asks": 1500},
 }
 BASIC_AI_ADDON_ASKS = 120  # preguntas al mes del complemento de IA del plan Esencial

@@ -167,7 +167,7 @@ export default function Landing() {
               <span className="pill brand" style={{ alignSelf: "flex-start" }}>Más elegido</span>
               <h3>Pro</h3>
               <div className="p">$139.000<small className="muted"> /mes</small></div>
-              <ul><li>Hasta 60 mesas</li><li>Importación de carta con IA</li><li><b>Asistente de IA</b>: 300 preguntas al mes</li><li>Opiniones y reseñas en Google</li><li>Reportes completos + CSV</li><li>Soporte prioritario</li></ul>
+              <ul><li>Mesas 1 a 13 incluidas</li><li>Mesa adicional: $5.000 al mes</li><li>Importación de carta con IA</li><li><b>Asistente de IA</b>: 300 preguntas al mes</li><li>Opiniones y reseñas en Google</li><li>Reportes completos + CSV</li><li>Soporte prioritario</li></ul>
               <a className="btn block" href="/signup">Empezar gratis</a>
             </div>
             <div className="card plan">

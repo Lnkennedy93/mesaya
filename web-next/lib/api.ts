@@ -7,12 +7,12 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = any>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
-  const init: RequestInit = { method: opts.method, credentials: "same-origin" };
+export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+  const init: RequestInit = { method: opts.method, credentials: "same-origin", headers: opts.headers };
   if (opts.body instanceof FormData) {
     init.body = opts.body; // subida de archivos: el navegador pone el Content-Type
   } else if (opts.body !== undefined) {
-    init.headers = { "Content-Type": "application/json" };
+    init.headers = { ...opts.headers, "Content-Type": "application/json" };
     init.body = JSON.stringify(opts.body);
   }
   const res = await fetch(path, init);

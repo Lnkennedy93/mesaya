@@ -122,6 +122,22 @@ def delete_account(body: DeleteIn, request: Request, response: Response, s: Staf
     return {"ok": True}
 
 
+@router.post("/superadmin/set-password")
+def sa_set_password(body: dict, request: Request):
+    """El superusuario fija una contraseña nueva a un negocio y cierra sus sesiones abiertas."""
+    _admin(request)
+    pw = str(body.get("password", ""))
+    if not 8 <= len(pw) <= 100:
+        raise HTTPException(400, "La contraseña debe tener entre 8 y 100 caracteres")
+    r = db.row("SELECT id FROM restaurants WHERE email=?", (str(body.get("email", "")).strip().lower(),))
+    if not r:
+        raise HTTPException(404, "No existe una cuenta con ese correo")
+    with db.tx() as c:
+        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (auth.hash_password(pw), r["id"]))
+        c.execute("DELETE FROM sessions WHERE restaurant_id=?", (r["id"],))
+    return {"ok": True}
+
+
 @router.post("/superadmin/reset-link")
 def sa_reset_link(body: dict, request: Request):
     """Soporte: genera un enlace de recuperación para pasarlo por WhatsApp cuando no hay SMTP o el cliente no recibe el correo."""

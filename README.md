@@ -105,6 +105,8 @@ curl -X POST https://TU-DOMINIO/api/superadmin/activate -H "x-admin-key: TU_CLAV
 curl https://TU-DOMINIO/api/superadmin/restaurants -H "x-admin-key: TU_CLAVE"   # ver todos y sus pruebas
 ```
 
+Más cómodo: entra a `/superadmin` con tu `MESAYA_ADMIN_KEY` y verás todos los negocios; ahí cambias licencia (Esencial/Pro/Cadena), activas o desactivas, sumas mesas, activas la IA del plan Esencial y fijas una contraseña nueva.
+
 Los precios y límites de plan están en `app/config.py` (`PLANS`) y en `web/landing.html`: ajústalos a tu mercado.
 
 ## Lectura de cartas: sin IA primero

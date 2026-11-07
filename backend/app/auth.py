@@ -85,8 +85,9 @@ def plan_info(r: dict):
     if not is_active(r):  # prueba vencida sin pagar: plan Gratis, no un bloqueo
         return PLANS["free"]
     p = PLANS.get(r["plan"], PLANS["basic"])
-    if p is PLANS["basic"]:  # Esencial: mesas adicionales y complemento de IA se contratan aparte
-        p = {**p, "tables": p["tables"] + r["extra_tables"], "ai_asks": BASIC_AI_ADDON_ASKS if r["ai_addon"] else 0}
+    p = {**p, "tables": p["tables"] + r["extra_tables"]}  # mesas adicionales: las suma el superusuario en cualquier plan
+    if p["name"] == PLANS["basic"]["name"]:  # Esencial: el complemento de IA se contrata aparte
+        p["ai_asks"] = BASIC_AI_ADDON_ASKS if r["ai_addon"] else 0
     return p
 
 

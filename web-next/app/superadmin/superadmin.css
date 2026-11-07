@@ -1,0 +1,11 @@
+.sa{max-width:980px;margin:0 auto;padding:1rem 1rem 4rem}
+.sa h1{font-size:1.4rem}
+.sa .biz{margin-top:.8rem}
+.sa .biz-head{display:flex;gap:.6rem;align-items:center;justify-content:space-between;flex-wrap:wrap;cursor:pointer}
+.sa .biz-head b{font-size:1.05rem}
+.sa .ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.8rem;margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--line)}
+.sa .ctl label{margin:0 0 .25em}
+.sa .ctl .sw{display:flex;align-items:center;gap:.6rem;margin-top:.4rem}
+.sa .ctl .sw span{font-size:.9rem}
+.sa .acts{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+.sa .stat{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}

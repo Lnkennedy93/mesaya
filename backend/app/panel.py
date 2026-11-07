@@ -854,16 +854,25 @@ def export_csv(s: Staff = Depends(owner_dep)):
 
 # ---------------------------------------------------------------- backoffice del vendedor (tú)
 def _admin(request: Request):
+    k = f"admin:{auth.client_ip(request)}"
+    auth.rate_check(k, 10, 900)  # la pantalla /superadmin expone esta clave a intentos desde internet
     key = request.headers.get("x-admin-key", "")
-    if not config.ADMIN_KEY or not secrets.compare_digest(key, config.ADMIN_KEY):
+    if not config.ADMIN_KEY or not secrets.compare_digest(key.encode(), config.ADMIN_KEY.encode()):
+        auth.rate_hit(k)
         raise HTTPException(403, "Clave de administrador inválida")
 
 
 @router.get("/superadmin/restaurants")
 def sa_list(request: Request):
     _admin(request)
-    return {"restaurants": db.rows(
-        "SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,created_at FROM restaurants ORDER BY id DESC")}
+    out = db.rows(
+        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,created_at,extra_tables,ai_addon,
+                  (SELECT COUNT(*) FROM tables_ t WHERE t.restaurant_id=restaurants.id) AS tables_used
+           FROM restaurants ORDER BY id DESC""")
+    for r in out:  # lo que el negocio recibe hoy, ya calculado con las mismas reglas que la app
+        p = auth.plan_info(r)
+        r.update(active=auth.is_active(r), effective_plan=p["name"], tables_limit=p["tables"], ai_asks=p["ai_asks"])
+    return {"restaurants": out}
 
 
 @router.post("/superadmin/activate")
@@ -875,9 +884,14 @@ def sa_activate(body: dict, request: Request):
         raise HTTPException(400, "Plan inválido")
     status = body.get("status", "active")
     extra, ai = body.get("extra_tables"), body.get("ai_addon")  # opcionales: si no vienen, se conservan
-    db.run("UPDATE restaurants SET plan=?, subscription_status=?, extra_tables=COALESCE(?,extra_tables), ai_addon=COALESCE(?,ai_addon) WHERE email=?",
-           (plan, status, None if extra is None else max(0, int(extra)), None if ai is None else int(bool(ai)),
-            str(body.get("email", "")).lower()))
+    email = str(body.get("email", "")).strip().lower()
+    if not db.row("SELECT 1 FROM restaurants WHERE email=?", (email,)):
+        raise HTTPException(404, "No existe una cuenta con ese correo")
+    # Desactivar también vence la prueba: si no, is_active() seguiría dando el plan completo hasta que termine.
+    db.run("""UPDATE restaurants SET plan=?, subscription_status=?, extra_tables=COALESCE(?,extra_tables), ai_addon=COALESCE(?,ai_addon),
+              trial_ends_at=CASE WHEN ?='active' THEN trial_ends_at ELSE ? END WHERE email=?""",
+           (plan, status, None if extra is None else max(0, min(int(extra), 500)), None if ai is None else int(bool(ai)),
+            status, auth.now(), email))
     return {"ok": True}
 
 
