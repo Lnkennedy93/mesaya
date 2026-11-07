@@ -757,11 +757,14 @@ def resolve_call(cid: int, s: Staff = Depends(staff_dep)):
 
 @router.get("/floor")
 def floor(s: Staff = Depends(staff_dep)):
-    """Estado de cada mesa: cuenta pendiente, pedidos activos, llamadas y pedidos listos para servir."""
+    """Estado de cada mesa: cuenta pendiente, llamadas y sus pedidos en curso (nuevo, en preparación o listo) con el desglose de platos."""
     out = []
-    ready = db.rows("SELECT id, table_label, seq FROM orders WHERE restaurant_id=? AND status='ready' ORDER BY ready_at, id", (s.id,))
-    for o in ready:
-        o["items"] = db.rows("SELECT name, qty FROM order_items WHERE order_id=? ORDER BY id", (o["id"],))
+    orders = db.rows("SELECT id, table_label, seq, status FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') ORDER BY created_at, id", (s.id,))
+    if orders:
+        marks = ",".join("?" * len(orders))
+        lines = db.rows(f"SELECT order_id, name, qty, options_text, note FROM order_items WHERE order_id IN ({marks}) ORDER BY id", tuple(o["id"] for o in orders))
+        for o in orders:
+            o["items"] = [{k: l[k] for k in ("name", "qty", "options_text", "note")} for l in lines if l["order_id"] == o["id"]]
     calls = db.rows("SELECT table_label,type FROM calls WHERE restaurant_id=? AND resolved_at IS NULL", (s.id,))
     act = db.rows("SELECT table_label, COUNT(*) n FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') GROUP BY table_label", (s.id,))
     for t in db.rows("SELECT label FROM tables_ WHERE restaurant_id=? ORDER BY CAST(label AS INTEGER), label", (s.id,)):
@@ -771,7 +774,7 @@ def floor(s: Staff = Depends(staff_dep)):
             "label": t["label"], "unpaid": unpaid, "has_paid": any(l["state"] == "paid" for l in lines),
             "active": next((a["n"] for a in act if a["table_label"] == t["label"]), 0),
             "calls": [c["type"] for c in calls if c["table_label"] == t["label"]],
-            "ready": [{"id": o["id"], "seq": o["seq"], "items": o["items"]} for o in ready if o["table_label"] == t["label"]],
+            "orders": [{"id": o["id"], "seq": o["seq"], "status": o["status"], "items": o["items"]} for o in orders if o["table_label"] == t["label"]],
         })
     return {"tables": out}
 

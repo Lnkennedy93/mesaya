@@ -135,7 +135,7 @@ def bill(slug: str, table: str, k: str, request: Request):
     lines = service.bill_lines(r["id"], table)
     calls = db.rows("SELECT type FROM calls WHERE restaurant_id=? AND table_label=? AND resolved_at IS NULL",
                     (r["id"], table))
-    return {"lines": lines, "calls": [c["type"] for c in calls]}
+    return {"lines": lines, "calls": [c["type"] for c in calls], "closed": service.table_closed(lines)}
 
 
 @router.get("/stream")
@@ -176,6 +176,8 @@ def call(slug: str, body: CallIn, request: Request):
     rate_limit(f"call:t:{r['id']}:{body.table}", 6, 300)
     if body.type not in ("waiter", "bill"):
         raise HTTPException(400, "Tipo inválido")
+    if service.table_closed(service.bill_lines(r["id"], body.table)):  # mesa cerrada en sala: ya no hay a quién llamar ni cuenta que pedir
+        raise HTTPException(409, "La mesa ya fue cerrada. ¡Gracias por tu visita!")
     if body.type == "bill":
         _ask_bill(r, body.table, body.method)
         return {"ok": True}

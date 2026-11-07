@@ -164,18 +164,25 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
         <div className="floor">
           {floor.map((t) => (
             <div className="cell" key={t.label}>
-              <div className={"tb " + (t.calls.length ? "call" : t.ready.length ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} onClick={() => setTableOpen(t.label)}>
+              <div className={"tb " + (t.calls.length ? "call" : t.orders.some((o: Any) => o.status === "ready") ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} onClick={() => setTableOpen(t.label)}>
                 <span className="muted small">Mesa</span><b>{t.label}</b>
                 {t.unpaid ? <div>{money(t.unpaid)}</div> : <div className="muted small">libre</div>}
                 <div className="small">{t.active ? `🍳 ${t.active} en cocina` : ""}{t.calls.length ? " 🔔" : ""}</div>
               </div>
-              {t.ready.map((o: Any) => (
-                <div className="ready-alert" key={o.id} role="alert">
-                  <b>✅ Pedido #{o.seq} listo</b>
-                  <div className="small">{o.items.map((i: Any) => `${i.qty}× ${i.name}`).join(", ")}</div>
-                  <button className="btn sm ok block" onClick={() => act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "served" } }))}>Entregado</button>
-                </div>
-              ))}
+              {t.orders.map((o: Any) => {
+                const ready = o.status === "ready";
+                return (
+                  <div className={ready ? "ready-alert" : "order-info"} key={o.id} role={ready ? "alert" : undefined}>
+                    <b>{ready ? `✅ Pedido #${o.seq} listo` : `${o.status === "new" ? "🕐 Nuevo" : "🍳 En preparación"} · #${o.seq}`}</b>
+                    <ul className="small">
+                      {o.items.map((i: Any, n: number) => (
+                        <li key={n}>{i.qty}× {i.name}{i.options_text ? <span className="muted"> ({i.options_text})</span> : null}{i.note ? <span className="muted"> — {i.note}</span> : null}</li>
+                      ))}
+                    </ul>
+                    {ready && <button className="btn sm ok block" onClick={() => act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "served" } }))}>Entregado</button>}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

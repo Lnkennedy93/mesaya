@@ -132,6 +132,11 @@ def bill_lines(rid: int, label: str, include_paid_minutes=60) -> list[dict]:
     return out
 
 
+def table_closed(lines: list[dict]) -> bool:
+    """La mesa está cerrada cuando todo lo consumido ya se pagó (p. ej. el equipo la cerró en sala). Un pedido nuevo la reabre solo."""
+    return bool(lines) and all(l["state"] == "paid" for l in lines)
+
+
 def money_fmt(r: dict, v: int) -> str:
     return f"{v:,.{r['decimals']}f}"
 

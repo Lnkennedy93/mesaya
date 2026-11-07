@@ -33,4 +33,8 @@
 .kitchen-root .tb.ready{border-color:var(--ok)}
 .kitchen-root .ready-alert{background:#123821;border:1.5px solid var(--ok);border-radius:12px;padding:.55rem .65rem;text-align:left;animation:pulse-ok 1.6s infinite}
 .kitchen-root .ready-alert .small{opacity:.85;margin:.15rem 0 .45rem}
+.kitchen-root .order-info{background:var(--card);border:1px solid #3a3228;border-radius:12px;padding:.5rem .65rem;text-align:left}
+.kitchen-root .ready-alert ul,.kitchen-root .order-info ul{margin:.25rem 0 0;padding:0;list-style:none}
+.kitchen-root .ready-alert ul{margin-bottom:.45rem}
+.kitchen-root .order-info li,.kitchen-root .ready-alert li{padding:.1rem 0}
 @keyframes pulse-ok{50%{box-shadow:0 0 0 4px rgba(31,157,85,.35)}}

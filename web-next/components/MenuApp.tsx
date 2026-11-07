@@ -276,7 +276,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     const called = bill.calls.includes("waiter");
     return (
       <div className="row" style={{ margin: "1rem 0" }}>
-        <button className="btn ghost grow" disabled={called} onClick={() => sendCall("waiter")}>🙋 {called ? T("waiterCalled") : T("callWaiter")}</button>
+        <button className="btn ghost grow" disabled={called || !!bill.closed} onClick={() => sendCall("waiter")}>🙋 {called ? T("waiterCalled") : T("callWaiter")}</button>
       </div>
     );
   })();
@@ -354,6 +354,14 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
 
   function billView() {
     const L: Any[] = bill.lines;
+    if (bill.closed) // mesa cerrada en sala: solo queda opinar, y llamar al mesero ya no se puede
+      return (
+        <main>
+          <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}><div style={{ fontSize: "2rem" }}>✅</div><b>{T("tableClosed")}</b></div>
+          {feedbackBox}
+          {callButtons}
+        </main>
+      );
     if (!L.length)
       return (
         <main>

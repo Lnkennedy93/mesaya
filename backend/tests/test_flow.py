@@ -98,12 +98,13 @@ with TestClient(app) as c:
     check(r.status_code == 409, "no se puede pagar dos veces lo mismo")
     lines = c.get(f"{base}/bill", params={"table": t["label"], "k": t["secret"]}).json()["lines"]
     check(sorted(l["state"] for l in lines) == ["paid", "unpaid"], "la cuenta muestra PAGADO / pendiente")
-    st = c.post(f"/api/floor/{t['label']}/settle", json={"method": "cash"}).json()
-    check(st["total"] > 0, "caja cobra lo restante")
-
-    # llamadas
+    # llamadas (con la mesa abierta)
     check(c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": "waiter"}).status_code == 200, "llamar mesero")
     check(len(c.get("/api/calls").json()["calls"]) == 1, "la llamada llega al panel")
+
+    st = c.post(f"/api/floor/{t['label']}/settle", json={"method": "cash"}).json()
+    check(st["total"] > 0, "caja cobra lo restante")
+    check(c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": "waiter"}).status_code == 409, "con la mesa cerrada ya no se llama al mesero")
 
     # reportes (dueño)
     c.post("/api/logout")

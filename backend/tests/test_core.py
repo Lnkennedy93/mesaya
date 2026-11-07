@@ -45,13 +45,17 @@ with TestClient(app) as c:
     # sala: cuando cocina marca el pedido «Listo», aparece bajo SU mesa hasta que se entregue
     oid = c.get("/api/orders").json()["orders"][0]["id"]
     mesa = lambda: next(x for x in c.get("/api/floor").json()["tables"] if x["label"] == t["label"])  # noqa: E731
-    check(mesa()["ready"] == [], "sala: un pedido en cocina todavía no genera alerta")
+    plato = {"name": "Bandeja", "qty": 2, "options_text": "", "note": ""}
+    ped = mesa()["orders"]
+    check(len(ped) == 1 and ped[0]["id"] == oid and ped[0]["status"] == "new" and ped[0]["items"] == [plato], "sala: el pedido nuevo se desglosa (platos y cantidades) bajo su mesa")
+    c.post(f"/api/orders/{oid}/status", json={"status": "preparing"})
+    check([o["status"] for o in mesa()["orders"]] == ["preparing"], "sala: mientras se prepara sigue visible con su estado")
     c.post(f"/api/orders/{oid}/status", json={"status": "ready"})
-    alerta = mesa()["ready"]
-    check(len(alerta) == 1 and alerta[0]["id"] == oid and alerta[0]["items"] == [{"name": "Bandeja", "qty": 2}], "sala: el pedido listo aparece con sus platos bajo su mesa")
-    check(all(x["ready"] == [] for x in c.get("/api/floor").json()["tables"] if x["label"] != t["label"]), "sala: las otras mesas no reciben la alerta")
+    ped = mesa()["orders"]
+    check(len(ped) == 1 and ped[0]["status"] == "ready" and ped[0]["items"] == [plato], "sala: al quedar listo el mismo pedido pasa a «listo» con sus platos")
+    check(all(x["orders"] == [] for x in c.get("/api/floor").json()["tables"] if x["label"] != t["label"]), "sala: las otras mesas no reciben el pedido")
     c.post(f"/api/orders/{oid}/status", json={"status": "served"})
-    check(mesa()["ready"] == [], "sala: al entregar el pedido la alerta desaparece")
+    check(mesa()["orders"] == [], "sala: al entregar el pedido desaparece de la mesa")
 
     for provider in ("mock", "nequi", "breb", "stripe"):
         r = c.post(f"{base}/pay", json={"table": t["label"], "key": t["secret"], "item_ids": [1], "provider": provider})
@@ -78,6 +82,18 @@ with TestClient(app) as c:
     check(c.get("/api/invoices").json()["invoices"] == [], "no se genera ninguna factura electrónica")
     tb = next(x for x in c.get("/api/floor").json()["tables"] if x["label"] == t["label"])
     check(tb["unpaid"] == 0, "la mesa queda libre")
+    # mesa cerrada en sala: el cliente solo puede opinar; llamar al mesero queda deshabilitado (también en el servidor)
+    from app import db as _db
+    _db.run("DELETE FROM rate_hits")
+    check(c.get(f"{base}/bill", params=q).json()["closed"] is True, "la carta sabe que la mesa está cerrada")
+    for tipo in ("waiter", "bill"):
+        r = c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": tipo, "method": "cash"})
+        check(r.status_code == 409, f"mesa cerrada: no se puede pedir «{tipo}» ({r.status_code})")
+    check(c.get("/api/calls").json()["calls"] == [], "mesa cerrada: no se creó ningún aviso")
     check(c.post(f"{base}/feedback", json={"table": t["label"], "rating": 5, "comment": "Rico"}).status_code == 200, "el cliente puede calificar")
+    # un pedido nuevo en esa mesa la reabre sola (el siguiente grupo puede usarla)
+    check(c.post(f"{base}/orders", json={**order, "diner_id": "d2"}).status_code == 200, "mesa cerrada: un pedido nuevo se acepta")
+    check(c.get(f"{base}/bill", params=q).json()["closed"] is False, "con un pedido nuevo la mesa deja de estar cerrada")
+    check(c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": "waiter"}).status_code == 200, "y el botón de mesero vuelve a funcionar")
 
 print("\nProducto base ✔")
