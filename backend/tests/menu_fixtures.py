@@ -255,3 +255,72 @@ def layout_item_photos(mode: str = "left", two_columns: bool = False, with_noise
         if mode == "above":
             y += 4
     return pdf_out(p)
+
+
+# ---- H: página web impresa a PDF (tarjetas): nombre en negrita, descripción, precio y la foto a la derecha.
+#         Cada foto trae perfil ICC y máscara de transparencia (esquinas redondeadas) y debajo se dibujó un marcador con
+#         el logo; además hay un plato sin foto con un cuadro gris plano. Así salen las capturas de sitios de pedidos.
+WEB_DISHES = ["Taco de birria", "Totopos", "Quesadilla al pastor", "Sopa del dia"]  # el último no tiene foto
+
+
+def web_photo(color, px=312) -> io.BytesIO:
+    from PIL import Image, ImageCms, ImageDraw
+    im = Image.new("RGBA", (px, px), color + (255,))
+    ImageDraw.Draw(im).rectangle([px // 2, 0, px, px], fill=tuple(min(255, v + 60) for v in color) + (255,))  # dos tonos: no es un color plano
+    mask = Image.new("L", (px, px), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, px - 1, px - 1], 30, fill=255)
+    im.putalpha(mask)
+    b = io.BytesIO()
+    im.save(b, "PNG", icc_profile=ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes())
+    b.seek(0)
+    return b
+
+
+def _logo_placeholder(px=104) -> io.BytesIO:
+    from PIL import Image, ImageDraw
+    im = Image.new("RGB", (px, px), "white")
+    d = ImageDraw.Draw(im)
+    for x in range(0, px, 8):
+        d.rectangle([x, 0, x + 3, px], fill=(200, 30, 30))
+    b = io.BytesIO()
+    im.save(b, "PNG")
+    b.seek(0)
+    return b
+
+
+def _flat_placeholder(px=104) -> io.BytesIO:
+    from PIL import Image, ImageDraw
+    im = Image.new("RGBA", (px, px), (60, 55, 55, 255))
+    m = Image.new("L", (px, px), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, px - 1, px - 1], 12, outline=255, width=2)
+    im.putalpha(m)
+    b = io.BytesIO()
+    im.save(b, "PNG")
+    b.seek(0)
+    return b
+
+
+def layout_web_cards() -> bytes:
+    p = FPDF()
+    p.set_auto_page_break(False)
+    p.add_page()
+    y = 20
+    for k, name in enumerate(WEB_DISHES):
+        if name == "Totopos":  # encabezado de categoría con contador, como «Totopos 1» en las páginas de pedidos
+            p.set_xy(10, y)
+            p.set_font("Helvetica", "B", 16)
+            p.cell(60, 8, "Totopos 1")
+            y += 14
+        p.set_xy(10, y)
+        p.set_font("Helvetica", "B", 13)
+        p.cell(80, 6, name)
+        p.set_xy(10, y + 8)
+        p.set_font("Helvetica", "", 9)
+        p.cell(82, 4, "Una descripcion larga que llega casi hasta la foto")
+        p.set_xy(10, y + 14)
+        p.set_font("Helvetica", "B", 11)
+        p.cell(30, 5, money(9000 + 1000 * k))
+        p.image(_logo_placeholder(), x=95, y=y - 1, w=28, h=28)  # el marcador va debajo...
+        p.image(web_photo(item_color(k)) if name != "Sopa del dia" else _flat_placeholder(), x=95, y=y - 1, w=28, h=28)  # ...y la foto encima
+        y += 40
+    return pdf_out(p)

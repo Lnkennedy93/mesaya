@@ -167,3 +167,43 @@ check(res["images"] == [] and res["stats"]["pics"] == 0, "un PDF sin fotos no ge
 res = mr.read_local(layout_with_heavy_photo(3.0), "pdf")
 check(res["images"] == [], "una foto de página completa (fondo) no se asigna a ningún plato")
 print("\nFotos de platos ✔")
+
+# ============================================================ fotos de PDF de páginas web impresas (ICC + máscara + marcador)
+import pdfminer.pdftypes as pdft  # noqa: E402
+from pdfminer.high_level import extract_pages  # noqa: E402
+from pdfminer.layout import LTImage  # noqa: E402
+from tests.menu_fixtures import WEB_DISHES, layout_web_cards, web_photo  # noqa: E402
+from app import menu_images as mi  # noqa: E402
+
+pdf = layout_web_cards()
+page = next(iter(extract_pages(io.BytesIO(pdf))))
+check(len(mi.pics_from_page(page, 1, 50)) == 3, "foto web: solo cuentan las 3 fotos (el logo debajo de cada una y el cuadro gris plano se descartan)")
+
+# el espacio de color puede venir como referencia a un arreglo [/ICCBased perfil]: antes se descartaban todas las fotos
+im = next(i for i in mi._walk(page) if isinstance(i, LTImage) and i.srcsize[0] == 312)
+class Ref:  # noqa: E301
+    pass
+orig = pdft.resolve1
+try:
+    cs0 = im.colorspace
+    pdft.resolve1 = lambda x: cs0 if isinstance(x, Ref) else orig(x)
+    im.colorspace = [Ref()]
+    check(mi.decode_image(im) is not None, "foto web: el espacio de color como referencia a un arreglo se lee (antes devolvía None)")
+finally:
+    pdft.resolve1 = orig
+    im.colorspace = cs0
+corner = mi.decode_image(im).getpixel((1, 1))
+check(corner == (255, 255, 255), "foto web: la máscara de transparencia deja las esquinas en blanco (no negras)")
+
+# lectura con IA: la IA devuelve solo texto; las fotos se asocian por la posición del nombre en la página
+ai = {"categories": [{"name": "Carta", "items": [{"name": n, "price": 9000, "description": ""} for n in WEB_DISHES]}], "warnings": []}
+mr.attach_photos(ai, pdf)
+its = {i["name"]: i for i in ai["categories"][0]["items"]}
+for k, n in enumerate(WEB_DISHES[:3]):
+    idx = its[n].get("image_idx")
+    check(idx is not None and near(color_of(ai["images"][idx]), item_color(k)), f"lectura con IA: «{n}» recibe SU foto")
+check("image_idx" not in its["Sopa del dia"], "lectura con IA: el plato sin foto queda sin foto (no se le pone el marcador)")
+ai2 = {"categories": [{"name": "Carta", "items": [{"name": "Plato que no esta en el PDF", "price": 1, "description": ""}]}], "warnings": []}
+mr.attach_photos(ai2, pdf)
+check(not ai2["images"] and "image_idx" not in ai2["categories"][0]["items"][0], "lectura con IA: un plato que no se encuentra en el PDF no recibe foto")
+print("\nFotos de páginas web ✔")

@@ -21,6 +21,7 @@ class Pic:
     bottom: float
     webp: bytes
     key: str  # huella del contenido: la misma foto usada en varios platos se guarda una sola vez
+    blank: bool = False  # marcador vacío: solo sirve para tapar lo que tiene debajo
 
 
 def _walk(obj):
@@ -54,6 +55,9 @@ def decode_image(im):
         img.load()
         return img.convert("RGB")
     cs = list(im.colorspace or [])
+    if cs:  # muchos PDFs (capturas de páginas web) lo traen como referencia a un arreglo [/ICCBased perfil]: hay que resolverla
+        first = resolve1(cs[0])
+        cs = list(first) if isinstance(first, list) else [first] + cs[1:]
     name = str(cs[0]).strip("/'") if cs else "DeviceRGB"
     bits = im.bits or 8
     mode = {"DeviceGray": "L", "CalGray": "L", "DeviceRGB": "RGB", "CalRGB": "RGB", "DeviceCMYK": "CMYK"}.get(name)
@@ -78,7 +82,32 @@ def decode_image(im):
     img = Image.frombytes(mode, (w, h), data)
     if mode == "P":
         img.putpalette(palette[:768])
-    return img.convert("RGB")
+    img = img.convert("RGB")
+    # Un cuadro de color plano con máscara de transparencia es un marcador de carga o un ícono vacío, no una foto.
+    # Se mira ANTES de aplicar la máscara (el borde transparente lo disfraza de dibujo) y se marca en img.info:
+    # pics_from_page lo descarta, pero DESPUÉS de saber qué cubre (el logo que hay debajo no debe quedar como foto).
+    if stream.get("SMask") is not None and _is_flat(img):
+        img.info["blank"] = True
+        return img
+    return _over_white(img, stream)
+
+
+def _over_white(img, stream):
+    """Si la foto trae máscara de transparencia (esquinas redondeadas de las tarjetas web), se pega sobre blanco:
+    sin esto las esquinas salen negras."""
+    from PIL import Image
+    from pdfminer.pdftypes import resolve1
+    try:
+        sm = resolve1(stream.get("SMask"))
+        w, h = img.size
+        data = sm.get_data()
+        if resolve1(sm.get("Width")) != w or resolve1(sm.get("Height")) != h or resolve1(sm.get("BitsPerComponent")) != 8 or len(data) != w * h:
+            return img
+        out = Image.new("RGB", img.size, "white")
+        out.paste(img, mask=Image.frombytes("L", (w, h), data))
+        return out
+    except Exception:
+        return img
 
 
 def to_webp(img, max_px: int = 1000) -> bytes:
@@ -87,6 +116,12 @@ def to_webp(img, max_px: int = 1000) -> bytes:
     out = io.BytesIO()
     img.save(out, "WEBP", quality=82)
     return out.getvalue()
+
+
+def _is_flat(img) -> bool:
+    """Un cuadro de un solo color (marcador de carga, ícono vacío) no es la foto de un plato."""
+    from PIL import ImageStat
+    return max(ImageStat.Stat(img.convert("L").resize((32, 32))).stddev) < 8
 
 
 def pics_from_page(page, pno: int, budget: int) -> list[Pic]:
@@ -109,11 +144,26 @@ def pics_from_page(page, pno: int, budget: int) -> list[Pic]:
             img = decode_image(im)
             if img is None:
                 continue
+            blank = bool(img.info.get("blank"))
             key = hashlib.md5(img.tobytes()).hexdigest()
-            pics.append(Pic(pno, im.x0, im.x1, page.height - im.y1, page.height - im.y0, to_webp(img), key))
+            pics.append(Pic(pno, im.x0, im.x1, page.height - im.y1, page.height - im.y0, b"" if blank else to_webp(img), key, blank))
         except Exception:  # una imagen rara no debe tumbar la lectura de la carta
             continue
-    return pics
+    return [g for g in _only_visible(pics) if not g.blank]
+
+
+def _only_visible(pics: list[Pic]) -> list[Pic]:
+    """Las páginas web impresas dibujan un marcador (el logo) debajo de cada foto: se queda la que se dibujó después,
+    que es la que se ve. Sin esto el marcador compite con la foto real y se asocia la que no es."""
+    keep = []  # (los marcadores vacíos cuentan para tapar y luego los quita pics_from_page)
+    for i, a in enumerate(pics):
+        area = max((a.x1 - a.x0) * (a.bottom - a.top), 1)
+        covered = any(
+            max(0, min(a.x1, b.x1) - max(a.x0, b.x0)) * max(0, min(a.bottom, b.bottom) - max(a.top, b.top)) >= 0.8 * area
+            for b in pics[i + 1:])
+        if not covered:
+            keep.append(a)
+    return keep
 
 
 # ---------------------------------------------------------------- asociación foto ↔ plato

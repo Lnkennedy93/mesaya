@@ -453,6 +453,13 @@ def _read_menu(restaurant_id: int, data: bytes, media_type: str) -> dict:
         raise ai_import.AIError("No encontramos platos en el archivo. Prueba con una foto más nítida o con el texto pegado.")
     db.run("UPDATE restaurants SET ai_imports_used=ai_imports_used+1 WHERE id=?", (restaurant_id,))
     res["source"], res["warnings"] = "ai", []
+    if media_type == "application/pdf":  # la IA solo devuelve texto: las fotos del PDF se asocian aparte, sin tumbar la lectura si fallan
+        try:
+            menu_reader.attach_photos(res, data)
+        except Exception:
+            log.exception("No se pudieron sacar las fotos del PDF")
+        if res.get("images"):
+            return _local_response(restaurant_id, res)
     return res
 
 

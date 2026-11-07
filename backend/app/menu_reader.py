@@ -11,6 +11,7 @@ derecha o al lado del nombre. Cuando el diseño es raro devuelve avisos o `needs
 import io
 import re
 import shutil
+import unicodedata
 import statistics
 import zipfile
 from collections import Counter
@@ -741,6 +742,52 @@ def sniff_office(data: bytes, filename: str = "") -> str | None:
     if any(n.startswith("xl/worksheets/") for n in names):
         return "xlsx"
     return None
+
+
+def _norm(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s.lower())
+    return re.sub(r"[^a-z0-9]+", " ", "".join(c for c in s if not unicodedata.combining(c))).strip()
+
+
+def attach_photos(res: dict, data: bytes) -> None:
+    """Lectura con IA: la IA no ve las fotos del PDF. Se sacan con pdfminer y cada una se asocia al plato cuyo nombre
+    está pegado a ella en la página. Agrega 'images' y 'image_idx' (misma forma que la lectura local); no devuelve nada.
+    shortcut: el plato se ubica por el texto de su nombre en el PDF; si la IA lo reescribió, ese plato queda sin foto."""
+    pages, widths, pics = read_pdf(data, want_images=True)
+    if not pics:
+        return
+    lines = sorted((f for p in pages for f in p), key=lambda f: (f.page, f.top, f.x0))
+    texts = [_norm(f.text) for f in lines]
+    anchors, pos = [], 0  # (plato, índice del renglón con su nombre), en el orden de lectura
+    for c in res["categories"]:
+        for it in c["items"]:
+            n = _norm(it["name"])
+            rng = range(pos, len(lines))
+            # primero el renglón idéntico al nombre (no el encabezado «Totopos 1» de la categoría); si no, uno que empiece igual
+            k = next((k for k in rng if len(n) >= 3 and texts[k] == n), None)
+            if k is None:
+                k = next((k for k in rng if len(n) >= 4 and (texts[k].startswith(n) or (len(texts[k]) >= 6 and n.startswith(texts[k])))), None)
+            if k is not None:
+                anchors.append((it, k))
+                pos = k + 1
+    cards = []  # el texto del plato (nombre + descripción + precio) llega hasta el borde derecho de sus renglones
+    for a, (it, k) in enumerate(anchors):
+        f = lines[k]
+        nxt = next((lines[k2].top for _, k2 in anchors[a + 1:] if lines[k2].page == f.page), float("inf"))
+        right = max((g.x1 for g in lines if g.page == f.page and f.top - 2 <= g.top < nxt and abs(g.x0 - f.x0) <= 40), default=f.x1)
+        cards.append({"page": f.page, "x0": f.x0, "x1": right, "top": f.top})
+    keys: dict[str, int] = {}
+    images: list[bytes] = []
+    got = menu_images.match(cards, pics, widths)
+    for i, j in got.items():
+        g = pics[j]
+        if g.key not in keys:
+            keys[g.key] = len(images)
+            images.append(g.webp)
+        anchors[i][0]["image_idx"] = keys[g.key]
+    res["images"] = images
+    if len(got) < 0.5 * len(pics):
+        res["warnings"].append(f"Se encontraron {len(pics)} fotos pero solo {len(got)} se pudieron asociar a un plato; revisa las fotos.")
 
 
 def acceptable(res: Result) -> bool:

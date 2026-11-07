@@ -239,6 +239,33 @@ with TestClient(app) as cl:
     check(n_of(j5["draft_id"]) == 0 and db.row("SELECT COUNT(*) n FROM images WHERE restaurant_id=?", (me_id,))["n"] == 0,
           "al borrar la cuenta se eliminan también sus borradores y todas sus fotos")
 
+# 11b) PDF leído por la IA (diseño de tarjetas web): la IA devuelve solo texto, pero las fotos del PDF llegan igual
+import json as _json  # noqa: E402
+from tests.menu_fixtures import WEB_DISHES, item_color, layout_web_cards  # noqa: E402
+
+
+class RWeb(R):
+    def json(self):
+        return {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": _json.dumps(
+            {"categories": [{"name": "Carta", "items": [{"name": n, "price": 9000 + 1000 * k} for k, n in enumerate(WEB_DISHES)]}]})}]}}]}
+
+
+with TestClient(app) as cw:
+    cw.post("/api/signup", json={"accept_terms": True, "name": "Web Cards", "email": "w@x.co", "password": "secreto123", "tables": 2})
+    old_post, config.MENU_READER = ai_import._post, "ai"
+    ai_import._post = lambda url, **kw: RWeb()
+    try:
+        r = upload(cw, "carta-web.pdf", layout_web_cards())
+    finally:
+        ai_import._post, config.MENU_READER = old_post, "auto"
+    got = {i["name"]: i for c in r.json()["categories"] for i in c["items"]}
+    check(r.status_code == 200 and r.json()["source"] == "ai", "PDF de tarjetas web: lo lee la IA")
+    for k, n in enumerate(WEB_DISHES[:3]):
+        img = cw.get(got[n]["image"]) if got[n].get("image") else None
+        px = Image.open(io.BytesIO(img.content)).convert("RGB").getpixel((60, 60)) if img is not None and img.status_code == 200 else None
+        check(px is not None and all(abs(x - y) <= 14 for x, y in zip(px, item_color(k))) and got[n].get("image_ref"), f"PDF leído por la IA: «{n}» llega con SU foto")
+    check("image" not in got["Sopa del dia"], "PDF leído por la IA: el plato sin foto llega sin foto")
+
 # 12) reducción de fotos pesadas antes de enviarlas a la IA
 import os as _os  # noqa: E402
 
