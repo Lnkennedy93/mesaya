@@ -91,7 +91,7 @@ function render() {
     ${ME.role === 'owner' ? '<a class="btn sm ghost" href="/admin">Panel</a>' : ''}
     <button class="btn sm ghost" id="out">Salir</button></header>
     <div class="calls">${reviews.map(p => `<div class="call" style="background:#1d3f5a;animation:none"><b>💸 Confirmar Bre-B · Mesa ${esc(p.table_label)} · ${money(p.total)}</b><span class="muted small">ref ${esc(p.reference.slice(-6).toUpperCase())}</span>
-      <button class="btn sm ok" data-pc="${p.id}">Ya llegó</button><button class="btn sm ghost" data-pr="${p.id}">No llegó</button></div>`).join('')}${calls.map(c => `<div class="call"><b>${c.type === 'bill' ? '🧾 Cuenta' : '🙋 Mesero'} · Mesa ${esc(c.table_label)}</b><button class="btn sm" data-res="${c.id}">Atendido</button></div>`).join('')}</div>
+      <button class="btn sm ok" data-pc="${p.id}">Ya llegó</button><button class="btn sm ghost" data-pr="${p.id}">No llegó</button></div>`).join('')}${calls.map(c => `<div class="call"><b>${c.type === 'bill' ? '🧾 Cuenta' : '🙋 Mesero'} · Mesa ${esc(c.table_label)}${c.method === 'card' ? ' · 💳 Llevar datáfono' : c.method === 'cash' ? ' · 💵 Efectivo' : ''}</b><button class="btn sm" data-res="${c.id}">Atendido</button></div>`).join('')}</div>
     <div id="body"></div>`;
   $$('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
   $('#snd').onclick = () => { sound = !sound; if (sound) beep(); render(); };

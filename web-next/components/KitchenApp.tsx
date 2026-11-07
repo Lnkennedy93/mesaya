@@ -112,7 +112,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
         ))}
         {calls.map((c) => (
           <div className="call" key={"c" + c.id}>
-            <b>{c.type === "bill" ? "🧾 Cuenta" : "🙋 Mesero"} · Mesa {c.table_label}</b>
+            <b>{c.type === "bill" ? "🧾 Cuenta" : "🙋 Mesero"} · Mesa {c.table_label}{c.method === "card" ? " · 💳 Llevar datáfono" : c.method === "cash" ? " · 💵 Efectivo" : ""}</b>
             <button className="btn sm" onClick={() => act(() => api(`/api/calls/${c.id}/resolve`, { method: "POST" }))}>Atendido</button>
           </div>
         ))}

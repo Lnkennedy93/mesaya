@@ -79,7 +79,7 @@ const I18N = {
     payOnline: 'Pagar desde mi celular', ready: '¡Tu pedido está listo!', menuOnly: 'Esta carta es solo de consulta. Pide al mesero.',
     scan: 'Escanea el QR de tu mesa para pedir desde tu celular.', badQr: 'Este QR ya no es válido (fue renovado o está incompleto). Escanea el QR actual de tu mesa o pide ayuda al mesero.', paused: 'Por ahora los pedidos digitales están en pausa. Pide al mesero.',
     nothingToPay: 'No hay nada pendiente por pagar 🎉', thanks: '¡Gracias! Pago recibido', rate: '¿Cómo estuvo todo?', comment: 'Cuéntanos más (opcional)',
-    sendRate: 'Enviar', rated: '¡Gracias por tu opinión!', google: 'Dejar reseña en Google', allergens: 'Contiene', choose: 'Elige', min: 'Min',
+    sendRate: 'Enviar', rated: '¡Gracias por tu opinión! 💛 Fue un gusto atenderte, esperamos verte muy pronto.', howPay: '¿Cómo vas a pagar?', payCash: '💵 Efectivo', payCard: '💳 Tarjeta (datáfono)', cancelPick: 'Cancelar', google: 'Dejar reseña en Google', allergens: 'Contiene', choose: 'Elige', min: 'Min',
     privacyNote: 'Al enviar tu pedido aceptas el tratamiento de tus datos según la', privacyLink: 'Política de datos.', less: 'Quitar uno', more: 'Agregar uno', remove: 'Quitar del pedido', finishTable: 'Terminar mesa y pedir la cuenta', billAsked: 'Cuenta solicitada ✓ El mesero va en camino', tableClosed: 'Mesa cerrada. ¡Gracias por visitarnos!', totalConsumption: 'Total del consumo', tipSuggested: 'Propina voluntaria sugerida',
     payNequi: 'Pagar con Nequi', payBreb: 'Pagar con Bre-B', nequiPhone: 'Celular con Nequi', wantInvoice: 'Quiero factura electrónica a mi nombre',
     invoiceHint: 'Si no llenas esto, te emitimos la factura como Consumidor Final.', docNumber: 'Número de documento', fullName: 'Nombre o razón social', emailInv: 'Correo para la factura',
@@ -97,7 +97,7 @@ const I18N = {
     payOnline: 'Pay from my phone', ready: 'Your order is ready!', menuOnly: 'This menu is view-only. Ask your waiter.',
     scan: 'Scan the QR on your table to order from your phone.', badQr: 'This QR is no longer valid (it was renewed or is incomplete). Scan the current QR on your table or ask your waiter.', paused: 'Digital ordering is paused right now. Ask your waiter.',
     nothingToPay: 'Nothing left to pay 🎉', thanks: 'Thanks! Payment received', rate: 'How was everything?', comment: 'Tell us more (optional)',
-    sendRate: 'Send', rated: 'Thanks for your feedback!', google: 'Leave a Google review', allergens: 'Contains', choose: 'Choose', min: 'Min',
+    sendRate: 'Send', rated: 'Thanks for your feedback! 💛 It was a pleasure serving you, see you again soon.', howPay: 'How will you pay?', payCash: '💵 Cash', payCard: '💳 Card (terminal)', cancelPick: 'Cancel', google: 'Leave a Google review', allergens: 'Contains', choose: 'Choose', min: 'Min',
     privacyNote: 'By sending your order you accept the processing of your data under the', privacyLink: 'Privacy policy.', less: 'Remove one', more: 'Add one', remove: 'Remove from order', finishTable: 'Finish table and ask for the bill', billAsked: 'Bill requested ✓ A waiter is on the way', tableClosed: 'Table closed. Thanks for visiting!', totalConsumption: 'Total', tipSuggested: 'Suggested voluntary tip',
     payNequi: 'Pay with Nequi', payBreb: 'Pay with Bre-B', nequiPhone: 'Nequi phone number', wantInvoice: 'I want an electronic invoice in my name',
     invoiceHint: 'If you leave this blank we issue it to Consumidor Final.', docNumber: 'ID number', fullName: 'Name or company', emailInv: 'Email for the invoice',
@@ -342,9 +342,9 @@ function billView() {
     <div class="row spread" style="margin:.4rem 0 .8rem"><span class="big">${T('total')}</span><span class="big">${money(subtotal + tip + (R.tax_included ? 0 : Math.round(subtotal * R.tax_pct / 100)))}</span></div>
     ${R.invoicing ? invoiceForm() : ''}
     ${M.providers.some(p => p.id === 'nequi') ? `<label>${T('nequiPhone')}</label><input id="nph" inputmode="tel" maxlength="14" placeholder="300 123 4567" value="${esc(draft.phone ?? (LS('mesaya_phone') || ''))}">` : ''}
-    ${M.providers.map(p => `<button class="btn block ${p.id === 'cashier' ? 'ghost' : p.id === 'nequi' ? 'nequi' : ''}" style="margin-top:.5rem" data-pay="${p.id}" ${chosen.length ? '' : 'disabled'}>${PAYLBL(p)}</button>`).join('')}
+    ${picking === 'cashier' ? methodPicker() : M.providers.map(p => `<button class="btn block ${p.id === 'cashier' ? 'ghost' : p.id === 'nequi' ? 'nequi' : ''}" style="margin-top:.5rem" data-pay="${p.id}" ${chosen.length ? '' : 'disabled'}>${PAYLBL(p)}</button>`).join('')}
   </div>`;
-  return h + callButtons() + '</main>';
+  return h + (bill.calls.includes('bill') ? feedbackBox() : '') + callButtons() + '</main>';
 }
 
 // Modo simple (sin pagos en línea): el cliente ve su consumo y termina la mesa; el equipo cobra en caja.
@@ -359,7 +359,13 @@ function simpleBill(unpaid) {
     ${taxRow(subtotal)}
     <div class="row spread" style="margin:.3rem 0"><span class="big">${T('totalConsumption')}</span><span class="big">${money(total)}</span></div>
     ${R.tip_pct ? `<div class="muted small">${T('tipSuggested')} (${R.tip_pct}%): ${money(tipS)}</div>` : ''}
-    <button class="btn block" id="askBill" style="margin-top:.9rem" ${asked ? 'disabled' : ''}>${asked ? T('billAsked') : '🧾 ' + T('finishTable')}</button></div>`;
+    ${picking === 'simple' && !asked ? methodPicker() : `<button class="btn block" id="askBill" style="margin-top:.9rem" ${asked ? 'disabled' : ''}>${asked ? T('billAsked') : '🧾 ' + T('finishTable')}</button>`}</div>${asked ? feedbackBox() : ''}`;
+}
+
+let picking = null; // 'simple' | 'cashier': eligiendo efectivo/tarjeta antes de pedir la cuenta
+function methodPicker() {
+  return `<div style="margin-top:.9rem"><b>${T('howPay')}</b><div class="row" style="margin-top:.5rem"><button class="btn grow" data-pm="cash">${T('payCash')}</button><button class="btn grow" data-pm="card">${T('payCard')}</button></div>
+    <button class="btn ghost block" id="pmCancel" style="margin-top:.5rem">${T('cancelPick')}</button></div>`;
 }
 
 function callButtons() {
@@ -383,8 +389,14 @@ function bindBill() {
   const a = $('#selAll'); if (a) a.onclick = () => { unpaid.forEach(l => sel.add(l.id)); render(); };
   const m = $('#selMine'); if (m) m.onclick = () => { sel.clear(); unpaid.filter(l => l.diner_id === dinerId).forEach(l => sel.add(l.id)); render(); };
   $$('[data-tip]').forEach(b => b.onclick = () => { tipPct = +b.dataset.tip; render(); });
-  $$('[data-pay]').forEach(b => b.onclick = () => pay(b.dataset.pay));
-  const ab = $('#askBill'); if (ab) ab.onclick = async () => { try { await api(`/api/public/${slug}/call`, { method: 'POST', body: { table: TABLE, key: KEY, type: 'bill' } }); await refreshBill(); render(); toast('🧾 ' + T('billAsked')); } catch (e) { toast(e.message, true); } };
+  $$('[data-pay]').forEach(b => b.onclick = () => { if (b.dataset.pay === 'cashier') { picking = 'cashier'; render(); } else pay(b.dataset.pay); });
+  const ab = $('#askBill'); if (ab) ab.onclick = () => { picking = 'simple'; render(); };
+  const pc = $('#pmCancel'); if (pc) pc.onclick = () => { picking = null; render(); };
+  $$('[data-pm]').forEach(b => b.onclick = async () => {
+    const m = b.dataset.pm, mode = picking; picking = null;
+    if (mode === 'cashier') return pay('cashier', m);
+    try { await api(`/api/public/${slug}/call`, { method: 'POST', body: { table: TABLE, key: KEY, type: 'bill', method: m } }); await refreshBill(); render(); toast('🧾 ' + T('billAsked')); } catch (e) { toast(e.message, true); render(); }
+  });
   const cw = $('#callW'); if (cw) cw.onclick = async () => { try { await api(`/api/public/${slug}/call`, { method: 'POST', body: { table: TABLE, key: KEY, type: 'waiter' } }); await refreshBill(); render(); toast('🙋 ' + T('waiterCalled')); } catch (e) { toast(e.message, true); } };
   $$('[data-star]').forEach(b => b.onclick = () => { rating = +b.dataset.star; render(); });
   const fb = $('#fbSend'); if (fb) fb.onclick = sendFeedback;
@@ -410,14 +422,14 @@ function readInvoice() {
   return null;
 }
 
-async function pay(provider) {
+async function pay(provider, method = '') {
   const ids = [...sel].filter(id => bill.lines.some(l => l.id === id && l.state === 'unpaid'));
   if (!ids.length) return;
   const phone = $('#nph') ? $('#nph').value : '';
   if (provider === 'nequi') LS('mesaya_phone', phone);
   paying = true;
   try {
-    const res = await api(`/api/public/${slug}/pay`, { method: 'POST', body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, phone, invoice: readInvoice() } });
+    const res = await api(`/api/public/${slug}/pay`, { method: 'POST', body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, method, phone, invoice: readInvoice() } });
     if (res.mode === 'redirect') { location.href = res.url; return; }
     sel.clear();
     if (res.mode === 'cashier') toast('🧾 ' + T('askBill'));

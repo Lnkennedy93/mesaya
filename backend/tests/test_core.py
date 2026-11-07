@@ -46,9 +46,15 @@ with TestClient(app) as c:
         r = c.post(f"{base}/pay", json={"table": t["label"], "key": t["secret"], "item_ids": [1], "provider": provider})
         check(r.status_code == 400, f"el método «{provider}» no está disponible")
 
-    check(c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": "bill"}).status_code == 200, "el cliente toca «Terminar mesa»")
+    ask = lambda **kw: c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": "bill", **kw})  # noqa: E731
+    check(ask().status_code == 400 and ask(method="bitcoin").status_code == 400, "pedir la cuenta exige elegir efectivo o tarjeta")
+    check(c.get("/api/calls").json()["calls"] == [], "sin método no se crea el aviso")
+    check(ask(method="card").status_code == 200, "el cliente toca «Terminar mesa» y elige tarjeta")
     check(c.get(f"{base}/bill", params=q).json()["calls"] == ["bill"], "la carta muestra «cuenta solicitada»")
-    check([x["type"] for x in c.get("/api/calls").json()["calls"]] == ["bill"], "cocina/sala ve el aviso de cuenta")
+    check([(x["type"], x["method"]) for x in c.get("/api/calls").json()["calls"]] == [("bill", "card")], "cocina/sala ve la cuenta con «tarjeta» (llevar datáfono)")
+    check(ask(method="cash").status_code == 200 and [(x["type"], x["method"]) for x in c.get("/api/calls").json()["calls"]] == [("bill", "cash")], "cambiar a efectivo actualiza el mismo aviso, sin duplicarlo")
+    r = c.post(f"{base}/pay", json={"table": t["label"], "key": t["secret"], "item_ids": [1], "provider": "cashier"})
+    check(r.status_code == 400, "pagar en caja desde el flujo de pagos también exige el método")
     tb = next(x for x in c.get("/api/floor").json()["tables"] if x["label"] == t["label"])
     check(tb["unpaid"] == 60000 and "bill" in tb["calls"], "sala muestra la mesa con $60.000 por cobrar")
 

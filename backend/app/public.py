@@ -146,10 +146,26 @@ async def stream(slug: str, table: str, k: str, request: Request):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+PAY_METHODS = ("cash", "card")  # cómo pagará en caja: el mesero sabe si lleva datáfono
+
+
+def _ask_bill(r: dict, table: str, method: str):
+    """Abre la solicitud de cuenta (o actualiza el método si ya estaba abierta) y avisa al equipo."""
+    if method not in PAY_METHODS:
+        raise HTTPException(400, "Elige cómo vas a pagar: efectivo o tarjeta")
+    if db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL", (r["id"], table)):
+        db.run("UPDATE calls SET method=? WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL", (method, r["id"], table))
+    else:
+        db.run("INSERT INTO calls(restaurant_id, table_label, type, method, created_at) VALUES (?,?,?,?,?)", (r["id"], table, "bill", method, now()))
+    events.publish(f"r{r['id']}", "call", {"table": table, "type": "bill", "method": method})
+    events.publish(f"t{r['id']}:{table}", "update", {})
+
+
 class CallIn(BaseModel):
     table: str
     key: str
     type: str = "waiter"
+    method: str = ""
 
 
 @router.post("/call")
@@ -160,6 +176,9 @@ def call(slug: str, body: CallIn, request: Request):
     rate_limit(f"call:t:{r['id']}:{body.table}", 6, 300)
     if body.type not in ("waiter", "bill"):
         raise HTTPException(400, "Tipo inválido")
+    if body.type == "bill":
+        _ask_bill(r, body.table, body.method)
+        return {"ok": True}
     if not db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type=? AND resolved_at IS NULL",
                   (r["id"], body.table, body.type)):
         db.run("INSERT INTO calls(restaurant_id, table_label, type, created_at) VALUES (?,?,?,?)",
@@ -179,6 +198,7 @@ class PayIn(BaseModel):
     phone: str = Field(default="", max_length=20)
     email: str = Field(default="", max_length=120)
     invoice: dict | None = None
+    method: str = ""  # solo para provider="cashier": cash | card
 
 
 def _payment_view(p: dict) -> dict:
@@ -200,6 +220,8 @@ def pay(slug: str, body: PayIn, request: Request):
     rate_limit(f"pay:t:{r['id']}:{body.table}", 10, 600)
     if body.provider not in {p["id"] for p in payments.available_providers(r)}:
         raise HTTPException(400, "Método de pago no disponible")
+    if body.provider == "cashier" and body.method not in PAY_METHODS:
+        raise HTTPException(400, "Elige cómo vas a pagar: efectivo o tarjeta")
     if not body.item_ids:
         raise HTTPException(400, "Elige qué quieres pagar")
     lines = {l["id"]: l for l in service.bill_lines(r["id"], body.table)}
@@ -214,11 +236,7 @@ def pay(slug: str, body: PayIn, request: Request):
     customer = colombia.clean_customer(body.invoice)
 
     if body.provider == "cashier":
-        if not db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL",
-                      (r["id"], body.table)):
-            db.run("INSERT INTO calls(restaurant_id, table_label, type, created_at) VALUES (?,?,?,?)",
-                   (r["id"], body.table, "bill", now()))
-        events.publish(f"r{r['id']}", "call", {"table": body.table, "type": "bill"})
+        _ask_bill(r, body.table, body.method)
         return {"ok": True, "mode": "cashier"}
 
     phone = ""

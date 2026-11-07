@@ -34,6 +34,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [rated, setRated] = useState(false);
+  const [picking, setPicking] = useState<null | "simple" | "cashier">(null); // eligiendo efectivo/tarjeta antes de pedir la cuenta
   const [reviewUrl, setReviewUrl] = useState("");
   const [phone, setPhone] = useState("");
   const [inv, setInv] = useState<Any>({ doc_type: "CC", doc_number: "", name: "", email: "", open: undefined });
@@ -164,7 +165,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
 
   async function closePay() { setDlg(null); await refreshBill(); }
 
-  async function pay(provider: string) {
+  async function pay(provider: string, method = "") {
     const ids = [...sel].filter((id) => unpaid.some((l) => l.id === id));
     if (!ids.length) return;
     if (provider === "nequi") ls("mesaya_phone", phone);
@@ -174,7 +175,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       ls("mesaya_inv", JSON.stringify(invoice));
     }
     try {
-      const res = await api(`/api/public/${slug}/pay`, { method: "POST", body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, phone: document.getElementById("nph") ? phone : "", invoice } });
+      const res = await api(`/api/public/${slug}/pay`, { method: "POST", body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, method, phone: document.getElementById("nph") ? phone : "", invoice } });
       if (res.mode === "redirect") { location.href = res.url; return; }
       setSel(new Set());
       if (res.mode === "cashier") toast("🧾 " + T("askBill"));
@@ -199,9 +200,9 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     pollPayment(res.payment_id, (s) => setDlg({ t: "thanks", paymentId: res.payment_id, invoice: s.invoice }), () => setDlg({ t: "breb", res, phase: "fail" }));
   }
 
-  async function sendCall(type: "bill" | "waiter") {
+  async function sendCall(type: "bill" | "waiter", method = "") {
     try {
-      await api(`/api/public/${slug}/call`, { method: "POST", body: { table: TABLE, key: KEY, type } });
+      await api(`/api/public/${slug}/call`, { method: "POST", body: { table: TABLE, key: KEY, type, method } });
       await refreshBill();
       toast(type === "bill" ? "🧾 " + T("billAsked") : "🙋 " + T("waiterCalled"));
     } catch (e: Any) { toast(e.message, true); }
@@ -293,6 +294,17 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     </div>
   );
 
+  const methodPicker = (onPick: (m: string) => void) => (
+    <div style={{ marginTop: ".9rem" }}>
+      <b>{T("howPay")}</b>
+      <div className="row" style={{ marginTop: ".5rem" }}>
+        <button className="btn grow" onClick={() => onPick("cash")}>{T("payCash")}</button>
+        <button className="btn grow" onClick={() => onPick("card")}>{T("payCard")}</button>
+      </div>
+      <button className="btn ghost block" style={{ marginTop: ".5rem" }} onClick={() => setPicking(null)}>{T("cancelPick")}</button>
+    </div>
+  );
+
   function simpleBill() {
     if (!unpaid.length)
       return (
@@ -306,12 +318,17 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     const total = subtotal + (R.tax_included ? 0 : Math.round((subtotal * R.tax_pct) / 100));
     const asked = bill.calls.includes("bill");
     return (
-      <div className="card" style={{ marginTop: ".8rem" }}>
-        {taxRow(subtotal)}
-        <div className="row spread" style={{ margin: ".3rem 0" }}><span className="big">{T("totalConsumption")}</span><span className="big">{money(total)}</span></div>
-        {R.tip_pct ? <div className="muted small">{T("tipSuggested")} ({R.tip_pct}%): {money(tipS)}</div> : null}
-        <button className="btn block" style={{ marginTop: ".9rem" }} disabled={asked} onClick={() => sendCall("bill")}>{asked ? T("billAsked") : "🧾 " + T("finishTable")}</button>
-      </div>
+      <>
+        <div className="card" style={{ marginTop: ".8rem" }}>
+          {taxRow(subtotal)}
+          <div className="row spread" style={{ margin: ".3rem 0" }}><span className="big">{T("totalConsumption")}</span><span className="big">{money(total)}</span></div>
+          {R.tip_pct ? <div className="muted small">{T("tipSuggested")} ({R.tip_pct}%): {money(tipS)}</div> : null}
+          {picking === "simple" && !asked
+            ? methodPicker((m) => { setPicking(null); sendCall("bill", m); })
+            : <button className="btn block" style={{ marginTop: ".9rem" }} disabled={asked} onClick={() => setPicking("simple")}>{asked ? T("billAsked") : "🧾 " + T("finishTable")}</button>}
+        </div>
+        {asked && feedbackBox}
+      </>
     );
   }
 
@@ -409,10 +426,11 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
               <input id="nph" inputMode="tel" maxLength={14} placeholder="300 123 4567" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </>
           )}
-          {M.providers.map((p: Any) => (
-            <button key={p.id} className={"btn block " + (p.id === "cashier" ? "ghost" : p.id === "nequi" ? "nequi" : "")} style={{ marginTop: ".5rem" }} disabled={!chosen.length} onClick={() => pay(p.id)}>{payLabel(p)}</button>
+          {picking === "cashier" ? methodPicker((m) => { setPicking(null); pay("cashier", m); }) : M.providers.map((p: Any) => (
+            <button key={p.id} className={"btn block " + (p.id === "cashier" ? "ghost" : p.id === "nequi" ? "nequi" : "")} style={{ marginTop: ".5rem" }} disabled={!chosen.length} onClick={() => (p.id === "cashier" ? setPicking("cashier") : pay(p.id))}>{payLabel(p)}</button>
           ))}
         </div>
+        {bill.calls.includes("bill") && feedbackBox}
         {callButtons}
       </main>
     );

@@ -342,6 +342,9 @@ MIGRATIONS = {
         "extra_tables": "INTEGER NOT NULL DEFAULT 0",  # mesas adicionales contratadas en el plan Esencial
         "ai_addon": "INTEGER NOT NULL DEFAULT 0",  # 1 = complemento de IA del plan Esencial
     },
+    "calls": {
+        "method": "TEXT NOT NULL DEFAULT ''",  # solo en type='bill': cash | card
+    },
     "payments": {
         "customer": "TEXT NOT NULL DEFAULT ''",
         "reference": "TEXT NOT NULL DEFAULT ''",
