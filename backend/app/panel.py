@@ -330,6 +330,17 @@ def del_category(cid: int, s: Staff = Depends(owner_dep)):
     return {"ok": True}
 
 
+@router.delete("/menu")
+def clear_menu(s: Staff = Depends(owner_dep)):
+    """Borra toda la carta (categorías, platos y sus fotos) del negocio. Los pedidos ya hechos guardan su propio nombre y precio."""
+    imgs = {r["image"] for r in db.rows("SELECT image FROM items WHERE restaurant_id=? AND image != ''", (s.id,))}
+    db.run("DELETE FROM categories WHERE restaurant_id=?", (s.id,))  # los platos caen por cascada
+    for im in imgs:
+        _drop_image(s.id, im)
+    events.publish(f"r{s.id}", "menu", {})
+    return {"ok": True}
+
+
 @router.post("/categories/{cid}/move")
 def move_category(cid: int, body: dict, s: Staff = Depends(owner_dep)):
     cats = db.rows("SELECT id FROM categories WHERE restaurant_id=? ORDER BY sort, id", (s.id,))

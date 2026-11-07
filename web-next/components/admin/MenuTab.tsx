@@ -32,6 +32,12 @@ export default function MenuTab() {
         <h1>Carta</h1>
         <div className="row wrap">
           <button className="btn ghost sm" onClick={() => setDlg({ t: "import" })}>⚡ Importar carta</button>
+          {!empty && <button className="btn ghost sm" onClick={() => {
+            const dishes = menu.reduce((n: number, c: Any) => n + c.items.length, 0);
+            if (prompt(`Se borrarán ${menu.length} categorías y ${dishes} platos con sus fotos. No se puede deshacer.
+
+Escribe ELIMINAR para confirmar.`)?.trim().toUpperCase() === "ELIMINAR") run(() => api("/api/menu", { method: "DELETE" }));
+          }}>🗑 Eliminar toda la carta</button>}
           <button className="btn sm" onClick={() => { const n = prompt("Nombre de la categoría (ej. Entradas)"); if (n) run(() => api("/api/categories", { method: "POST", body: { name: n } })); }}>+ Categoría</button>
         </div>
       </div>
