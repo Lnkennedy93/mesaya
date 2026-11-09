@@ -6,6 +6,19 @@ const API = (process.env.MESAYA_API_URL || "http://127.0.0.1:8000").replace(/\/$
 const nextConfig = {
   compress: false, // el stream en vivo (SSE) de la cocina no debe comprimirse ni quedarse en buffer
   poweredByHeader: false,
+  async headers() {
+    // Páginas de Next (la API y las páginas de legado ya las pone FastAPI). Sin CSP completa: las páginas usan scripts y estilos en línea.
+    return [{
+      source: "/((?!api/|uploads/|healthz|assets/|terminos|privacidad).*)",
+      headers: [
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      ],
+    }];
+  },
   async rewrites() {
     return {
       // Siempre al backend: API, fotos subidas y salud del servicio.

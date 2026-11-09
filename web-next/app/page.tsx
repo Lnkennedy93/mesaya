@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Powered from "@/components/Powered";
 import "./landing.css";
 
@@ -18,7 +17,7 @@ const FEATURES = [
   ["🚫", "Apaga lo agotado", "Un toque y desaparece al instante de todos los celulares. Cocina también puede hacerlo."],
   ["🧩", "Opciones y adicionales", "Término, tamaño, salsas, extras con recargo. El precio lo calcula el servidor."],
   ["🙋", "Llamar al mesero / pedir cuenta", "Aviso en la pantalla de sala sin que el cliente tenga que gritar."],
-  ["🔒", "QR seguro por mesa", "Código secreto renovable: nadie manda pedidos falsos desde su casa."],
+  ["🔒", "QR seguro por mesa", "Cada mesa tiene su código secreto: si se filtra, lo renuevas con un toque."],
   ["⭐", "Opiniones → reseñas en Google", "Pedimos calificación al terminar la mesa; los de 4–5 ★ se envían a tu perfil de Google."],
   ["📊", "Reportes que sí sirven", "Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV."],
   ["🌎", "Carta en español e inglés", "Ideal para zonas turísticas. El cliente cambia el idioma con un toque."],
@@ -44,12 +43,12 @@ const COMPARE = [
 
 const FAQ = [
   ["¿Mis clientes tienen que descargar algo?", "No. Escanean el QR y se abre la carta en el navegador del celular."],
-  ["¿Necesito tarjeta para probar?", "No. Son 14 días completos sin tarjeta; al terminar eliges un plan o tu QR queda solo como carta."],
+  ["¿Necesito tarjeta para probar?", "No. Son 14 días completos sin tarjeta; al terminar eliges un plan o sigues gratis con 3 mesas."],
   ["¿Cobran comisión por cada venta?", "No. Pagas una mensualidad fija. No cobramos nada por cada pedido."],
   ["¿Cómo se cobra la cuenta?", "Como siempre, en caja. El cliente toca «Terminar mesa» en su celular, tu equipo recibe el aviso, cobra y cierra la mesa en la pantalla de sala."],
   ["¿Qué puede responder el asistente de IA?", "Preguntas sobre tu propio negocio: ventas, platos más y menos vendidos, tiempos de cocina, clientes por mesa, mesas libres, carta y precios, opiniones y ajustes. Si le pides apagar un plato, lo propone y tú lo confirmas con un botón."],
   ["¿Qué pasa con mis datos cuando le pregunto algo?", "El asistente consulta solo los datos de tu restaurante y los procesa con Gemini, de Google, para redactar la respuesta. Nunca muestra tus claves ni el PIN del equipo, y no cambia nada sin tu confirmación."],
-  ["¿Funciona con mi caja o sistema de facturación?", "MesaYa no reemplaza tu caja: registra los pedidos y exporta CSV. Las integraciones con POS están en el plan Cadena."],
+  ["¿Funciona con mi caja o sistema de facturación?", "MesaYa no reemplaza tu caja: registra los pedidos y exporta CSV. Las integraciones con POS están en preparación (plan Cadena)."],
 ];
 
 // Las páginas que aún no están en Next.js las sirve el backend actual (ver next.config.mjs), por eso estos enlaces son <a>.
@@ -78,7 +77,6 @@ export default function Landing() {
             </p>
             <div className="cta">
               <a className="btn" href="/signup">Crear mi carta gratis · 14 días</a>
-              <Link className="btn ghost" href="/r/dragon-dorado?t=1&k=demo1">Ver demo en vivo</Link>
             </div>
             <div className="muted small">Sin tarjeta de crédito · Lista en 5 minutos · Cancela cuando quieras · <a href="/catalogo-mesaya.pdf" download>Descargar catálogo (PDF)</a></div>
           </div>
@@ -173,7 +171,7 @@ export default function Landing() {
             <div className="card plan">
               <h3>Cadena</h3>
               <div className="p">A tu medida</div>
-              <ul><li>Varias sedes</li><li><b>Asistente de IA</b>: 1.500 preguntas al mes</li><li>Marca propia y dominio</li><li>Integraciones (POS, facturación)</li><li>Onboarding con tu equipo</li></ul>
+              <ul><li><b>Asistente de IA</b>: 1.500 preguntas al mes</li><li>Hasta 500 mesas</li><li>Onboarding con tu equipo</li><li>Próximamente: varias sedes, marca propia y dominio, integraciones (POS, facturación)</li></ul>
               <a className="btn ghost block" href="mailto:ventas@mesaya.app">Hablar con ventas</a>
             </div>
           </div>
