@@ -129,20 +129,22 @@ def table_by_label(rid: int, label: str, key: str | None = None, require_key=Tru
     return t
 
 
-def bill_lines(rid: int, label: str, include_paid_minutes=60) -> list[dict]:
-    """Líneas de la cuenta de una mesa: todo lo pendiente + lo pagado recientemente."""
-    cutoff_pending = (datetime.now(timezone.utc) - timedelta(minutes=PENDING_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S")
-    cutoff_paid = (datetime.now(timezone.utc) - timedelta(minutes=include_paid_minutes)).strftime("%Y-%m-%d %H:%M:%S")
-    cutoff_stale = (datetime.now(timezone.utc) - timedelta(hours=TABLE_SESSION_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
+def bill_lines(rid: int, label: str | None = None, include_paid_minutes=60) -> list[dict]:
+    """Líneas de la cuenta de una mesa (o de todas si label=None): todo lo pendiente + lo pagado recientemente.
+    Solo cuentan los pedidos de las últimas TABLE_SESSION_HOURS: lo de otro turno no se muestra ni se cobra."""
+    t = datetime.now(timezone.utc)
+    ago = lambda **k: (t - timedelta(**k)).strftime("%Y-%m-%d %H:%M:%S")  # noqa: E731
+    cutoff_pending, cutoff_paid, cutoff_stale = ago(minutes=PENDING_TTL_MIN), ago(minutes=include_paid_minutes), ago(hours=TABLE_SESSION_HOURS)
     rs = db.rows(
         """SELECT oi.id, oi.name, oi.qty, oi.unit_price, oi.options_text, oi.note, oi.order_id,
-                  o.status AS order_status, o.diner_id, o.diner_name, o.seq, o.created_at,
+                  o.status AS order_status, o.diner_id, o.diner_name, o.seq, o.created_at, o.table_label,
                   p.status AS pay_status, p.created_at AS pay_created, p.payer
            FROM order_items oi
            JOIN orders o ON o.id = oi.order_id
            LEFT JOIN payments p ON p.id = oi.paid_payment_id
-           WHERE o.restaurant_id=? AND o.table_label=? AND o.status != 'cancelled'
-           ORDER BY o.created_at, oi.id""", (rid, label))
+           WHERE o.restaurant_id=? AND o.status != 'cancelled' AND o.created_at >= ?"""
+        + ("" if label is None else " AND o.table_label=?") + " ORDER BY o.created_at, oi.id",
+        (rid, cutoff_stale) + (() if label is None else (label,)))
     out = []
     for x in rs:
         ps = x["pay_status"]
@@ -153,8 +155,6 @@ def bill_lines(rid: int, label: str, include_paid_minutes=60) -> list[dict]:
         elif ps == "review" or (ps == "pending" and x["pay_created"] >= cutoff_pending):
             x["state"] = "reserved"
         else:
-            if x["created_at"] < cutoff_stale:  # cuenta olvidada de otro turno: no se le muestra ni se le cobra al grupo siguiente
-                continue
             x["state"] = "unpaid"
         x["line_total"] = x["qty"] * x["unit_price"]
         out.append(x)
@@ -172,7 +172,10 @@ def money_fmt(r: dict, v: int) -> str:
 
 def finalize_payment(payment_id: int, approved: bool) -> bool:
     """Cierra un pago pendiente (webhook, consulta de respaldo o confirmación del equipo). Idempotente."""
-    with db.tx() as c:
+    p0 = db.row("SELECT restaurant_id FROM payments WHERE id=?", (payment_id,))
+    if not p0:
+        return False
+    with db.tx(p0["restaurant_id"]) as c:
         p = c.execute("SELECT * FROM payments WHERE id=?", (payment_id,)).fetchone()
         if not p or p["status"] not in ("pending", "review"):
             return False

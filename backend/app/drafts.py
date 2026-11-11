@@ -20,7 +20,7 @@ def create(restaurant_id: int, images: list[bytes]) -> str:
     purge()
     draft_id = secrets.token_urlsafe(12)
     now = time.time()
-    with db.tx() as c:
+    with db.tx(restaurant_id) as c:
         for n, data in enumerate(images):
             c.execute("INSERT INTO draft_images(restaurant_id, draft_id, n, data, created_at) VALUES (?,?,?,?,?)",
                       (restaurant_id, draft_id, n, data, now))

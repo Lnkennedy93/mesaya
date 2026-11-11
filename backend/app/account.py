@@ -66,9 +66,10 @@ def reset(body: ResetIn, request: Request, response: Response):
                  (_hash(body.token), now()))
     if not row:
         raise HTTPException(400, "El enlace no es válido o ya venció. Solicita uno nuevo.")
-    with db.tx() as c:
+    pw_hash = auth.hash_password(body.password)  # (scrypt tarda ~100 ms: fuera de la transacción)
+    with db.tx(row["restaurant_id"]) as c:
         c.execute("UPDATE password_resets SET used_at=? WHERE token_hash=?", (now(), row["token_hash"]))
-        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (auth.hash_password(body.password), row["restaurant_id"]))
+        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (pw_hash, row["restaurant_id"]))
         c.execute("DELETE FROM sessions WHERE restaurant_id=?", (row["restaurant_id"],))  # cierra todas las sesiones abiertas
     _set_cookie(response, auth.create_session(row["restaurant_id"], "owner"))
     return _me(db.row("SELECT * FROM restaurants WHERE id=?", (row["restaurant_id"],)), "owner")
@@ -85,8 +86,9 @@ def change_password(body: ChangePwIn, request: Request, response: Response, s: S
     if not auth.verify_password(body.current, s.r["password_hash"]):
         raise HTTPException(400, "La contraseña actual no es correcta")
     keep = request.cookies.get(auth.COOKIE)
-    with db.tx() as c:
-        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (auth.hash_password(body.password), s.id))
+    pw_hash = auth.hash_password(body.password)
+    with db.tx(s.id) as c:
+        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (pw_hash, s.id))
         c.execute("DELETE FROM sessions WHERE restaurant_id=? AND token != ?", (s.id, keep or ""))
     return {"ok": True}
 
@@ -132,8 +134,9 @@ def sa_set_password(body: dict, request: Request):
     r = db.row("SELECT id FROM restaurants WHERE email=?", (str(body.get("email", "")).strip().lower(),))
     if not r:
         raise HTTPException(404, "No existe una cuenta con ese correo")
-    with db.tx() as c:
-        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (auth.hash_password(pw), r["id"]))
+    pw_hash = auth.hash_password(pw)
+    with db.tx(r["id"]) as c:
+        c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (pw_hash, r["id"]))
         c.execute("DELETE FROM sessions WHERE restaurant_id=?", (r["id"],))
     return {"ok": True}
 

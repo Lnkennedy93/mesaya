@@ -60,11 +60,10 @@ class Staff:
 def current(request: Request, optional=False):
     token = request.cookies.get(COOKIE)
     if token:
-        s = db.row("SELECT * FROM sessions WHERE token=? AND expires_at > ?", (token, now()))
-        if s:
-            r = db.row("SELECT * FROM restaurants WHERE id=?", (s["restaurant_id"],))
-            if r:
-                return Staff(r, s["role"])
+        r = db.row("""SELECT r.*, s.role AS session_role FROM sessions s JOIN restaurants r ON r.id = s.restaurant_id
+                      WHERE s.token=? AND s.expires_at > ?""", (token, now()))
+        if r:
+            return Staff(r, r.pop("session_role"))
     if optional:
         return None
     raise HTTPException(401, "Inicia sesión")

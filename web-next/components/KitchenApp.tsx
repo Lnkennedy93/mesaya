@@ -25,12 +25,18 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
   const [toastNode, toast] = useToast();
 
   // lo que necesita el refresco aunque llegue desde el canal en vivo (valores "actuales", no los del primer render)
-  const live = useRef({ first: true, known: new Set<number>(), ready: new Set<number>(), calls: [] as Any[], reviews: [] as Any[], sound: true });
+  const live = useRef({ first: true, menu: false, known: new Set<number>(), ready: new Set<number>(), calls: [] as Any[], reviews: [] as Any[], sound: true });
   live.current.sound = sound;
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
 
   const refresh = useCallback(async () => {
-    const [o, c, f, m, rv] = await Promise.all([api("/api/orders"), api("/api/calls"), api("/api/floor"), api("/api/menu"), api("/api/payments/review")]);
     const L = live.current;
+    // una sola petición repinta todo; la carta pesa y casi nunca cambia: solo se pide al abrir, en «Agotados» o tras tocar algo
+    const needMenu = L.first || L.menu || tabRef.current === "stock";
+    L.menu = false;
+    const [k, m] = await Promise.all([api("/api/kitchen"), needMenu ? api("/api/menu") : null]);
+    const [o, c, f, rv] = [{ orders: k.orders }, { calls: k.calls }, { tables: k.tables }, { payments: k.payments }];
     if (!L.first && rv.payments.some((x: Any) => !L.reviews.some((y) => y.id === x.id)) && L.sound) beep();
     L.reviews = rv.payments;
     const fresh = o.orders.filter((x: Any) => x.status === "new" && !L.known.has(x.id));
@@ -47,7 +53,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
     setOrders(o.orders);
     setCalls(c.calls);
     setFloor(f.tables);
-    setMenu(m.categories);
+    if (m) setMenu(m.categories);
   }, []);
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -87,6 +93,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
 
   async function act(fn: () => Promise<unknown>) {
     try { await fn(); } catch (e: Any) { toast(e.message, true); }
+    live.current.menu = true; // por si lo que se tocó fue un plato agotado
     safeRefresh();
   }
 

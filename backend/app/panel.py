@@ -87,12 +87,13 @@ def signup(body: SignupIn, request: Request, response: Response):
     slug = service.unique_slug(body.name)
     pin = f"{secrets.randbelow(10000):04d}"
     co = cur == "COP"  # valores por defecto de un restaurante colombiano: INC 8 % incluido y propina sugerida 10 %
+    pw_hash = auth.hash_password(body.password)  # (scrypt tarda ~100 ms: fuera de la transacción)
     with db.tx() as c:
         rid = c.execute(
             """INSERT INTO restaurants(slug, name, legal_name, email, password_hash, staff_pin, currency, decimals,
                                        tax_type, tax_pct, tax_included, trial_ends_at, created_at, terms_accepted_at, terms_version)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (slug, body.name.strip(), body.name.strip(), email, auth.hash_password(body.password), pin, cur,
+            (slug, body.name.strip(), body.name.strip(), email, pw_hash, pin, cur,
              service.decimals_for(cur), "INC" if co else "NONE", 8 if co else 0, 1, trial_end, now(),
              now(), config.TERMS_VERSION)).lastrowid
         for n in range(1, min(body.tables, config.PLANS["basic"]["tables"]) + 1):  # la prueba es plan Esencial
@@ -366,7 +367,7 @@ def move_category(cid: int, body: dict, s: Staff = Depends(owner_dep)):
     j = i + (-1 if body.get("dir") == "up" else 1)
     if 0 <= j < len(ids):
         ids[i], ids[j] = ids[j], ids[i]
-        with db.tx() as c:
+        with db.tx(s.id) as c:
             for n, x in enumerate(ids):
                 c.execute("UPDATE categories SET sort=? WHERE id=?", (n, x))
     return {"ok": True}
@@ -618,32 +619,49 @@ def import_commit(body: dict, s: Staff = Depends(owner_dep)):
     copied: dict[tuple, str] = {}
     uploaded: list[str] = []  # fotos ya subidas a Blob: si la transacción falla se borran
 
-    def photo_for(c, it: dict) -> str:
+    to_db: dict[tuple, bytes] = {}  # fotos que se guardan en la tabla images (sin Blob): se insertan dentro de la transacción
+
+    def ref_key(it: dict):
         ref = it.get("image_ref")
         if not (isinstance(ref, (list, tuple)) and len(ref) == 2):
-            return ""
+            return None
         try:
-            key = (str(ref[0]), int(ref[1]))
+            return (str(ref[0]), int(ref[1]))
         except (TypeError, ValueError):
-            return ""
-        if key not in copied:  # la misma foto en varios platos se guarda una sola vez
-            data = drafts.read(s.id, key[0], key[1])
-            if data is None:
-                return ""
-            if storage.enabled():
-                try:
-                    copied[key] = storage.put(f"r{s.id}/img-{secrets.token_hex(8)}.webp", data, "image/webp")
-                    uploaded.append(copied[key])
-                    return copied[key]
-                except Exception:
-                    log.warning("Blob no disponible: la foto se guarda en la base", exc_info=True)
+            return None
+
+    def prepare_photos():
+        """Lee las fotos del borrador y las sube a Blob ANTES de abrir la transacción: la red no debe retener el candado."""
+        for cat in body.get("categories", [])[:40]:
+            if not str(cat.get("name", "")).strip():
+                continue
+            for it in cat.get("items", [])[:200]:
+                key = ref_key(it)
+                if not key or key in copied or key in to_db or not str(it.get("name", "")).strip():
+                    continue  # (la misma foto en varios platos se guarda una sola vez)
+                data = drafts.read(s.id, key[0], key[1])
+                if data is None:
+                    continue
+                if storage.enabled():
+                    try:
+                        copied[key] = storage.put(f"r{s.id}/img-{secrets.token_hex(8)}.webp", data, "image/webp")
+                        uploaded.append(copied[key])
+                        continue
+                    except Exception:
+                        log.warning("Blob no disponible: la foto se guarda en la base", exc_info=True)
+                to_db[key] = data
+
+    def photo_for(c, it: dict) -> str:
+        key = ref_key(it)
+        if key in to_db:
             name = f"{s.id}_{secrets.token_hex(8)}.webp"
-            c.execute("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)", (name, s.id, data))
+            c.execute("INSERT INTO images(name, restaurant_id, data) VALUES (?,?,?)", (name, s.id, to_db.pop(key)))
             copied[key] = f"/uploads/{name}"
-        return copied[key]
+        return copied.get(key, "") if key else ""
 
     try:
-        with db.tx() as c:  # si algo falla, el ROLLBACK deja también sin fotos nuevas
+        prepare_photos()
+        with db.tx(s.id) as c:  # si algo falla, el ROLLBACK deja también sin fotos nuevas
             n = c.execute("SELECT COALESCE(MAX(sort),0) FROM categories WHERE restaurant_id=?", (s.id,)).fetchone()[0]
             for cat in body.get("categories", [])[:40]:
                 name = str(cat.get("name", "")).strip()[:60]
@@ -697,7 +715,7 @@ def add_tables(body: dict, s: Staff = Depends(owner_dep)):
     one = str(body.get("label") or "").strip()[:20]
     if one.upper().startswith(service.TAKEAWAY_PREFIX):
         raise HTTPException(400, f"Las etiquetas que empiezan por {service.TAKEAWAY_PREFIX} están reservadas para pedidos para llevar")
-    with db.tx() as c:  # contar y luego insertar dentro de la transacción: dos solicitudes a la vez no pasan el tope del plan
+    with db.tx(s.id) as c:  # contar y luego insertar dentro de la transacción: dos solicitudes a la vez no pasan el tope del plan
         have = {r["label"] for r in c.execute("SELECT label FROM tables_ WHERE restaurant_id=?", (s.id,)).fetchall()}
         new = [one] if one and one not in have else []
         n, want = len(have) + 1, len(new) + count
@@ -766,8 +784,11 @@ def qr_svg(tid: int, s: Staff = Depends(staff_dep)):
 def _orders_payload(rid: int, statuses=("new", "preparing", "ready")):
     q = ",".join("?" * len(statuses))
     os_ = db.rows(f"SELECT * FROM orders WHERE restaurant_id=? AND status IN ({q}) ORDER BY created_at", (rid, *statuses))
-    for o in os_:
-        o["items"] = db.rows("SELECT id,name,qty,options_text,note FROM order_items WHERE order_id=? ORDER BY id", (o["id"],))
+    if os_:
+        its = db.rows(f"SELECT id,order_id,name,qty,options_text,note FROM order_items WHERE order_id IN ({','.join('?' * len(os_))}) ORDER BY id",
+                      tuple(o["id"] for o in os_))
+        for o in os_:
+            o["items"] = [{k: i[k] for k in ("id", "name", "qty", "options_text", "note")} for i in its if i["order_id"] == o["id"]]
     return os_
 
 
@@ -799,7 +820,7 @@ def order_status(oid: int, body: dict, s: Staff = Depends(staff_dep)):
     if st not in (*ORDER_FLOW, "cancelled"):
         raise HTTPException(400, "Estado inválido")
     reason = str(body.get("reason") or "").strip()[:120]
-    with db.tx() as c:  # leer, validar y escribir juntos: dos toques a la vez no se pisan
+    with db.tx(s.id) as c:  # leer, validar y escribir juntos: dos toques a la vez no se pisan
         o = c.execute("SELECT * FROM orders WHERE id=? AND restaurant_id=?", (oid, s.id)).fetchone()
         if not o:
             raise HTTPException(404)
@@ -851,8 +872,11 @@ def floor(s: Staff = Depends(staff_dep)):
             o["items"] = [{k: l[k] for k in ("name", "qty", "options_text", "note")} for l in lines if l["order_id"] == o["id"]]
     calls = db.rows("SELECT table_label,type FROM calls WHERE restaurant_id=? AND resolved_at IS NULL", (s.id,))
     act = db.rows("SELECT table_label, COUNT(*) n FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') GROUP BY table_label", (s.id,))
+    by_table: dict[str, list] = {}
+    for l in service.bill_lines(s.id):
+        by_table.setdefault(l["table_label"], []).append(l)
     for t in db.rows("SELECT label FROM tables_ WHERE restaurant_id=? ORDER BY CAST(label AS INTEGER), label", (s.id,)):
-        lines = service.bill_lines(s.id, t["label"])
+        lines = by_table.get(t["label"], [])
         unpaid = sum(l["line_total"] for l in lines if l["state"] != "paid")
         out.append({
             "label": t["label"], "unpaid": unpaid, "has_paid": any(l["state"] == "paid" for l in lines),
@@ -861,6 +885,13 @@ def floor(s: Staff = Depends(staff_dep)):
             "orders": [{"id": o["id"], "seq": o["seq"], "status": o["status"], "items": o["items"]} for o in orders if o["table_label"] == t["label"]],
         })
     return {"tables": out}
+
+
+@router.get("/kitchen")
+def kitchen_snapshot(s: Staff = Depends(staff_dep)):
+    """Todo lo que repinta Cocina y Sala en UNA petición (antes eran cuatro cada 5 s, cada una con su consulta de sesión)."""
+    return {"orders": _orders_payload(s.id), "calls": open_calls(s)["calls"], "tables": floor(s)["tables"],
+            "payments": payments_review(s)["payments"], "now": now()}
 
 
 @router.get("/floor/{label}")
@@ -872,7 +903,7 @@ def floor_table(label: str, s: Staff = Depends(staff_dep)):
 def void_table(label: str, body: dict, s: Staff = Depends(staff_dep)):
     """Cerrar una mesa sin cobrar (el cliente se fue sin pagar): cancela sus pedidos entregados y sin cobro, dejando el motivo."""
     reason = ("sin cobrar: " + (str(body.get("reason") or "").strip() or "cliente se fue")[:100])
-    with db.tx() as c:
+    with db.tx(s.id) as c:
         if c.execute("SELECT 1 FROM orders WHERE restaurant_id=? AND table_label=? AND status IN ('new','preparing','ready') LIMIT 1", (s.id, label)).fetchone():
             raise HTTPException(409, "La mesa tiene pedidos en curso: entrégalos o cancélalos primero")
         ids = [o["id"] for o in c.execute("SELECT id FROM orders WHERE restaurant_id=? AND table_label=? AND status='served'", (s.id, label)).fetchall()
@@ -894,7 +925,7 @@ def settle(label: str, body: dict, s: Staff = Depends(staff_dep)):
         raise HTTPException(400, "Propina inválida")
     if not 0 <= tip <= 100_000_000:
         raise HTTPException(400, "Propina inválida")
-    with db.tx() as c:
+    with db.tx(s.id) as c:
         # las líneas se leen DENTRO de la transacción (que serializa las escrituras): un segundo cobro simultáneo ya no encuentra nada por cobrar
         lines = [l for l in service.bill_lines(s.id, label) if l["state"] == "unpaid"]
         if not lines:

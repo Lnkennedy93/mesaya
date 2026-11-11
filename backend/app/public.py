@@ -127,7 +127,7 @@ def create_order(slug: str, body: OrderIn, request: Request):
     if takeaway and not body.diner_name.strip():
         raise HTTPException(400, "Escribe tu nombre para entregarte el pedido")
     lines = service.price_lines(r, [i.model_dump() for i in body.items])
-    with db.tx() as c:  # (la transacción serializa las escrituras: contar y luego insertar no se pisa)
+    with db.tx(r["id"]) as c:  # (la transacción serializa las escrituras: contar y luego insertar no se pisa)
         if takeaway and service.takeaway_status(r["id"])["full"]:
             raise HTTPException(409, f"Estamos al tope de pedidos para llevar ({config.TAKEAWAY_MAX}). Podrás pedir apenas se entregue uno.")
         off = timedelta(minutes=r["tz_offset"] or 0)  # el número de pedido se reinicia a la medianoche local, no a la UTC
@@ -275,7 +275,7 @@ def pay(slug: str, body: PayIn, request: Request):
             raise HTTPException(400, str(e))
     status = "paid" if body.provider == "mock" else "pending"
     reference = f"mesaya-{secrets.token_hex(5)}"
-    with db.tx() as c:
+    with db.tx(r["id"]) as c:
         for l in chosen:  # revalidar dentro de la transacción: evita doble pago concurrente
             row = c.execute("SELECT paid_payment_id FROM order_items WHERE id=?", (l["id"],)).fetchone()
             if row["paid_payment_id"]:

@@ -214,6 +214,18 @@ CREATE TABLE IF NOT EXISTS import_chunks (
   created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_import_chunks ON import_chunks(restaurant_id, upload_id, n);
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_table ON orders(restaurant_id, table_label);
+CREATE INDEX IF NOT EXISTS idx_items_resto ON items(restaurant_id, category_id);
+CREATE INDEX IF NOT EXISTS idx_items_cat ON items(category_id);
+CREATE INDEX IF NOT EXISTS idx_categories_resto ON categories(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_payments_resto ON payments(restaurant_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_calls_resto ON calls(restaurant_id, table_label);
+CREATE INDEX IF NOT EXISTS idx_feedback_resto ON feedback(restaurant_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_resto ON sessions(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_images_resto ON images(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_resto ON invoices(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_resets_resto ON password_resets(restaurant_id);
 """
 
 
@@ -412,15 +424,16 @@ def init_db():
 
 
 @contextmanager
-def tx():
+def tx(rid: int = 0):
     """Transacción con conexión propia (cada request es un hilo distinto).
-    Las escrituras se serializan (SQLite: BEGIN IMMEDIATE; PostgreSQL: un candado de transacción),
-    así las lecturas-y-luego-escrituras (número de pedido, pagos) no se pisan."""
+    Las escrituras se serializan (SQLite: BEGIN IMMEDIATE; PostgreSQL: un candado de transacción POR RESTAURANTE),
+    así las lecturas-y-luego-escrituras (número de pedido, pagos) no se pisan y un local que importa su carta
+    no frena los pedidos de los demás. rid=0: lo que no es de ningún restaurante (el registro)."""
     conn = connect()
     try:
         if IS_PG:
             conn.execute("BEGIN")
-            conn.execute("SELECT pg_advisory_xact_lock(727001)")
+            conn.execute("SELECT pg_advisory_xact_lock(727001, ?)", (int(rid),))
         else:
             conn.execute("BEGIN IMMEDIATE")
         yield conn
