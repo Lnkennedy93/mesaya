@@ -866,7 +866,7 @@ def resolve_call(cid: int, s: Staff = Depends(staff_dep)):
 def floor(s: Staff = Depends(staff_dep)):
     """Estado de cada mesa: cuenta pendiente, llamadas y sus pedidos en curso (nuevo, en preparación o listo) con el desglose de platos."""
     out = []
-    orders = db.rows("SELECT id, table_label, seq, status FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') ORDER BY created_at, id", (s.id,))
+    orders = db.rows("SELECT id, table_label, seq, status, diner_name FROM orders WHERE restaurant_id=? AND status IN ('new','preparing','ready') ORDER BY created_at, id", (s.id,))
     if orders:
         marks = ",".join("?" * len(orders))
         lines = db.rows(f"SELECT order_id, name, qty, options_text, note FROM order_items WHERE order_id IN ({marks}) ORDER BY id", tuple(o["id"] for o in orders))
@@ -885,6 +885,19 @@ def floor(s: Staff = Depends(staff_dep)):
             "active": next((a["n"] for a in act if a["table_label"] == t["label"]), 0),
             "calls": [c["type"] for c in calls if c["table_label"] == t["label"]],
             "orders": [{"id": o["id"], "seq": o["seq"], "status": o["status"], "items": o["items"]} for o in orders if o["table_label"] == t["label"]],
+        })
+    # Pedidos para llevar: «mesas» virtuales PL-xxxx, una por cliente; aparecen mientras tengan pedido en curso o cuenta por cobrar.
+    pl = sorted({o["table_label"] for o in orders if o["table_label"].startswith(service.TAKEAWAY_PREFIX)} | {k for k in by_table if k.startswith(service.TAKEAWAY_PREFIX)})
+    for label in pl:
+        lines = by_table.get(label, [])
+        unpaid = sum(l["line_total"] for l in lines if l["state"] != "paid")
+        mine = [o for o in orders if o["table_label"] == label]
+        if not (mine or unpaid):
+            continue
+        out.append({
+            "label": label, "takeaway": True, "name": next((x["diner_name"] for x in mine + lines if x.get("diner_name")), ""),
+            "unpaid": unpaid, "has_paid": any(l["state"] == "paid" for l in lines), "active": len(mine), "calls": [],
+            "orders": [{"id": o["id"], "seq": o["seq"], "status": o["status"], "items": o["items"]} for o in mine],
         })
     return {"tables": out}
 

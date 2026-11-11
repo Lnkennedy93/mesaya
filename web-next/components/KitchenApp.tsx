@@ -172,7 +172,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
           {floor.map((t) => (
             <div className="cell" key={t.label}>
               <div className={"tb " + (t.calls.length ? "call" : t.orders.some((o: Any) => o.status === "ready") ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} onClick={() => setTableOpen(t.label)}>
-                <span className="muted small">Mesa</span><b>{t.label}</b>
+                <span className="muted small">{t.takeaway ? "🥡 Para llevar" : "Mesa"}</span><b>{t.takeaway ? (t.name || "Cliente") : t.label}</b>
                 {t.unpaid ? <div>{money(t.unpaid)}</div> : <div className="muted small">libre</div>}
                 <div className="small">{t.active ? `🍳 ${t.active} en cocina` : ""}{t.calls.length ? " 🔔" : ""}</div>
               </div>
@@ -273,7 +273,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
   const total = L.filter((l) => l.state === "unpaid").reduce((s, l) => s + l.line_total, 0);
 
   async function settle(method: string) {
-    if (busy || !confirm(`¿Cerrar la mesa ${label} con un cobro de ${money(total)}?`)) return;
+    if (busy || !confirm(`¿Cerrar ${label!.startsWith("PL-") ? "este pedido para llevar" : `la mesa ${label}`} con un cobro de ${money(total)}?`)) return;
     setBusy(true);
     try {
       const invoice = inv.doc_number && inv.name ? inv : null;
@@ -297,7 +297,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
       <div className="dlg">
         {label !== null && lines && (
           <>
-            <div className="row spread"><h2 style={{ margin: 0 }}>Mesa {label}</h2><button style={{ color: "#fff", background: "none", border: 0, fontSize: "1.6rem" }} onClick={onClose}>×</button></div>
+            <div className="row spread"><h2 style={{ margin: 0 }}>{label.startsWith("PL-") ? "🥡 Para llevar" : `Mesa ${label}`}</h2><button style={{ color: "#fff", background: "none", border: 0, fontSize: "1.6rem" }} onClick={onClose}>×</button></div>
             {L.map((l) => (
               <div className="line" key={l.id}>
                 <div className="grow">{l.qty}× {l.name} <span className="muted small">{l.diner_name || ""}</span></div>

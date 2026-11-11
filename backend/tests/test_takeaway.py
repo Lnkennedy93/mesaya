@@ -115,7 +115,14 @@ with TestClient(app) as o, TestClient(app) as cust, TestClient(app) as kit:
     t = o.get("/api/tables").json()["tables"][0]
     check(cust.post(f"{base}/orders", json={"table": t["label"], "key": t["secret"], "diner_id": "m1", "items": [{"item_id": item, "qty": 1}]}).status_code == 200,
           "los pedidos de mesa no cuentan para el tope de para llevar")
-    check(all(x["orders"] == [] for x in kit.get("/api/floor").json()["tables"] if x["label"] != t["label"]), "la sala no muestra pedidos para llevar como mesas")
+    sala = kit.get("/api/floor").json()["tables"]
+    check(all(x["orders"] == [] for x in sala if x["label"] != t["label"] and not x.get("takeaway")), "las mesas reales no cargan pedidos para llevar")
+    pl = [x for x in sala if x.get("takeaway")]
+    check(pl and all(x["label"].startswith("PL-") and x["name"] and (x["orders"] or x["unpaid"]) for x in pl), "la sala lista los pedidos para llevar aparte, con el nombre del cliente")
+    check(any(x["label"] == extra["table"] and x["name"] == "Once" and x["unpaid"] > 0 and x["active"] == 1 for x in pl), "el pedido en cocina aparece con su cuenta por cobrar")
+    check(kit.post(f"/api/floor/{extra['table']}/settle", json={"method": "cash"}).status_code == 200 and not any(x["label"] == extra["table"] and x["unpaid"] for x in kit.get("/api/floor").json()["tables"])  # (sigue en cocina hasta entregarlo, pero ya sin cuenta)
+          and not any(x["label"] == s1["table"] for x in kit.get("/api/floor").json()["tables"]),
+          "cobrarlo en caja lo quita de la sala")
     rep = o.get("/api/analytics").json()
     check(sum(1 for x in rep["top_tables"] if x["table"].startswith("PL-")) == 0 and any(x["table"] == "Para llevar" for x in rep["top_tables"]),
           "el reporte junta lo de para llevar en un solo renglón")
