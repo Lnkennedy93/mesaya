@@ -177,8 +177,8 @@ def update_settings(body: dict, s: Staff = Depends(owner_dep)):
                 raise HTTPException(400, "El PIN debe tener 4 a 8 dígitos")
             if k == "tax_pct" and not 0 <= v <= 100:  # (también descarta NaN)
                 raise HTTPException(400, "El impuesto debe estar entre 0 y 100")
-            if k == "tip_pct" and not 0 <= v <= 50:
-                raise HTTPException(400, "La propina sugerida debe estar entre 0 y 50")
+            if k == "tip_pct" and not 0 <= v <= 10:  # Ley 1935 de 2018: la propina sugerida es del 10 %, no más
+                raise HTTPException(400, "La propina sugerida debe estar entre 0 y 10 % (Ley 1935 de 2018)")
             if k == "tz_offset" and not -720 <= v <= 840:
                 raise HTTPException(400, "Zona horaria inválida")
             if k == "name" and not v.strip():

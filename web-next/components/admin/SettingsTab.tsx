@@ -60,7 +60,7 @@ export default function SettingsTab() {
           <div><label>Eslogan</label><input value={f.tagline} onChange={set("tagline")} /></div>
           <div><label>Color de marca</label><input type="color" value={f.color} onChange={set("color")} style={{ height: 44, padding: ".2em" }} /></div>
           <div><label>Logo</label><input type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /></div>
-          <div><label>Propina sugerida (%)</label><input type="number" min={0} max={30} value={f.tip} onChange={set("tip")} /></div>
+          <div><label>Propina sugerida (%)</label><input type="number" min={0} max={10} value={f.tip} onChange={set("tip")} /></div>
           <div><label>Moneda</label><select value={f.cur} onChange={set("cur")}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
           <div><label>Zona horaria (minutos vs UTC)</label><input type="number" value={f.tz} onChange={set("tz")} /></div>
           <div><label>Link reseñas de Google</label><input value={f.google} onChange={set("google")} placeholder="https://g.page/r/..." /></div>

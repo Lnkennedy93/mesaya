@@ -274,7 +274,7 @@ async function settings(m) {
   <div class="grid2"><div><label>Nombre</label><input id="s_name" value="${esc(r.name)}"></div><div><label>Eslogan</label><input id="s_tag" value="${esc(r.tagline)}"></div>
   <div><label>Color de marca</label><input id="s_col" type="color" value="${r.brand_color}" style="height:44px;padding:.2em"></div>
   <div><label>Logo</label><input type="file" id="s_logo" accept="image/*"></div>
-  <div><label>Propina sugerida (%)</label><input id="s_tip" type="number" min="0" max="30" value="${r.tip_pct}"></div>
+  <div><label>Propina sugerida (%)</label><input id="s_tip" type="number" min="0" max="10" value="${r.tip_pct}"></div>
   
   <div><label>Moneda</label><select id="s_cur">${['COP', 'USD', 'MXN', 'PEN', 'CLP', 'ARS', 'EUR', 'GTQ', 'DOP'].map(c => `<option ${c === r.currency ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
   <div><label>Zona horaria (minutos vs UTC)</label><input id="s_tz" type="number" value="${r.tz_offset}"></div>

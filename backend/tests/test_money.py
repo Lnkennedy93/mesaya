@@ -64,7 +64,7 @@ with TestClient(app) as o, TestClient(app) as cust, TestClient(app) as k1, TestC
     check(cust.post(f"{base}/quote", json={"subtotal": 1000, "tip_pct": "nan"}).status_code == 400, "cotizar con NaN da 400")
     check(cust.post(f"{base}/quote", json={"subtotal": 10000, "tip_pct": 10}).json()["total"] > 10000, "cotizar normal sigue funcionando")
     check(o.put("/api/settings", json={"tax_pct": -100}).status_code == 400, "impuesto -100 se rechaza (dividía por cero)")
-    check(o.put("/api/settings", json={"tax_pct": 101}).status_code == 400 and o.put("/api/settings", json={"tip_pct": 90}).status_code == 400, "impuesto y propina fuera de rango")
+    check(o.put("/api/settings", json={"tax_pct": 101}).status_code == 400 and o.put("/api/settings", json={"tip_pct": 11}).status_code == 400 and o.put("/api/settings", json={"tip_pct": 10}).status_code == 200, "impuesto fuera de rango y propina sugerida máx. 10 % (Ley 1935)")
     check(o.put("/api/settings", json={"tz_offset": 9999}).status_code == 400 and o.put("/api/settings", json={"name": "  "}).status_code == 400, "zona horaria inválida y nombre vacío")
     check(o.put("/api/settings", json={"tax_pct": 8, "accepting_orders": 7}).status_code == 200 and o.get("/api/me").json()["restaurant"]["accepting_orders"] == 1, "un interruptor se guarda como 0/1")
     o.put("/api/settings", json={"tax_pct": 0})
