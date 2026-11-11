@@ -1,7 +1,7 @@
 import AuthForm from "@/components/AuthForm";
 import "../login/auth.css";
 
-export const metadata = { title: "Nueva contraseña · MesaYa", description: undefined };
+export const metadata = { title: "Nueva contraseña · MesaYa", description: undefined, robots: { index: false, follow: false } };
 
 // /reset?token=...  (sin token se muestra "recuperar contraseña", igual que la versión actual)
 export default async function ResetPage({ searchParams }: { searchParams: Promise<{ token?: string | string[] }> }) {

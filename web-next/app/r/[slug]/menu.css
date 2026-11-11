@@ -17,9 +17,9 @@
 .menu-root .item .price{font-weight:800;margin-top:.35rem}
 .menu-root .item.off{opacity:.55}
 .menu-root .item .add{position:absolute;right:.7rem;bottom:.6rem;width:34px;height:34px;border-radius:50%;border:0;background:var(--brand);color:var(--brand-ink);font-size:1.3rem;font-weight:700;line-height:1}
-.menu-root .tag{font-size:.68rem;font-weight:700;padding:.1em .5em;border-radius:6px;background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok);margin-right:.25rem}
-.menu-root .tag.hot{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
-.menu-root .tag.star{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.menu-root .tag{font-size:.68rem;font-weight:700;padding:.1em .5em;border-radius:6px;background:color-mix(in srgb,var(--ok) 15%,transparent);color:color-mix(in srgb,var(--ok) 55%,var(--ink));margin-right:.25rem}
+.menu-root .tag.hot{background:color-mix(in srgb,var(--bad) 14%,transparent);color:color-mix(in srgb,var(--bad) 65%,var(--ink))}
+.menu-root .tag.star{background:color-mix(in srgb,var(--warn) 18%,transparent);color:color-mix(in srgb,var(--warn) 40%,var(--ink))}
 .menu-root .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom));display:flex;gap:.6rem;background:linear-gradient(transparent,var(--bg) 35%)}
 .menu-root .bar .btn{flex:1;padding:.9em}
 .menu-root .notice{margin:.6rem 1rem;padding:.8rem 1rem;border-radius:12px;background:color-mix(in srgb,var(--warn) 15%,var(--card));font-size:.9rem}
@@ -39,10 +39,17 @@
 .menu-root .steps i.on{background:var(--ok)}
 .menu-root .tips{display:flex;gap:.4rem}
 .menu-root .tips button{flex:1;padding:.55em 0;border:1.5px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;cursor:pointer}
-.menu-root .tips button.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
+.menu-root .tips button.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);color:color-mix(in srgb,var(--brand) 65%,var(--ink))}
 .menu-root .stars{display:flex;gap:.3rem;justify-content:center;font-size:2.2rem}
 .menu-root .stars button{border:0;background:none;cursor:pointer;color:#8f8576;font-size:inherit;padding:0}
-.menu-root .stars button.on{color:#f5a623}
+.menu-root .stars button.on{color:#b86e00}
+.menu-root .namebtn{all:unset;cursor:pointer;color:inherit;font:inherit;text-align:left}
+.menu-root .namebtn:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+.menu-root .sk{background:linear-gradient(90deg,var(--line),color-mix(in srgb,var(--line) 40%,var(--card)),var(--line));background-size:200% 100%;animation:sk 1.2s linear infinite;border-radius:14px}
+.menu-root .sk-head{height:52px;margin:1rem}
+.menu-root .sk-card{height:104px;margin:.7rem 1rem}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.menu-root .sk{animation:none}}
 .menu-root .big{font-size:1.5rem;font-weight:800}
 .menu-root .langs{display:flex;gap:.3rem;margin-left:.4rem}
 .menu-root .langs button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:.2em .5em;font-size:.75rem;font-weight:700;cursor:pointer}

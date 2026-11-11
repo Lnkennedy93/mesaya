@@ -1,7 +1,7 @@
 import KitchenApp from "@/components/KitchenApp";
 import "./kitchen.css";
 
-export const metadata = { title: "Cocina y sala", description: undefined };
+export const metadata = { title: "Cocina y sala", description: undefined, robots: { index: false, follow: false } };
 
 // /kitchen?r=<código del restaurante>  (el equipo entra con el PIN; el dueño ya trae sesión)
 export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ r?: string | string[] }> }) {

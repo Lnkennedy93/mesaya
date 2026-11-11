@@ -1,7 +1,7 @@
 import AdminApp from "@/components/admin/AdminApp";
 import "./admin.css";
 
-export const metadata = { title: "Panel · MesaYa", description: undefined };
+export const metadata = { title: "Panel · MesaYa", description: undefined, robots: { index: false, follow: false } };
 
 // /admin  (?welcome=1 al terminar el registro: abre directamente la Carta)
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ welcome?: string | string[] }> }) {

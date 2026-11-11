@@ -2,7 +2,7 @@ import MenuApp from "@/components/MenuApp";
 import TakeawayEntry from "@/components/TakeawayEntry";
 import "./menu.css";
 
-export const metadata = { title: "Carta", description: undefined };
+export const metadata = { title: "Carta", description: undefined, robots: { index: false, follow: false } };
 
 // /r/<slug>?t=<mesa>&k=<clave>  (el QR de cada mesa apunta aquí; mismo formato que la versión actual)
 export default async function MenuPage({

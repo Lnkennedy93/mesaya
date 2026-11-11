@@ -1,7 +1,7 @@
 "use client";
 // Cocina y sala (portada de web/kitchen.html). Mismos endpoints /api/... y el mismo canal en vivo /api/stream.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, beep, poll, makeMoney, secsSince, setBrand } from "@/lib/api";
+import { api, ApiError, beep, keepAwake, poll, makeMoney, secsSince, setBrand, unlockAudio } from "@/lib/api";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
 
@@ -11,7 +11,8 @@ type Tab = "kitchen" | "floor" | "stock";
 const NEXT: Record<string, [string, string]> = { new: ["preparing", "Preparar"], preparing: ["ready", "Listo"], ready: ["served", "Entregado"] };
 
 export default function KitchenApp({ slugHint }: { slugHint: string }) {
-  const [phase, setPhase] = useState<"boot" | "login" | "ready">("boot");
+  const [phase, setPhase] = useState<"boot" | "login" | "ready" | "error">("boot");
+  const [offline, setOffline] = useState<number | null>(null); // desde cuándo no hay respuesta del servidor (null: todo bien)
   const [ME, setME] = useState<Any>(null);
   const [orders, setOrders] = useState<Any[]>([]);
   const [calls, setCalls] = useState<Any[]>([]);
@@ -33,7 +34,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
   const refresh = useCallback(async () => {
     const L = live.current;
     // una sola petición repinta todo; la carta pesa y casi nunca cambia: solo se pide al abrir, en «Agotados» o tras tocar algo
-    const needMenu = L.first || L.menu || tabRef.current === "stock";
+    const needMenu = L.first || L.menu; // (al abrir «Agotados» se marca L.menu una vez; no se pide la carta completa cada 5 s)
     L.menu = false;
     const [k, m] = await Promise.all([api("/api/kitchen"), needMenu ? api("/api/menu") : null]);
     const [o, c, f, rv] = [{ orders: k.orders }, { calls: k.calls }, { tables: k.tables }, { payments: k.payments }];
@@ -62,29 +63,49 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
   useEffect(() => {
     let stop: (() => void) | undefined;
     let timer: ReturnType<typeof setInterval> | undefined;
+    let release: (() => void) | undefined;
     let dead = false;
+    window.addEventListener("pointerdown", unlockAudio, { once: true });
     (async () => {
       let me: Any;
       try {
         me = await api("/api/me");
-      } catch {
-        if (!dead) setPhase("login");
+      } catch (e: Any) {
+        // sin conexión o servidor caído: pantalla con «Reintentar», no una pantalla en blanco; solo un 401/403 pide el PIN
+        if (!dead) setPhase(e instanceof ApiError && e.status !== 0 && e.status < 500 ? "login" : "error");
         return;
       }
       if (dead) return;
       setME(me);
       setBrand(me.restaurant.brand_color);
-      await refreshRef.current();
+      try { await refreshRef.current(); } catch { if (!dead) setPhase("error"); return; }
       if (dead) return;
       setPhase("ready");
-      const go = () => { refreshRef.current().catch(() => {}); };
+      release = keepAwake();
+      let fails = 0;
+      const go = () => {
+        refreshRef.current().then(() => { fails = 0; setOffline(null); }).catch((e: Any) => {
+          if (e instanceof ApiError && e.status === 401) { stop?.(); setPhase("login"); return; } // la sesión venció en pleno servicio
+          fails++;
+          if (fails === 2) { setOffline(Date.now()); if (live.current.sound) beep(); } // dos fallos seguidos: avisa, nadie debe creer que no hay pedidos
+        });
+      };
       stop = poll(go, 5000);
       timer = setInterval(() => setTick((t) => t + 1), 15000); // actualiza los minutos de cada ticket
     })();
-    return () => { dead = true; stop?.(); if (timer) clearInterval(timer); };
+    return () => { dead = true; stop?.(); release?.(); window.removeEventListener("pointerdown", unlockAudio); if (timer) clearInterval(timer); };
   }, []);
 
   if (phase === "boot") return <div className="kitchen-root" />;
+  if (phase === "error") return (
+    <div className="kitchen-root">
+      <div className="card login" role="alert">
+        <h2>Sin conexión</h2>
+        <p className="muted">No pudimos cargar la cocina. Revisa el internet del local y vuelve a intentarlo.</p>
+        <button className="btn block" onClick={() => location.reload()}>Reintentar</button>
+      </div>
+    </div>
+  );
   if (phase === "login") return <StaffLogin slugHint={slugHint} toast={toast} toastNode={toastNode} />;
 
   const money = makeMoney(ME.restaurant.decimals, ME.restaurant.currency);
@@ -99,12 +120,13 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
 
   return (
     <div className="kitchen-root">
+      {offline && <div className="offline-bar" role="alert">⚠ Sin conexión desde las {new Date(offline).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} — puede que no estén llegando pedidos nuevos. Reintentando…</div>}
       <header>
         <h1>{ME.restaurant.name}</h1>
-        <div className="tabs">
-          <button className={tab === "kitchen" ? "on" : ""} onClick={() => setTab("kitchen")}>Cocina{nNew ? ` · ${nNew}` : ""}</button>
-          <button className={tab === "floor" ? "on" : ""} onClick={() => setTab("floor")}>Sala{calls.length + nReady ? ` · ${calls.length + nReady}` : ""}</button>
-          <button className={tab === "stock" ? "on" : ""} onClick={() => setTab("stock")}>Agotados</button>
+        <div className="tabs" role="tablist">
+          <button role="tab" aria-selected={tab === "kitchen"} className={tab === "kitchen" ? "on" : ""} onClick={() => setTab("kitchen")}>Cocina{nNew ? ` · ${nNew}` : ""}</button>
+          <button role="tab" aria-selected={tab === "floor"} className={tab === "floor" ? "on" : ""} onClick={() => setTab("floor")}>Sala{calls.length + nReady ? ` · ${calls.length + nReady}` : ""}</button>
+          <button role="tab" aria-selected={tab === "stock"} className={tab === "stock" ? "on" : ""} onClick={() => { live.current.menu = true; setTab("stock"); safeRefresh(); }}>Agotados</button>
         </div>
         <span className="grow"></span>
         <button className="btn sm ghost" onClick={() => { const n = !sound; setSound(n); if (n) beep(); }}>{sound ? "🔔 Sonido" : "🔕 Silencio"}</button>
@@ -178,7 +200,8 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
         <div className="floor">
           {floor.map((t) => (
             <div className="cell" key={t.label}>
-              <div className={"tb " + (t.calls.length ? "call" : t.orders.some((o: Any) => o.status === "ready") ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} onClick={() => setTableOpen(t.label)}>
+              <div className={"tb " + (t.calls.length ? "call" : t.orders.some((o: Any) => o.status === "ready") ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} role="button" tabIndex={0}
+                onClick={() => setTableOpen(t.label)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTableOpen(t.label); } }}>
                 <span className="muted small">{t.takeaway ? "🥡 Para llevar" : "Mesa"}</span><b>{t.takeaway ? (t.name || "Cliente") : t.label}</b>
                 {t.unpaid ? <div>{money(t.unpaid)}</div> : <div className="muted small">libre</div>}
                 <div className="small">{t.active ? `🍳 ${t.active} en cocina` : ""}{t.calls.length ? " 🔔" : ""}</div>

@@ -109,11 +109,17 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, TABLE, KEY]);
 
+  const tickN = useRef(0);
   const reqId = useRef(""); // id del intento de envío en curso: si se pierde la respuesta, el reintento lo reutiliza y no duplica el pedido
   const saveCart = (c: CartLine[]) => { reqId.current = ""; setCart(c); ls("mesaya_cart_" + slug, JSON.stringify(c)); };
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
   async function onLive() {
+    if (!navigator.onLine) return;
+    const b = billRef.current;
+    // sin pedidos en curso ni llamadas, basta mirar cada 20 s (antes cada 5 s aunque no pasara nada: datos y batería del comensal)
+    const idle = !(b.lines || []).some((l: Any) => l.order_status !== "served" && l.order_status !== "cancelled") && !(b.calls || []).length;
+    if (idle && ++tickN.current % 4) return;
     const before = new Map<number, string>((billRef.current.lines || []).map((l: Any) => [l.order_id, l.order_status]));
     let fresh: Any;
     try { fresh = await api(`/api/public/${slug}/bill?table=${q(TABLE)}&k=${q(KEY)}`); } catch { return; }
@@ -224,8 +230,15 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     } catch (e: Any) { toast(e.message, true); }
   }
 
-  if (error) return <div className="menu-root"><div className="notice">{error}</div></div>;
-  if (!M) return <div className="menu-root" />;
+  if (error) return (
+    <div className="menu-root"><div className="notice" role="alert">{error}<div style={{ marginTop: ".8rem" }}><button className="btn" onClick={() => location.reload()}>{(I18N[lang] || I18N.es).retry}</button></div></div></div>
+  );
+  if (!M) return ( // esqueleto: con red lenta se ve que la carta viene en camino, no una pantalla en blanco
+    <div className="menu-root" aria-busy="true" aria-label="…">
+      <div className="sk sk-head" />
+      {[0, 1, 2, 3, 4].map((n) => <div className="sk sk-card" key={n} />)}
+    </div>
+  );
 
   const R = M.restaurant;
   const full = TAKEAWAY && !!bill.takeaway?.full; // ya hay 10 pedidos en curso: se puede mirar la carta pero no pedir
@@ -265,11 +278,10 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
           <section className="cat" key={c.id}>
             <h2>{c.name}</h2>
             {c.items.map((i: Any) => (
-              <article key={i.id} className={"card item " + (i.available ? "" : "off")} role="button" tabIndex={0} onClick={() => setDlg({ t: "item", id: i.id })}
-                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setDlg({ t: "item", id: i.id }); } }}>
+              <article key={i.id} className={"card item " + (i.available ? "" : "off")} onClick={() => setDlg({ t: "item", id: i.id })}>
                 <div className="thumb">{i.image ? <img loading="lazy" src={i.image} alt="" /> : initial(i.name)}</div>
                 <div className="grow">
-                  <h3>{i.featured && <span className="tag star">★</span>}{i.name}</h3>
+                  <h3>{i.featured && <span className="tag star" aria-hidden="true">★</span>}<button type="button" className="namebtn" onClick={(e) => { e.stopPropagation(); setDlg({ t: "item", id: i.id }); }}>{i.name}</button></h3>
                   <p>{i.description}</p>
                   <div>{i.tags.map((t: string) => <span key={t} className={"tag " + (t === "picante" ? "hot" : "")}>{t}</span>)}</div>
                   <div className="price">{i.available ? money(i.price) : <span className="pill bad">{T("soldout")}</span>}</div>
@@ -298,7 +310,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}>
       <h3>{T("rate")}</h3>
       <div className="stars">
-        {[1, 2, 3, 4, 5].map((n) => <button key={n} className={rating >= n ? "on" : ""} aria-label={`${n} / 5`} aria-pressed={rating >= n} onClick={() => setRating(n)}>★</button>)}
+        {[1, 2, 3, 4, 5].map((n) => <button key={n} className={rating >= n ? "on" : ""} aria-label={`${n} / 5`} aria-pressed={rating >= n} onClick={() => setRating(n)}>{rating >= n ? "★" : "☆"}</button>)}
       </div>
       <input aria-label={T("comment")} placeholder={T("comment")} maxLength={400} style={{ margin: ".6rem 0" }} value={comment} onChange={(e) => setComment(e.target.value)} />
       <button className="btn block" disabled={!rating} onClick={sendFeedback}>{T("sendRate")}</button>
@@ -430,7 +442,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
             return (
               <div className={"line " + (l.state === "paid" ? "paid" : "")} key={l.id}>
                 {can && M.features.payments ? (
-                  <input type="checkbox" checked={sel.has(l.id)} onChange={(e) => setSel((p) => { const n = new Set(p); e.target.checked ? n.add(l.id) : n.delete(l.id); return n; })} />
+                  <input type="checkbox" aria-label={`${l.qty}× ${l.name}`} checked={sel.has(l.id)} onChange={(e) => setSel((p) => { const n = new Set(p); e.target.checked ? n.add(l.id) : n.delete(l.id); return n; })} />
                 ) : <span style={{ width: 22 }} />}
                 <div className="grow">
                   <b>{l.qty}× {l.name}</b>{" "}
@@ -459,7 +471,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
             <button className="btn sm soft" onClick={() => setSel(new Set(unpaid.map((l) => l.id)))}>{T("everything")}</button>
           </div>
           <label style={{ marginTop: 0 }}>{T("tip")}</label>
-          <div className="tips">{[0, 5, 10, 15].map((p) => <button key={p} className={tipPct === p ? "on" : ""} onClick={() => setTipPct(p)}>{p}%</button>)}</div>
+          <div className="tips" role="group" aria-label={T("tip")}>{[0, 5, 10, 15].map((p) => <button key={p} className={tipPct === p ? "on" : ""} aria-pressed={tipPct === p} onClick={() => setTipPct(p)}>{p}%</button>)}</div>
           <div className="row spread" style={{ marginTop: ".8rem" }}><span className="muted">{T("subtotal")}</span><b>{money(subtotal)}</b></div>
           {taxRow(subtotal)}
           <div className="row spread"><span className="muted">{T("tip")}</span><b>{money(tip)}</b></div>
@@ -515,7 +527,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
         </div>
       )}
 
-      <Modal open={!!dlg} onClose={() => { if (dlg?.t === "nequi" || dlg?.t === "breb") { if (pollTimer.current) clearInterval(pollTimer.current); } setDlg(null); refreshBill(); }}>
+      <Modal open={!!dlg} label={dlg?.t === "item" ? findItem(dlg.id)?.name : dlg?.t === "cart" ? T("viewOrder") : T("myBill")} onClose={() => { if (dlg?.t === "nequi" || dlg?.t === "breb") { if (pollTimer.current) clearInterval(pollTimer.current); } const was = dlg?.t; setDlg(null); if (was !== "item" && was !== "cart") refreshBill(); }}>
         {dlg?.t === "item" && (
           <ItemDialog it={findItem(dlg.id)} money={money} T={T} canOrder={canOrder} onClose={() => setDlg(null)} toast={toast}
             onAdd={(line) => { saveCart([...cart, line]); setDlg(null); }} />
@@ -574,7 +586,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
 }
 
 // ------------------------------------------------------------------ piezas
-function Modal({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+function Modal({ open, onClose, label, children }: { open: boolean; onClose: () => void; label?: string; children: React.ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -583,7 +595,7 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onClose}>
+    <dialog ref={ref} onClose={onClose} aria-label={label}>
       <div className="dlg">{open ? children : null}</div>
     </dialog>
   );
