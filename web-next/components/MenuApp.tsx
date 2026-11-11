@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, poll, ls, makeMoney, setBrand } from "@/lib/api";
 import { I18N } from "@/lib/i18n";
 import Powered from "@/components/Powered";
+import { ToastView } from "@/components/useToast";
 
 type Any = any;
 type CartLine = { item_id: number; name: string; qty: number; unit: number; options: { group: string; name: string }[]; note: string };
@@ -17,6 +18,7 @@ type Dlg =
 
 const STATUS_IDX: Record<string, number> = { new: 0, preparing: 1, ready: 2, served: 3 };
 const initial = (n: string) => n.trim().charAt(0).toUpperCase();
+const newReqId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
 
 export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView, justPaid }: { slug: string; table: string; tableKey: string; initialView: "menu" | "bill"; justPaid: boolean }) {
   const TAKEAWAY = TABLE.startsWith("PL-"); // pedido para llevar: una «mesa» virtual por cliente, sin mesero ni cuenta de mesa
@@ -96,7 +98,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       if (meta) meta.setAttribute("content", data.restaurant.brand_color);
       if (data.table_ok) {
         await refreshBill();
-        stop = poll(onLive, 5000);
+        stop = poll(() => onLiveRef.current(), 5000);
       }
       if (justPaid) {
         history.replaceState(null, "", location.pathname + `?t=${TABLE}&k=${KEY}`);
@@ -107,7 +109,9 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, TABLE, KEY]);
 
-  const saveCart = (c: CartLine[]) => { setCart(c); ls("mesaya_cart_" + slug, JSON.stringify(c)); };
+  const reqId = useRef(""); // id del intento de envío en curso: si se pierde la respuesta, el reintento lo reutiliza y no duplica el pedido
+  const saveCart = (c: CartLine[]) => { reqId.current = ""; setCart(c); ls("mesaya_cart_" + slug, JSON.stringify(c)); };
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
   async function onLive() {
     const before = new Map<number, string>((billRef.current.lines || []).map((l: Any) => [l.order_id, l.order_status]));
@@ -120,6 +124,9 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
     }
   }
+
+  const onLiveRef = useRef(onLive);
+  onLiveRef.current = onLive; // el sondeo usa siempre la versión actual: así el aviso sale en el idioma elegido
 
   // al abrir la cuenta por primera vez, marca lo mío para pagar
   const unpaid: Any[] = bill.lines.filter((l: Any) => l.state === "unpaid");
@@ -246,10 +253,10 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
   const menuView = (
     <>
       <div className="tools">
-        <input id="q" type="search" placeholder={T("search")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input id="q" type="search" aria-label={T("search")} placeholder={T("search")} value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="chips">
           {[{ id: null, name: T("all") }, ...cats].map((c) => (
-            <button key={String(c.id)} className={"chip " + (activeCat === c.id ? "on" : "")} onClick={() => setActiveCat(c.id)}>{c.name}</button>
+            <button key={String(c.id)} className={"chip " + (activeCat === c.id ? "on" : "")} aria-pressed={activeCat === c.id} onClick={() => setActiveCat(c.id)}>{c.name}</button>
           ))}
         </div>
       </div>
@@ -258,7 +265,8 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
           <section className="cat" key={c.id}>
             <h2>{c.name}</h2>
             {c.items.map((i: Any) => (
-              <article key={i.id} className={"card item " + (i.available ? "" : "off")} onClick={() => setDlg({ t: "item", id: i.id })}>
+              <article key={i.id} className={"card item " + (i.available ? "" : "off")} role="button" tabIndex={0} onClick={() => setDlg({ t: "item", id: i.id })}
+                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setDlg({ t: "item", id: i.id }); } }}>
                 <div className="thumb">{i.image ? <img loading="lazy" src={i.image} alt="" /> : initial(i.name)}</div>
                 <div className="grow">
                   <h3>{i.featured && <span className="tag star">★</span>}{i.name}</h3>
@@ -266,7 +274,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
                   <div>{i.tags.map((t: string) => <span key={t} className={"tag " + (t === "picante" ? "hot" : "")}>{t}</span>)}</div>
                   <div className="price">{i.available ? money(i.price) : <span className="pill bad">{T("soldout")}</span>}</div>
                 </div>
-                {i.available && M.can_order && <button className="add" aria-label={T("add")}>+</button>}
+                {i.available && M.can_order && <button className="add" aria-label={`${T("add")} ${i.name}`}>+</button>}
               </article>
             ))}
           </section>
@@ -290,9 +298,9 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}>
       <h3>{T("rate")}</h3>
       <div className="stars">
-        {[1, 2, 3, 4, 5].map((n) => <button key={n} className={rating >= n ? "on" : ""} onClick={() => setRating(n)}>★</button>)}
+        {[1, 2, 3, 4, 5].map((n) => <button key={n} className={rating >= n ? "on" : ""} aria-label={`${n} / 5`} aria-pressed={rating >= n} onClick={() => setRating(n)}>★</button>)}
       </div>
-      <input placeholder={T("comment")} maxLength={400} style={{ margin: ".6rem 0" }} value={comment} onChange={(e) => setComment(e.target.value)} />
+      <input aria-label={T("comment")} placeholder={T("comment")} maxLength={400} style={{ margin: ".6rem 0" }} value={comment} onChange={(e) => setComment(e.target.value)} />
       <button className="btn block" disabled={!rating} onClick={sendFeedback}>{T("sendRate")}</button>
     </div>
   );
@@ -483,7 +491,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
         {M.table_ok && <div className="tablebadge">{TAKEAWAY ? "🥡 " + T("takeaway") : `${T("table")} ${M.table}`}</div>}
         <div className="langs">
           {["es", "en"].map((l) => (
-            <button key={l} onClick={() => changeLang(l)} style={l === lang ? { background: "var(--ink)", color: "var(--bg)" } : undefined}>{l.toUpperCase()}</button>
+            <button key={l} lang={l} aria-label={l === "es" ? "Español" : "English"} aria-pressed={l === lang} onClick={() => changeLang(l)} style={l === lang ? { background: "var(--ink)", color: "var(--bg)" } : undefined}>{l.toUpperCase()}</button>
           ))}
         </div>
       </div>
@@ -518,10 +526,10 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
             onSend={async (name, note) => {
               setDinerName(name); ls("mesaya_name", name);
               try {
-                await api(`/api/public/${slug}/orders`, { method: "POST", body: { table: TABLE, key: KEY, diner_id: dinerId.current, diner_name: name, note, items: cart.map((l) => ({ item_id: l.item_id, qty: l.qty, options: l.options, note: l.note })) } });
+                await api(`/api/public/${slug}/orders`, { method: "POST", body: { table: TABLE, key: KEY, diner_id: dinerId.current, diner_name: name, note, request_id: reqId.current || (reqId.current = newReqId()), items: cart.map((l) => ({ item_id: l.item_id, qty: l.qty, options: l.options, note: l.note })) } });
                 saveCart([]); setDlg(null); await refreshBill(); setView("bill"); toast("✅ " + (TAKEAWAY ? T("takeawaySent") : T("sent") + " " + T("sentSub")));
                 return true;
-              } catch (e: Any) { toast(e.message, true); return false; }
+              } catch (e: Any) { toast(e.status === 0 ? T("sendRetry") : e.message, true); return false; }
             }} />
         )}
         {dlg?.t === "nequi" && (dlg.phase === "wait" ? (
@@ -559,7 +567,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
         {dlg?.t === "thanks" && <ThanksDialog T={T} invoicing={!!R.invoicing} paymentId={dlg.paymentId} first={dlg.invoice} statusUrl={statusUrl} onClose={closePay} />}
       </Modal>
 
-      <div id="toast" className={"toast" + (toastMsg ? " show" : "") + (toastMsg?.err ? " err" : "")}>{toastMsg?.text}</div>
+      <ToastView msg={toastMsg} />
       <Powered />
     </div>
   );
@@ -605,7 +613,7 @@ function ItemDialog({ it, money, T, canOrder, onClose, onAdd, toast }: { it: Any
 
   return (
     <>
-      <div className="sheet-h"><h2 style={{ margin: 0 }}>{it.name}</h2><button className="x" onClick={onClose}>×</button></div>
+      <div className="sheet-h"><h2 style={{ margin: 0 }}>{it.name}</h2><button className="x" aria-label={T("close")} onClick={onClose}>×</button></div>
       {it.image && <div className="thumb" style={{ height: 200, borderRadius: 14, marginBottom: ".6rem" }}><img src={it.image} alt="" /></div>}
       <p className="muted" style={{ marginTop: 0 }}>{it.description}</p>
       {it.allergens.length > 0 && <p className="small muted">⚠️ {T("allergens")}: {it.allergens.join(", ")}</p>}
@@ -625,7 +633,7 @@ function ItemDialog({ it, money, T, canOrder, onClose, onAdd, toast }: { it: Any
           <label>{T("notes")}</label>
           <input maxLength={140} value={note} onChange={(e) => setNote(e.target.value)} />
           <div className="row spread" style={{ margin: "1rem 0 .4rem" }}>
-            <div className="qty"><button onClick={() => setQty(Math.max(1, qty - 1))}>−</button><b>{qty}</b><button onClick={() => setQty(Math.min(20, qty + 1))}>+</button></div>
+            <div className="qty"><button aria-label={T("less")} onClick={() => setQty(Math.max(1, qty - 1))}>−</button><b>{qty}</b><button aria-label={T("more")} onClick={() => setQty(Math.min(20, qty + 1))}>+</button></div>
             <button className="btn grow" onClick={add}>{T("addToOrder")} · {money(unit * qty)}</button>
           </div>
         </>
@@ -644,7 +652,7 @@ function CartDialog({ cart, T, money, table, dinerName, onClose, onChange, onSen
   const step = (i: number, d: number) => onChange(cart.map((l, j) => (j === i ? { ...l, qty: Math.min(Math.max(1, l.qty + d), 20) } : l)));
   return (
     <>
-      <div className="sheet-h"><h2 style={{ margin: 0 }}>{T("viewOrder")} · {needName ? "🥡 " + T("takeaway") : `${T("table")} ${table}`}</h2><button className="x" onClick={onClose}>×</button></div>
+      <div className="sheet-h"><h2 style={{ margin: 0 }}>{T("viewOrder")} · {needName ? "🥡 " + T("takeaway") : `${T("table")} ${table}`}</h2><button className="x" aria-label={T("close")} onClick={onClose}>×</button></div>
       {cart.map((l, i) => (
         <div className="line" key={i}>
           <div className="grow"><b>{l.name}</b><div className="muted small">{l.options.map((o) => o.name).join(", ")}{l.note ? ` · “${l.note}”` : ""}</div></div>

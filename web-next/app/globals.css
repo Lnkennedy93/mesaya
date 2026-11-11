@@ -1,6 +1,6 @@
 :root{
-  --brand:#e4572e; --brand-ink:#fff;
-  --bg:#faf7f2; --card:#fff; --ink:#1d1a16; --muted:#7a7268; --line:#ece5da;
+  --brand:#cf4620; --brand-ink:#fff;
+  --bg:#faf7f2; --card:#fff; --ink:#1d1a16; --muted:#6f675d; --line:#ece5da;
   --ok:#1f9d55; --warn:#e08a00; --bad:#d64545; --info:#2a6fdb;
   --r:14px; --shadow:0 1px 2px rgba(30,20,10,.06),0 6px 20px rgba(30,20,10,.07);
   color-scheme:light;
@@ -23,7 +23,7 @@ label{display:block;font-size:.85rem;font-weight:600;margin:.8em 0 .25em;color:v
 .btn[disabled]{opacity:.45;pointer-events:none}
 .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
 .btn.soft{background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
-.btn.ok{background:var(--ok)} .btn.bad{background:var(--bad)} .btn.dark{background:#1d1a16;color:#fff}
+.btn.ok{background:color-mix(in srgb,var(--ok) 78%,#000)} .btn.bad{background:color-mix(in srgb,var(--bad) 85%,#000)} .btn.dark{background:#1d1a16;color:#fff}
 .btn.sm{padding:.4em .8em;font-size:.85rem}
 .btn.block{display:flex;width:100%}
 .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:1rem}
@@ -33,20 +33,23 @@ label{display:block;font-size:.85rem;font-weight:600;margin:.8em 0 .25em;color:v
 .grow{flex:1;min-width:0}
 .muted{color:var(--muted)} .small{font-size:.85rem}
 .pill{display:inline-block;padding:.15em .6em;border-radius:999px;font-size:.75rem;font-weight:700;background:color-mix(in srgb,var(--ink) 8%,transparent)}
-.pill.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
-.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
-.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
-.pill.brand{background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:color-mix(in srgb,var(--ok) 60%,var(--ink))}
+.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:color-mix(in srgb,var(--warn) 45%,var(--ink))}
+.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:color-mix(in srgb,var(--bad) 70%,var(--ink))}
+.pill.brand{background:color-mix(in srgb,var(--brand) 14%,transparent);color:color-mix(in srgb,var(--brand) 70%,var(--ink))}
 .hidden{display:none!important}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(40px);background:#1d1a16;color:#fff;padding:.75em 1.2em;border-radius:12px;opacity:0;transition:.25s;z-index:999;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--bad)}
+.toast[popover]{top:auto;right:auto;margin:0;border:0;overflow:visible;width:max-content;max-width:90vw}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .switch{position:relative;width:46px;height:26px;flex:none}
 .switch input{opacity:0;width:0;height:0;position:absolute}
 .switch span{position:absolute;inset:0;background:#c9c1b4;border-radius:99px;transition:.2s;cursor:pointer}
 .switch span:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
 .switch input:checked+span{background:var(--ok)}
 .switch input:checked+span:before{transform:translateX(20px)}
+.switch input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
 dialog{border:0;border-radius:18px;padding:0;max-width:min(520px,94vw);width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);background:var(--card);color:var(--ink)}
 dialog::backdrop{background:rgba(20,12,4,.55);backdrop-filter:blur(2px)}
 .dlg{padding:1.2rem}

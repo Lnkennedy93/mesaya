@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; headers?: Record<string, string>; timeout?: number } = {}): Promise<T> {
   const init: RequestInit = { method: opts.method, credentials: "same-origin", headers: opts.headers };
   if (opts.body instanceof FormData) {
     init.body = opts.body; // subida de archivos: el navegador pone el Content-Type
@@ -15,7 +15,19 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     init.headers = { ...opts.headers, "Content-Type": "application/json" };
     init.body = JSON.stringify(opts.body);
   }
-  const res = await fetch(path, init);
+  // con mala señal una petición no puede quedarse colgada para siempre (el botón de enviar quedaría deshabilitado)
+  const ctl = new AbortController();
+  init.signal = ctl.signal;
+  const ms = opts.timeout ?? (opts.body instanceof FormData || /^\/api\/(assistant|import)/.test(path) ? 120000 : 25000);
+  const timer = setTimeout(() => ctl.abort(), ms);
+  let res: Response;
+  try {
+    res = await fetch(path, init);
+  } catch {
+    throw new ApiError("Sin conexión o la red está lenta. Intenta de nuevo.", 0);
+  } finally {
+    clearTimeout(timer);
+  }
   let data: any = null;
   try {
     data = await res.json();

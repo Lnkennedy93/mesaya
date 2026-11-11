@@ -120,6 +120,16 @@ CREATE TABLE IF NOT EXISTS order_events (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_order_events_r ON order_events(restaurant_id, created_at);
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL DEFAULT 0,
+  email TEXT NOT NULL DEFAULT '',
+  action TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_admin_audit ON admin_audit(created_at);
 CREATE TABLE IF NOT EXISTS calls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -350,7 +360,12 @@ def connect():
 
 # Columnas añadidas después de la v1 (se aplican también a bases existentes).
 MIGRATIONS = {
+    "orders": {
+        "client_ref": "TEXT NOT NULL DEFAULT ''",  # id que genera el celular por cada intento de envío: reintentar tras perder la señal no duplica el pedido
+    },
     "restaurants": {
+        "paid_until": "TEXT NOT NULL DEFAULT ''",  # hasta cuándo está pagada la suscripción ('' = sin vencimiento: la demo y las cuentas anteriores)
+        "cancel_requested_at": "TEXT NOT NULL DEFAULT ''",  # el dueño pidió cancelar: sigue activa hasta paid_until y luego pasa al plan Gratis
         "takeaway": "INTEGER NOT NULL DEFAULT 0",  # recibe pedidos para llevar (un QR, máximo TAKEAWAY_MAX a la vez)
         "takeaway_key": "TEXT NOT NULL DEFAULT ''",
         "disabled_modules": "TEXT NOT NULL DEFAULT '[]'",  # funciones del panel que el superusuario apagó (lista JSON)
@@ -406,6 +421,7 @@ def init_db():
                 for table, cols in MIGRATIONS.items():
                     for col, col_ddl in cols.items():
                         c.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_ddl}")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_orders_ref ON orders(restaurant_id, client_ref)")  # (después de la migración: la columna es nueva)
                 # Supabase publica por su API REST las tablas de "public": con RLS activo y sin políticas esa API no
                 # ve nada. El backend, que es el dueño de las tablas, no se ve afectado.
                 for table in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", ddl):
@@ -421,6 +437,7 @@ def init_db():
             for col, ddl in cols.items():
                 if col not in have:
                     c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_orders_ref ON orders(restaurant_id, client_ref)")
 
 
 @contextmanager

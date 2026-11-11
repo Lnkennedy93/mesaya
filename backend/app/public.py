@@ -110,6 +110,7 @@ class OrderIn(BaseModel):
     diner_id: str = Field(max_length=64)
     diner_name: str = Field(default="", max_length=40)
     note: str = Field(default="", max_length=200)
+    request_id: str = Field(default="", max_length=64)  # lo genera el celular por intento de envío: un reintento no duplica el pedido
     items: list[OrderItem]
 
 
@@ -128,6 +129,11 @@ def create_order(slug: str, body: OrderIn, request: Request):
         raise HTTPException(400, "Escribe tu nombre para entregarte el pedido")
     lines = service.price_lines(r, [i.model_dump() for i in body.items])
     with db.tx(r["id"]) as c:  # (la transacción serializa las escrituras: contar y luego insertar no se pisa)
+        if body.request_id:
+            dup = c.execute("SELECT id, seq FROM orders WHERE restaurant_id=? AND table_label=? AND client_ref=?",
+                            (r["id"], body.table, body.request_id)).fetchone()
+            if dup:  # el pedido ya había entrado (se perdió la respuesta): se devuelve el mismo, sin crear otro
+                return {"ok": True, "order_id": dup["id"], "seq": dup["seq"], "duplicate": True}
         if takeaway and service.takeaway_status(r["id"])["full"]:
             raise HTTPException(409, f"Estamos al tope de pedidos para llevar ({config.TAKEAWAY_MAX}). Podrás pedir apenas se entregue uno.")
         off = timedelta(minutes=r["tz_offset"] or 0)  # el número de pedido se reinicia a la medianoche local, no a la UTC
@@ -136,9 +142,9 @@ def create_order(slug: str, body: OrderIn, request: Request):
         seq = c.execute("SELECT COALESCE(MAX(seq),0)+1 FROM orders WHERE restaurant_id=? AND created_at>=?",
                         (r["id"], today)).fetchone()[0]
         oid = c.execute(
-            """INSERT INTO orders(restaurant_id, table_label, seq, status, diner_id, diner_name, note, created_at)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (r["id"], body.table, seq, "new", body.diner_id, body.diner_name.strip(), body.note.strip(), now())).lastrowid
+            """INSERT INTO orders(restaurant_id, table_label, seq, status, diner_id, diner_name, note, created_at, client_ref)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (r["id"], body.table, seq, "new", body.diner_id, body.diner_name.strip(), body.note.strip(), now(), body.request_id)).lastrowid
         for ln in lines:
             c.execute(
                 """INSERT INTO order_items(order_id, item_id, name, options_text, note, qty, unit_price)

@@ -41,8 +41,13 @@
 .menu-root .tips button{flex:1;padding:.55em 0;border:1.5px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;cursor:pointer}
 .menu-root .tips button.on{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent);color:var(--brand)}
 .menu-root .stars{display:flex;gap:.3rem;justify-content:center;font-size:2.2rem}
-.menu-root .stars button{border:0;background:none;cursor:pointer;color:#cfc6b8;font-size:inherit;padding:0}
+.menu-root .stars button{border:0;background:none;cursor:pointer;color:#8f8576;font-size:inherit;padding:0}
 .menu-root .stars button.on{color:#f5a623}
 .menu-root .big{font-size:1.5rem;font-weight:800}
 .menu-root .langs{display:flex;gap:.3rem;margin-left:.4rem}
 .menu-root .langs button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:.2em .5em;font-size:.75rem;font-weight:700;cursor:pointer}
+.menu-root .chip,.menu-root .langs button,.menu-root .stars button{min-height:44px}
+.menu-root .langs button,.menu-root .stars button{min-width:44px}
+.menu-root .item .add,.menu-root .qty button,.menu-root .rm{width:44px;height:44px}
+.menu-root .item[role=button]{cursor:pointer}
+.menu-root .item:focus-visible{outline:2px solid var(--brand);outline-offset:2px}

@@ -30,6 +30,12 @@ export default function SettingsTab() {
     } catch (e: Any) { toast(e.message, true); }
   }
 
+  async function cancelSub() {
+    if (!confirm(r.paid_until ? `Tu plan seguirá activo hasta el ${String(r.paid_until).slice(0, 10)} y luego pasarás al plan Gratis. No se borra nada. ¿Cancelar la suscripción?`
+      : "Pasarás al plan Gratis ahora mismo (3 mesas con pedidos). No se borra nada. ¿Cancelar la suscripción?")) return;
+    try { setME(await api("/api/subscription/cancel", { method: "POST" })); toast("Suscripción cancelada"); } catch (e: Any) { toast(e.message, true); }
+  }
+
   async function deleteAccount() {
     const pw = prompt("Vas a BORRAR tu restaurante y todos sus datos (carta, pedidos, opiniones, fotos). No se puede deshacer.\n\nEscribe tu contraseña para continuar:");
     if (!pw) return;
@@ -82,6 +88,17 @@ export default function SettingsTab() {
           {r.subscription_status === "active" ? <span className="pill ok">Activo</span> : ME.active ? <span className="pill warn">Prueba · {ME.trial_days_left} días</span> : <span className="pill warn">Gratis · {ME.plan.tables} mesas</span>}
         </p>
       </div>
+      {r.subscription_status === "active" && (
+        <div className="card" style={{ marginTop: ".8rem" }}>
+          <h3>Suscripción</h3>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            {r.paid_until ? `Pagada hasta el ${String(r.paid_until).slice(0, 10)}. ` : "Sin fecha de vencimiento. "}
+            {r.cancel_requested_at ? "Pediste cancelar: sigue activa hasta esa fecha y luego pasas al plan Gratis. No se borra nada."
+              : "Si cancelas, tu plan sigue activo hasta que termine lo ya pagado y luego pasas al plan Gratis. No se borra nada."}
+          </p>
+          {!r.cancel_requested_at && <button className="btn ghost sm" onClick={cancelSub}>Cancelar mi suscripción</button>}
+        </div>
+      )}
       <div className="card" style={{ marginTop: ".8rem" }}>
         <h3>Tus datos</h3>
         <p className="muted small" style={{ marginTop: 0 }}>

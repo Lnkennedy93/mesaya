@@ -7,7 +7,7 @@ import { useToast } from "@/components/useToast";
 type Biz = {
   id: number; slug: string; name: string; email: string; plan: string; subscription_status: string; trial_ends_at: string;
   created_at: string; extra_tables: number; ai_addon: number; tables_used: number; active: boolean; effective_plan: string;
-  tables_limit: number; ai_asks: number; disabled_modules: string[];
+  tables_limit: number; ai_asks: number; disabled_modules: string[]; paid_until: string; cancel_requested_at: string;
 };
 
 const MODS: [string, string][] = [["home", "Resumen"], ["menu", "Carta"], ["tables", "Mesas y QR"], ["reviews", "Opiniones"], ["customers", "Fidelización Clientes"],
@@ -22,10 +22,12 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
   const [ai, setAi] = useState(!!b.ai_addon);
   const [pw, setPw] = useState("");
   const [off, setOff] = useState<string[]>(b.disabled_modules || []);
-  const status = b.subscription_status === "active" ? <span className="pill ok">Activa</span>
+  const [period, setPeriod] = useState("30"); // cuánto suma al activar o renovar; sin esto una cuenta pagada nunca vencería
+  const status = b.subscription_status === "active" ? (b.active ? <span className="pill ok">Activa</span> : <span className="pill bad">Vencida (Gratis)</span>)
     : b.active ? <span className="pill warn">En prueba</span> : <span className="pill bad">Sin licencia (Gratis)</span>;
   const save = (st: "active" | "inactive") =>
-    call("activate", { email: b.email, plan, status: st, extra_tables: +extra || 0, ai_addon: ai }, st === "active" ? "Licencia activada" : "Licencia desactivada");
+    call("activate", { email: b.email, plan, status: st, extra_tables: +extra || 0, ai_addon: ai,
+      ...(st !== "active" || period === "keep" ? {} : period === "none" ? { no_expiry: true } : { period_days: +period }) }, st === "active" ? "Licencia activada" : "Licencia desactivada");
 
   return (
     <div className="card biz">
@@ -39,6 +41,8 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
           <span className="pill">{b.tables_used}/{b.tables_limit} mesas</span>
           {b.ai_asks > 0 && <span className="pill ok">IA {b.ai_asks}/mes</span>}
           {b.disabled_modules.length > 0 && <span className="pill warn">{b.disabled_modules.length} funciones apagadas</span>}
+          {b.subscription_status === "active" && b.paid_until && <span className={"pill" + (b.active ? "" : " bad")}>{b.active ? "vence " : "venció "}{b.paid_until.slice(0, 10)}</span>}
+          {b.cancel_requested_at && <span className="pill warn">cancelación pedida</span>}
         </div>
       </div>
       {open && (
@@ -60,6 +64,18 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
                 <label className="switch"><input type="checkbox" checked={ai} disabled={plan !== "basic"} onChange={(e) => setAi(e.target.checked)} /><span /></label>
                 <span>{plan !== "basic" ? "Incluida en el plan" : ai ? "Activada (120 preguntas/mes)" : "Desactivada"}</span>
               </div>
+            </div>
+          </div>
+          <div className="ctl">
+            <div>
+              <label>Vigencia al activar o renovar</label>
+              <select value={period} onChange={(e) => setPeriod(e.target.value)}>
+                <option value="30">+30 días (suma a lo que le quede)</option>
+                <option value="90">+90 días</option>
+                <option value="365">+1 año</option>
+                <option value="none">Sin vencimiento (demo)</option>
+                <option value="keep">Mantener la fecha actual</option>
+              </select>
             </div>
           </div>
           <div className="acts">
@@ -101,6 +117,7 @@ export default function SuperAdmin() {
   const [key, setKey] = useState("");
   const [list, setList] = useState<Biz[] | null>(null);
   const [q, setQ] = useState("");
+  const [audit, setAudit] = useState<{ id: number; email: string; action: string; detail: string; ip: string; created_at: string }[]>([]);
   const [toastNode, toast] = useToast();
   const hdr = (k: string) => ({ "x-admin-key": k });
 
@@ -108,6 +125,7 @@ export default function SuperAdmin() {
     try {
       const r = await api<{ restaurants: Biz[] }>("/api/superadmin/restaurants", { headers: hdr(k) });
       setList(r.restaurants);
+      try { setAudit((await api<{ events: typeof audit }>("/api/superadmin/audit", { headers: hdr(k) })).events); } catch { /* sin auditoría */ }
       sessionStorage.setItem("sa-key", k);
     } catch (e: any) {
       sessionStorage.removeItem("sa-key");
@@ -149,6 +167,13 @@ export default function SuperAdmin() {
         <>
           <p className="muted">{list.length} negocios · {list.filter((b) => b.subscription_status === "active").length} con licencia activa</p>
           <input placeholder="Buscar por nombre, correo o enlace…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <details className="audit card">
+            <summary>Últimos cambios con la clave de administrador ({audit.length})</summary>
+            <table><tbody>
+              {audit.map((e) => <tr key={e.id}><td>{e.created_at}</td><td>{e.email}</td><td><b>{e.action}</b> {e.detail}</td><td className="muted">{e.ip}</td></tr>)}
+              {!audit.length && <tr><td className="muted">Aún no hay cambios registrados.</td></tr>}
+            </tbody></table>
+          </details>
           {shown.map((b) => <Row key={b.id} b={b} call={call} />)}
           {!shown.length && <p className="muted">Sin resultados.</p>}
         </>

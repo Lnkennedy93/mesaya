@@ -57,9 +57,18 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
   const cur = shownTabs.some(([k]) => k === tab) ? tab : shownTabs[0]?.[0] ?? "";
 
   const mail = `mailto:ventas@mesaya.app?subject=Activar%20${encodeURIComponent(ME.restaurant.slug)}`;
+  const R = ME.restaurant;
+  const day = (s: string) => String(s).slice(0, 10);
+  const subBanner = !ME.active ? (
+    <div className="banner bad"><b>Tu suscripción venció el {day(R.paid_until)}: estás en el plan Gratis.</b> Solo las primeras {ME.plan.tables} mesas reciben pedidos desde el QR; tus datos siguen intactos. <a className="btn sm" href={mail}>Renovar mi plan</a></div>
+  ) : R.cancel_requested_at ? (
+    <div className="banner"><span>Pediste cancelar: tu plan sigue activo hasta el <b>{day(R.paid_until)}</b> y luego pasas al plan Gratis.</span></div>
+  ) : ME.sub_days_left != null && ME.sub_days_left <= 7 ? (
+    <div className="banner"><span>Tu plan vence en <b>{ME.sub_days_left} {ME.sub_days_left === 1 ? "día" : "días"}</b> ({day(R.paid_until)}).</span><a className="btn sm" href={mail}>Renovar</a></div>
+  ) : null;
   const banner =
-    ME.restaurant.subscription_status === "active" ? null : !ME.active ? (
-      <div className="banner bad"><b>Tu prueba terminó: estás en el plan Gratis.</b> Solo las primeras {ME.plan.tables} mesas reciben pedidos desde el QR. <a className="btn sm" href={mail}>Activar mi plan</a></div>
+    R.subscription_status === "active" ? subBanner : !ME.active ? (
+      <div className="banner bad"><b>{R.cancel_requested_at ? "Cancelaste tu suscripción: estás en el plan Gratis." : "Tu prueba terminó: estás en el plan Gratis."}</b> Solo las primeras {ME.plan.tables} mesas reciben pedidos desde el QR. <a className="btn sm" href={mail}>Activar mi plan</a></div>
     ) : (
       <div className="banner"><span>🎁 Prueba gratis: te quedan <b>{ME.trial_days_left} días</b></span><a className="btn sm" href={mail}>Elegir plan</a></div>
     );

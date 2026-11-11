@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from . import auth, config, db, mailer, storage
 from .auth import Staff, now, owner_dep, rate_limit
-from .panel import _admin, _me, _set_cookie
+from .panel import _admin, _audit, _me, _set_cookie
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger("mesaya.account")
@@ -131,13 +131,18 @@ def sa_set_password(body: dict, request: Request):
     pw = str(body.get("password", ""))
     if not 8 <= len(pw) <= 100:
         raise HTTPException(400, "La contraseña debe tener entre 8 y 100 caracteres")
-    r = db.row("SELECT id FROM restaurants WHERE email=?", (str(body.get("email", "")).strip().lower(),))
+    email = str(body.get("email", "")).strip().lower()
+    r = db.row("SELECT id FROM restaurants WHERE email=?", (email,))
     if not r:
         raise HTTPException(404, "No existe una cuenta con ese correo")
     pw_hash = auth.hash_password(pw)
     with db.tx(r["id"]) as c:
         c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (pw_hash, r["id"]))
         c.execute("DELETE FROM sessions WHERE restaurant_id=?", (r["id"],))
+    _audit(request, email, "set-password")
+    mailer.send(email, "Cambiaron la contraseña de tu cuenta de MesaYa",
+                "Hola,\n\nEl equipo de soporte de MesaYa cambió la contraseña de tu cuenta y cerró tus sesiones abiertas.\n"
+                "Si no lo pediste, respóndenos de inmediato.\n")
     return {"ok": True}
 
 
@@ -145,7 +150,26 @@ def sa_set_password(body: dict, request: Request):
 def sa_reset_link(body: dict, request: Request):
     """Soporte: genera un enlace de recuperación para pasarlo por WhatsApp cuando no hay SMTP o el cliente no recibe el correo."""
     _admin(request)
-    r = db.row("SELECT id FROM restaurants WHERE email=?", (str(body.get("email", "")).strip().lower(),))
+    email = str(body.get("email", "")).strip().lower()
+    r = db.row("SELECT id FROM restaurants WHERE email=?", (email,))
     if not r:
         raise HTTPException(404, "No existe una cuenta con ese correo")
-    return {"link": _new_reset(r["id"]), "expires_minutes": config.RESET_TTL_MINUTES}
+    link = _new_reset(r["id"])
+    _audit(request, email, "reset-link")
+    mailer.send(email, "Soporte generó un enlace para cambiar tu contraseña",
+                "Hola,\n\nEl equipo de soporte de MesaYa generó un enlace para cambiar la contraseña de tu cuenta. "
+                "Si no lo pediste, respóndenos de inmediato.\n")
+    return {"link": link, "expires_minutes": config.RESET_TTL_MINUTES}
+
+
+@router.post("/subscription/cancel")
+def cancel_subscription(s: Staff = Depends(owner_dep)):
+    """Pide cancelar: sigue activa hasta que termine lo ya pagado y luego pasa al plan Gratis. No se borra nada."""
+    if s.r["subscription_status"] != "active":
+        raise HTTPException(400, "No tienes una suscripción activa")
+    if not s.r["cancel_requested_at"]:
+        if s.r["paid_until"]:
+            db.run("UPDATE restaurants SET cancel_requested_at=? WHERE id=?", (now(), s.id))
+        else:  # sin fecha de vencimiento no hay periodo pagado que respetar: pasa al plan Gratis ya
+            db.run("UPDATE restaurants SET cancel_requested_at=?, subscription_status='inactive', trial_ends_at=? WHERE id=?", (now(), now(), s.id))
+    return _me(db.row("SELECT * FROM restaurants WHERE id=?", (s.id,)), s.role)

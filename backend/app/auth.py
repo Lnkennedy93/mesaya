@@ -122,7 +122,7 @@ def owner_dep(request: Request) -> Staff:
 
 def is_active(r: dict) -> bool:
     if r["subscription_status"] == "active":
-        return True
+        return not r.get("paid_until") or r["paid_until"] > now()  # '' = sin vencimiento; vencida → plan Gratis, no un bloqueo
     return r["trial_ends_at"] > now()
 
 

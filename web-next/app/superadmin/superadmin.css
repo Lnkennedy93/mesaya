@@ -11,3 +11,6 @@
 .sa .mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.7rem;margin-top:.5rem}
 .sa .mods label{display:flex;align-items:center;gap:.6rem;margin:0;font-weight:600;color:var(--ink)}
 .sa .stat{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.sa details.audit{margin-top:1rem}
+.sa .audit table{width:100%;border-collapse:collapse;font-size:.85rem}
+.sa .audit td{padding:.3rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}

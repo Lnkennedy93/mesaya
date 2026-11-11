@@ -40,7 +40,9 @@ def _set_cookie(resp: Response, token: str):
 
 def _me(r: dict, role: str) -> dict:
     plan = auth.plan_info(r)
-    left = None
+    left, sub_left = None, None
+    if r["subscription_status"] == "active" and r["paid_until"]:  # días que le quedan a lo pagado (negativo: ya venció)
+        sub_left = int(-(-(datetime.strptime(r["paid_until"], "%Y-%m-%d %H:%M:%S") - datetime.utcnow()).total_seconds() // 86400))
     if r["subscription_status"] != "active":
         end = datetime.strptime(r["trial_ends_at"], "%Y-%m-%d %H:%M:%S")
         left = max(0, (end - datetime.utcnow()).days + (1 if end > datetime.utcnow() else 0))
@@ -49,7 +51,7 @@ def _me(r: dict, role: str) -> dict:
         "restaurant": {k: r[k] for k in (
             "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "tagline", "logo",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
-            "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at",
+            "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at", "paid_until", "cancel_requested_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
             "inv_provider", "inv_env", "inv_range_id", "wompi_env", "nequi_enabled", "breb_enabled", "breb_key",
             "breb_key_type", "breb_holder")},
@@ -63,7 +65,7 @@ def _me(r: dict, role: str) -> dict:
         "demo_mode": config.DEMO_MODE,
         "terms_current": r["terms_version"] == config.TERMS_VERSION,
         "features": {"payments": config.ONLINE_PAYMENTS, "invoicing": config.INVOICING},
-        "plan": plan, "trial_days_left": left, "active": auth.is_active(r),
+        "plan": plan, "trial_days_left": left, "sub_days_left": sub_left, "active": auth.is_active(r),
         "public_url": f"{config.BASE_URL}/r/{r['slug']}",
         "modules": {m: auth.module_on(r, m) for m in auth.MODULES},  # funciones del panel que el superusuario dejó encendidas
         "takeaway_url": f"{config.BASE_URL}/r/{r['slug']}?pl={r['takeaway_key']}" if r["takeaway_key"] else "",
@@ -1100,11 +1102,24 @@ def _admin(request: Request):
         raise HTTPException(403, "Clave de administrador inválida")
 
 
+def _audit(request: Request, email: str, action: str, detail: str = ""):
+    """Deja constancia de lo que se hizo con la clave de administrador (quién: IP; sobre qué cuenta; cuándo)."""
+    r = db.row("SELECT id FROM restaurants WHERE email=?", (email,))
+    db.run("INSERT INTO admin_audit(restaurant_id,email,action,detail,ip,created_at) VALUES (?,?,?,?,?,?)",
+           (r["id"] if r else 0, email, action, detail[:300], auth.client_ip(request), now()))
+
+
+@router.get("/superadmin/audit")
+def sa_audit(request: Request):
+    _admin(request)
+    return {"events": db.rows("SELECT id,email,action,detail,ip,created_at FROM admin_audit ORDER BY id DESC LIMIT 100")}
+
+
 @router.get("/superadmin/restaurants")
 def sa_list(request: Request):
     _admin(request)
     out = db.rows(
-        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,created_at,extra_tables,ai_addon,disabled_modules,
+        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,paid_until,cancel_requested_at,created_at,extra_tables,ai_addon,disabled_modules,
                   (SELECT COUNT(*) FROM tables_ t WHERE t.restaurant_id=restaurants.id) AS tables_used
            FROM restaurants ORDER BY id DESC""")
     for r in out:  # lo que el negocio recibe hoy, ya calculado con las mismas reglas que la app
@@ -1119,18 +1134,37 @@ def sa_activate(body: dict, request: Request):
     """Activa/renueva una suscripción tras recibir el pago (manual o desde tu pasarela)."""
     _admin(request)
     plan = body.get("plan", "basic")
-    if plan not in config.PLANS:
+    if not isinstance(plan, str) or plan not in config.PLANS:
         raise HTTPException(400, "Plan inválido")
     status = body.get("status", "active")
-    extra, ai = body.get("extra_tables"), body.get("ai_addon")  # opcionales: si no vienen, se conservan
+    if status not in ("active", "inactive"):
+        raise HTTPException(400, "Estado inválido: active o inactive")
+    try:  # opcionales: si no vienen, se conservan
+        extra = None if body.get("extra_tables") is None else max(0, min(int(body["extra_tables"]), 500))
+        days = None if body.get("period_days") is None else int(body["period_days"])
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Valores numéricos inválidos")
+    if days is not None and not 1 <= days <= 3660:
+        raise HTTPException(400, "El periodo debe estar entre 1 y 3660 días")
+    ai = body.get("ai_addon")
     email = str(body.get("email", "")).strip().lower()
-    if not db.row("SELECT 1 FROM restaurants WHERE email=?", (email,)):
+    cur = db.row("SELECT paid_until FROM restaurants WHERE email=?", (email,))
+    if not cur:
         raise HTTPException(404, "No existe una cuenta con ese correo")
+    paid = cur["paid_until"]
+    if status == "active":
+        fmt = "%Y-%m-%d %H:%M:%S"
+        if body.get("no_expiry"):
+            paid = ""
+        elif days:  # renovar suma al periodo que todavía le queda; si ya venció, cuenta desde hoy
+            base = max(now(), paid) if paid else now()
+            paid = (datetime.strptime(base, fmt) + timedelta(days=days)).strftime(fmt)
     # Desactivar también vence la prueba: si no, is_active() seguiría dando el plan completo hasta que termine.
     db.run("""UPDATE restaurants SET plan=?, subscription_status=?, extra_tables=COALESCE(?,extra_tables), ai_addon=COALESCE(?,ai_addon),
-              trial_ends_at=CASE WHEN ?='active' THEN trial_ends_at ELSE ? END WHERE email=?""",
-           (plan, status, None if extra is None else max(0, min(int(extra), 500)), None if ai is None else int(bool(ai)),
-            status, auth.now(), email))
+              trial_ends_at=CASE WHEN ?='active' THEN trial_ends_at ELSE ? END, paid_until=?,
+              cancel_requested_at=CASE WHEN ?='active' THEN '' ELSE cancel_requested_at END WHERE email=?""",
+           (plan, status, extra, None if ai is None else int(bool(ai)), status, auth.now(), paid, status, email))
+    _audit(request, email, "activate", f"{status} · plan {plan} · vence {paid or 'nunca'}")
     return {"ok": True}
 
 
@@ -1145,6 +1179,7 @@ def sa_modules(body: dict, request: Request):
     if not db.row("SELECT 1 FROM restaurants WHERE email=?", (email,)):
         raise HTTPException(404, "No existe una cuenta con ese correo")
     db.run("UPDATE restaurants SET disabled_modules=? WHERE email=?", (json.dumps([m for m in auth.MODULES if m in off]), email))
+    _audit(request, email, "modules", "apagadas: " + (", ".join(m for m in auth.MODULES if m in off) or "ninguna"))
     return {"ok": True}
 
 

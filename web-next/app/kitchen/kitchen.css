@@ -38,3 +38,5 @@
 .kitchen-root .ready-alert ul{margin-bottom:.45rem}
 .kitchen-root .order-info li,.kitchen-root .ready-alert li{padding:.1rem 0}
 @keyframes pulse-ok{50%{box-shadow:0 0 0 4px rgba(31,157,85,.35)}}
+.kitchen-root .btn.sm{min-height:44px}
+@media (prefers-reduced-motion:reduce){.kitchen-root *{animation:none!important}}

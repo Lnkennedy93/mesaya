@@ -1,15 +1,30 @@
 "use client";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Aviso flotante (misma apariencia que el .toast de web/assets/app.css). */
+type Msg = { text: string; err: boolean } | null;
+
+/** Aviso flotante. Va en la «capa superior» del navegador (popover): si no, un <dialog> abierto lo tapa y nadie ve el error. */
+export function ToastView({ msg }: { msg: Msg }) {
+  const ref = useRef<HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el?.showPopover) return; // navegador sin popover: queda como un aviso normal
+    try {
+      const open = el.matches(":popover-open");
+      if (msg && !open) el.showPopover();
+      else if (!msg && open) el.hidePopover?.();
+    } catch { /* sin soporte */ }
+  }, [msg]);
+  return <div ref={ref} popover="manual" role="status" aria-live="polite" className={"toast" + (msg ? " show" : "") + (msg?.err ? " err" : "")}>{msg?.text}</div>;
+}
+
 export function useToast(): [React.ReactNode, (text: string, err?: boolean) => void] {
-  const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
+  const [msg, setMsg] = useState<Msg>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useCallback((text: string, err = false) => {
     setMsg({ text, err });
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setMsg(null), 3200);
   }, []);
-  const node = <div className={"toast" + (msg ? " show" : "") + (msg?.err ? " err" : "")}>{msg?.text}</div>;
-  return [node, toast];
+  return [<ToastView msg={msg} />, toast];
 }
