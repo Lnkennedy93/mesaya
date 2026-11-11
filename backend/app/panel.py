@@ -7,6 +7,7 @@ import re
 import secrets
 import time
 import zipfile
+from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 
 import segno
@@ -124,7 +125,7 @@ class StaffLoginIn(BaseModel):
 def staff_login(body: StaffLoginIn, request: Request, response: Response):
     rate_limit(f"pin:{auth.client_ip(request)}", 10, 600)
     r = db.row("SELECT * FROM restaurants WHERE slug=?", (body.slug.strip().lower(),))
-    if not r or not secrets.compare_digest(r["staff_pin"], body.pin.strip()):
+    if not r or not auth.safe_eq(r["staff_pin"], body.pin.strip()):
         raise HTTPException(401, "Restaurante o PIN incorrecto")
     _set_cookie(response, auth.create_session(r["id"], "staff", days=1))
     return _me(r, "staff")
@@ -151,6 +152,7 @@ SETTINGS_FIELDS = {"name": str, "tagline": str, "brand_color": str, "tip_pct": i
                    "fiscal_municipality_id": int, "inv_provider": str, "inv_env": str, "inv_range_id": int,
                    "wompi_env": str, "nequi_enabled": int, "breb_enabled": int, "breb_key": str,
                    "breb_key_type": str, "breb_holder": str}
+BOOL_FIELDS = {"tax_included", "accepting_orders", "online_payments", "nequi_enabled", "breb_enabled"}
 ENUMS = {"inv_provider": {"none", "factus", "mock"}, "inv_env": {"sandbox", "production"},
          "wompi_env": {"sandbox", "production"}, "tax_type": set(colombia.TAX_TYPES),
          "breb_key_type": {"celular", "cedula", "nit", "correo", "alfanumerica"}}
@@ -170,6 +172,16 @@ def update_settings(body: dict, s: Staff = Depends(owner_dep)):
                 raise HTTPException(400, "Color inválido")
             if k == "staff_pin" and not (v.isdigit() and 4 <= len(v) <= 8):
                 raise HTTPException(400, "El PIN debe tener 4 a 8 dígitos")
+            if k == "tax_pct" and not 0 <= v <= 100:  # (también descarta NaN)
+                raise HTTPException(400, "El impuesto debe estar entre 0 y 100")
+            if k == "tip_pct" and not 0 <= v <= 50:
+                raise HTTPException(400, "La propina sugerida debe estar entre 0 y 50")
+            if k == "tz_offset" and not -720 <= v <= 840:
+                raise HTTPException(400, "Zona horaria inválida")
+            if k == "name" and not v.strip():
+                raise HTTPException(400, "Escribe el nombre del negocio")
+            if k in BOOL_FIELDS:
+                v = 1 if v else 0
             if k == "currency":
                 v = v.upper()[:3]
                 sets.append("decimals=?")
@@ -371,11 +383,21 @@ class ItemIn(BaseModel):
     options: list[dict] = []
 
 
+def _opt_price(o: dict) -> int:
+    try:
+        p = int(o.get("price") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Precio de opción inválido")
+    if not 0 <= p <= 10_000_000:
+        raise HTTPException(400, "El precio de una opción debe estar entre 0 y 10.000.000")
+    return p
+
+
 def _clean_options(opts: list[dict]) -> list[dict]:
     out = []
     for g in opts[:8]:
         name = str(g.get("name", "")).strip()[:50]
-        os_ = [{"name": str(o.get("name", "")).strip()[:50], "price": int(o.get("price") or 0)}
+        os_ = [{"name": str(o.get("name", "")).strip()[:50], "price": _opt_price(o)}
                for o in g.get("options", []) if str(o.get("name", "")).strip()][:20]
         if name and os_:
             out.append({"name": name, "required": bool(g.get("required")), "multi": bool(g.get("multi")), "options": os_})
@@ -668,23 +690,34 @@ def list_tables(s: Staff = Depends(staff_dep)):
 @router.post("/tables")
 def add_tables(body: dict, s: Staff = Depends(owner_dep)):
     limit = auth.plan_info(s.r)["tables"]
-    have = db.row("SELECT COUNT(*) n FROM tables_ WHERE restaurant_id=?", (s.id,))["n"]
-    labels = [str(body["label"]).strip()[:20]] if body.get("label") else []
-    if body.get("count"):
-        start = have + 1
-        labels += [str(n) for n in range(start, start + min(int(body["count"]), 100))]
-    if have + len(labels) > limit:
-        raise HTTPException(402, f"Tu plan incluye {limit} mesas. Pide mesas adicionales o mejora tu plan para agregar más.")
-    added = 0
-    for lb in labels:
-        if lb and not db.row("SELECT 1 FROM tables_ WHERE restaurant_id=? AND label=?", (s.id, lb)):
-            db.run("INSERT INTO tables_(restaurant_id,label,secret) VALUES (?,?,?)", (s.id, lb, service.new_secret()))
-            added += 1
-    return {"added": added}
+    try:
+        count = max(0, min(int(body.get("count") or 0), 100))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Cantidad de mesas inválida")
+    one = str(body.get("label") or "").strip()[:20]
+    if one.upper().startswith(service.TAKEAWAY_PREFIX):
+        raise HTTPException(400, f"Las etiquetas que empiezan por {service.TAKEAWAY_PREFIX} están reservadas para pedidos para llevar")
+    with db.tx() as c:  # contar y luego insertar dentro de la transacción: dos solicitudes a la vez no pasan el tope del plan
+        have = {r["label"] for r in c.execute("SELECT label FROM tables_ WHERE restaurant_id=?", (s.id,)).fetchall()}
+        new = [one] if one and one not in have else []
+        n, want = len(have) + 1, len(new) + count
+        while len(new) < want:  # las numeradas saltan las etiquetas que ya existen
+            if str(n) not in have and str(n) not in new:
+                new.append(str(n))
+            n += 1
+        if len(have) + len(new) > limit:
+            raise HTTPException(402, f"Tu plan incluye {limit} mesas. Pide mesas adicionales o mejora tu plan para agregar más.")
+        for lb in new:
+            c.execute("INSERT INTO tables_(restaurant_id,label,secret) VALUES (?,?,?)", (s.id, lb, service.new_secret()))
+    return {"added": len(new)}
 
 
 @router.delete("/tables/{tid}")
 def del_table(tid: int, s: Staff = Depends(owner_dep)):
+    t = db.row("SELECT label FROM tables_ WHERE id=? AND restaurant_id=?", (tid, s.id))
+    if t and (db.row("SELECT 1 FROM orders WHERE restaurant_id=? AND table_label=? AND status IN ('new','preparing','ready')", (s.id, t["label"]))
+              or any(l["state"] != "paid" for l in service.bill_lines(s.id, t["label"]))):
+        raise HTTPException(409, "La mesa tiene pedidos en curso o una cuenta sin cobrar. Ciérrala en Sala antes de borrarla.")
     db.run("DELETE FROM tables_ WHERE id=? AND restaurant_id=?", (tid, s.id))
     return {"ok": True}
 
@@ -697,7 +730,7 @@ def rotate_table(tid: int, s: Staff = Depends(owner_dep)):
 
 
 def table_url(r: dict, t: dict) -> str:
-    return f"{config.BASE_URL}/r/{r['slug']}?t={t['label']}&k={t['secret']}"
+    return f"{config.BASE_URL}/r/{r['slug']}?t={quote(t['label'], safe='')}&k={t['secret']}"
 
 
 @router.post("/takeaway")
@@ -743,19 +776,49 @@ def active_orders(s: Staff = Depends(staff_dep)):
     return {"orders": _orders_payload(s.id), "now": now()}
 
 
+ORDER_FLOW = ("new", "preparing", "ready", "served")
+
+
+def _has_paid_lines(c, oid: int) -> bool:
+    """¿Alguna línea del pedido ya se cobró (o se está pagando ahora)? Un pedido así no se puede cancelar."""
+    cut = (datetime.now(timezone.utc) - timedelta(minutes=service.PENDING_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S")
+    return c.execute(
+        """SELECT 1 FROM order_items oi JOIN payments p ON p.id = oi.paid_payment_id
+           WHERE oi.order_id=? AND (p.status IN ('paid','review') OR (p.status='pending' AND p.created_at>=?)) LIMIT 1""",
+        (oid, cut)).fetchone() is not None
+
+
+def _log_order(c, rid: int, oid: int, old: str, new: str, role: str, reason: str = ""):
+    c.execute("INSERT INTO order_events(restaurant_id,order_id,from_status,to_status,role,reason,created_at) VALUES (?,?,?,?,?,?,?)",
+              (rid, oid, old, new, role, reason, now()))
+
+
 @router.post("/orders/{oid}/status")
 def order_status(oid: int, body: dict, s: Staff = Depends(staff_dep)):
     st = body.get("status")
-    if st not in ("new", "preparing", "ready", "served", "cancelled"):
+    if st not in (*ORDER_FLOW, "cancelled"):
         raise HTTPException(400, "Estado inválido")
-    o = db.row("SELECT * FROM orders WHERE id=? AND restaurant_id=?", (oid, s.id))
-    if not o:
-        raise HTTPException(404)
-    col = {"preparing": "preparing_at", "ready": "ready_at", "served": "served_at"}.get(st)
-    if col:
-        db.run(f"UPDATE orders SET status=?, {col}=COALESCE({col}, ?) WHERE id=?", (st, now(), oid))
-    else:
-        db.run("UPDATE orders SET status=? WHERE id=?", (st, oid))
+    reason = str(body.get("reason") or "").strip()[:120]
+    with db.tx() as c:  # leer, validar y escribir juntos: dos toques a la vez no se pisan
+        o = c.execute("SELECT * FROM orders WHERE id=? AND restaurant_id=?", (oid, s.id)).fetchone()
+        if not o:
+            raise HTTPException(404)
+        cur = o["status"]
+        if cur == st:
+            return {"ok": True}
+        if cur == "cancelled":
+            raise HTTPException(409, "El pedido ya estaba cancelado")
+        if st == "cancelled":
+            if _has_paid_lines(c, oid):
+                raise HTTPException(409, "El pedido ya tiene platos cobrados: no se puede cancelar")
+        elif ORDER_FLOW.index(st) < ORDER_FLOW.index(cur):
+            raise HTTPException(409, "El pedido no puede volver a un estado anterior")
+        col = {"preparing": "preparing_at", "ready": "ready_at", "served": "served_at"}.get(st)
+        if col:
+            c.execute(f"UPDATE orders SET status=?, {col}=COALESCE({col}, ?) WHERE id=?", (st, now(), oid))
+        else:
+            c.execute("UPDATE orders SET status=? WHERE id=?", (st, oid))
+        _log_order(c, s.id, oid, cur, st, s.role, reason)
     events.publish(f"r{s.id}", "order", {"id": oid})
     events.publish(f"t{s.id}:{o['table_label']}", "update", {"status": st})
     return {"ok": True}
@@ -805,16 +868,39 @@ def floor_table(label: str, s: Staff = Depends(staff_dep)):
     return {"lines": service.bill_lines(s.id, label)}
 
 
+@router.post("/floor/{label}/void")
+def void_table(label: str, body: dict, s: Staff = Depends(staff_dep)):
+    """Cerrar una mesa sin cobrar (el cliente se fue sin pagar): cancela sus pedidos entregados y sin cobro, dejando el motivo."""
+    reason = ("sin cobrar: " + (str(body.get("reason") or "").strip() or "cliente se fue")[:100])
+    with db.tx() as c:
+        if c.execute("SELECT 1 FROM orders WHERE restaurant_id=? AND table_label=? AND status IN ('new','preparing','ready') LIMIT 1", (s.id, label)).fetchone():
+            raise HTTPException(409, "La mesa tiene pedidos en curso: entrégalos o cancélalos primero")
+        ids = [o["id"] for o in c.execute("SELECT id FROM orders WHERE restaurant_id=? AND table_label=? AND status='served'", (s.id, label)).fetchall()
+               if not _has_paid_lines(c, o["id"])]
+        for oid in ids:
+            c.execute("UPDATE orders SET status='cancelled' WHERE id=?", (oid,))
+            _log_order(c, s.id, oid, "served", "cancelled", s.role, reason)
+    events.publish(f"r{s.id}", "paid", {"table": label})
+    events.publish(f"t{s.id}:{label}", "update", {})
+    return {"ok": True, "voided": len(ids)}
+
+
 @router.post("/floor/{label}/settle")
 def settle(label: str, body: dict, s: Staff = Depends(staff_dep)):
     """Cobrar en caja (efectivo/datáfono): marca todo lo pendiente como pagado."""
-    lines = [l for l in service.bill_lines(s.id, label) if l["state"] == "unpaid"]
-    if not lines:
-        return {"ok": True, "total": 0}
-    subtotal = sum(l["line_total"] for l in lines)
-    tip = int(body.get("tip") or 0)
-    tt = service.totals(s.r, subtotal, 0)
+    try:
+        tip = int(body.get("tip") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Propina inválida")
+    if not 0 <= tip <= 100_000_000:
+        raise HTTPException(400, "Propina inválida")
     with db.tx() as c:
+        # las líneas se leen DENTRO de la transacción (que serializa las escrituras): un segundo cobro simultáneo ya no encuentra nada por cobrar
+        lines = [l for l in service.bill_lines(s.id, label) if l["state"] == "unpaid"]
+        if not lines:
+            return {"ok": True, "total": 0}
+        subtotal = sum(l["line_total"] for l in lines)
+        tt = service.totals(s.r, subtotal, 0)
         pid = c.execute(
             """INSERT INTO payments(restaurant_id,table_label,provider,status,subtotal,tip,total,payer,item_ids,customer,paid_at,created_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",

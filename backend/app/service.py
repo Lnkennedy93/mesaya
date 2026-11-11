@@ -12,6 +12,7 @@ from .auth import now
 
 RESERVED_SLUGS = {"admin", "api", "kitchen", "login", "signup", "r", "print", "uploads", "static", "qr", "assets"}
 PENDING_TTL_MIN = 15
+TABLE_SESSION_HOURS = 12  # shortcut: no hay «sesión de mesa»; lo sin cobrar de hace más de 12 h se da por abandonado (sigue en ventas), upgrade: sesión real por mesa
 
 
 def slugify(text: str) -> str:
@@ -71,11 +72,13 @@ def price_lines(r: dict, raw_items: list[dict]) -> list[dict]:
             raise HTTPException(400, "Un plato ya no existe en la carta")
         if not item["available"]:
             raise HTTPException(409, f"«{item['name']}» está agotado")
-        qty = int(it.get("qty") or 1)
-        if not 1 <= qty <= 20:
+        qty = it.get("qty", 1)
+        if isinstance(qty, bool) or not isinstance(qty, int) or not 1 <= qty <= 20:
             raise HTTPException(400, "Cantidad inválida")
         groups = db.jl(item["options"])
         chosen = it.get("options") or []
+        if len(chosen) > 40:
+            raise HTTPException(400, "Demasiadas opciones")
         extra, labels = 0, []
         for g in groups:
             picks = [c for c in chosen if c.get("group") == g["name"]]
@@ -83,6 +86,8 @@ def price_lines(r: dict, raw_items: list[dict]) -> list[dict]:
                 raise HTTPException(400, f"Elige una opción en «{g['name']}» para {item['name']}")
             if not g.get("multi") and len(picks) > 1:
                 raise HTTPException(400, f"Solo una opción en «{g['name']}»")
+            if len({str(p.get("name")) for p in picks}) != len(picks):
+                raise HTTPException(400, f"Opción repetida en «{g['name']}»")
             for p in picks:
                 opt = next((o for o in g["options"] if o["name"] == p.get("name")), None)
                 if not opt:
@@ -91,7 +96,7 @@ def price_lines(r: dict, raw_items: list[dict]) -> list[dict]:
                 labels.append(opt["name"])
         lines.append({
             "item_id": item["id"], "name": item["name"], "qty": qty,
-            "unit_price": item["price"] + extra, "options_text": ", ".join(labels),
+            "unit_price": max(0, item["price"] + extra), "options_text": ", ".join(labels),
             "note": (it.get("note") or "")[:140],
         })
     return lines
@@ -115,11 +120,11 @@ def table_by_label(rid: int, label: str, key: str | None = None, require_key=Tru
     if label.startswith(TAKEAWAY_PREFIX):
         r = db.row("SELECT * FROM restaurants WHERE id=?", (rid,))
         if (not r or not r["takeaway"] or not r["takeaway_key"] or not auth.module_on(r, "takeaway")
-                or (require_key and not secrets.compare_digest(takeaway_key(r, label), key or ""))):
+                or (require_key and not auth.safe_eq(takeaway_key(r, label), key))):
             raise HTTPException(403, "Código no válido. Escanea de nuevo el QR para llevar.")
         return {"label": label}
     t = db.row("SELECT * FROM tables_ WHERE restaurant_id=? AND label=?", (rid, label))
-    if not t or (require_key and not secrets.compare_digest(t["secret"], key or "")):
+    if not t or (require_key and not auth.safe_eq(t["secret"], key)):
         raise HTTPException(403, "Mesa no válida. Escanea de nuevo el QR de tu mesa.")
     return t
 
@@ -128,6 +133,7 @@ def bill_lines(rid: int, label: str, include_paid_minutes=60) -> list[dict]:
     """Líneas de la cuenta de una mesa: todo lo pendiente + lo pagado recientemente."""
     cutoff_pending = (datetime.now(timezone.utc) - timedelta(minutes=PENDING_TTL_MIN)).strftime("%Y-%m-%d %H:%M:%S")
     cutoff_paid = (datetime.now(timezone.utc) - timedelta(minutes=include_paid_minutes)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff_stale = (datetime.now(timezone.utc) - timedelta(hours=TABLE_SESSION_HOURS)).strftime("%Y-%m-%d %H:%M:%S")
     rs = db.rows(
         """SELECT oi.id, oi.name, oi.qty, oi.unit_price, oi.options_text, oi.note, oi.order_id,
                   o.status AS order_status, o.diner_id, o.diner_name, o.seq, o.created_at,
@@ -147,6 +153,8 @@ def bill_lines(rid: int, label: str, include_paid_minutes=60) -> list[dict]:
         elif ps == "review" or (ps == "pending" and x["pay_created"] >= cutoff_pending):
             x["state"] = "reserved"
         else:
+            if x["created_at"] < cutoff_stale:  # cuenta olvidada de otro turno: no se le muestra ni se le cobra al grupo siguiente
+                continue
             x["state"] = "unpaid"
         x["line_total"] = x["qty"] * x["unit_price"]
         out.append(x)

@@ -18,6 +18,11 @@ def client_ip(request: Request) -> str:
     return request.headers.get("x-forwarded-for", request.client.host if request.client else "x").split(",")[0].strip()
 
 
+def safe_eq(a, b) -> bool:
+    """Comparación en tiempo constante que no revienta con caracteres no ASCII (compare_digest con str sí)."""
+    return secrets.compare_digest(str(a or "").encode(), str(b or "").encode())
+
+
 def now():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 

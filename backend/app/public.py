@@ -1,13 +1,14 @@
 """API pública: lo que usa el comensal desde su celular (sin app, sin cuenta)."""
 import json
 import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import colombia, config, db, events, invoicing, payments, service
-from .auth import client_ip, is_active, module_on, now, rate_check, rate_hit, rate_limit
+from .auth import client_ip, is_active, module_on, now, rate_check, rate_hit, rate_limit, safe_eq
 
 router = APIRouter(prefix="/api/public/{slug}")
 
@@ -54,7 +55,7 @@ def takeaway_start(slug: str, body: dict, request: Request):
     """El QR para llevar trae la clave del negocio; aquí se canjea por una «mesa» propia de este cliente (PL-xxxxxx + clave)."""
     r = _resto(slug)
     rate_limit(f"pl:start:{_ip(request)}:{r['id']}", 60, 600)
-    if not (r["takeaway"] and r["takeaway_key"] and module_on(r, "takeaway")) or not secrets.compare_digest(str(body.get("pl", "")), r["takeaway_key"]):
+    if not (r["takeaway"] and r["takeaway_key"] and module_on(r, "takeaway")) or not safe_eq(body.get("pl", ""), r["takeaway_key"]):
         raise HTTPException(403, "Este código para llevar ya no es válido. Pide uno nuevo en el mostrador.")
     label = service.TAKEAWAY_PREFIX + secrets.token_hex(3).upper()
     return {"table": label, "key": service.takeaway_key(r, label)}
@@ -129,7 +130,9 @@ def create_order(slug: str, body: OrderIn, request: Request):
     with db.tx() as c:  # (la transacción serializa las escrituras: contar y luego insertar no se pisa)
         if takeaway and service.takeaway_status(r["id"])["full"]:
             raise HTTPException(409, f"Estamos al tope de pedidos para llevar ({config.TAKEAWAY_MAX}). Podrás pedir apenas se entregue uno.")
-        today = now()[:10] + " 00:00:00"
+        off = timedelta(minutes=r["tz_offset"] or 0)  # el número de pedido se reinicia a la medianoche local, no a la UTC
+        today = (datetime.now(timezone.utc) + off).replace(hour=0, minute=0, second=0, microsecond=0)
+        today = (today - off).strftime("%Y-%m-%d %H:%M:%S")
         seq = c.execute("SELECT COALESCE(MAX(seq),0)+1 FROM orders WHERE restaurant_id=? AND created_at>=?",
                         (r["id"], today)).fetchone()[0]
         oid = c.execute(
@@ -377,7 +380,13 @@ def pay_cancel(slug: str, pid: int, body: dict, request: Request):
 @router.post("/quote")
 def quote(slug: str, body: dict):
     r = _resto(slug)
-    return service.totals(r, int(body.get("subtotal", 0)), float(body.get("tip_pct", 0)))
+    try:
+        subtotal, tip_pct = int(body.get("subtotal", 0)), float(body.get("tip_pct", 0))
+    except (TypeError, ValueError, OverflowError):
+        raise HTTPException(400, "Valores inválidos")
+    if not (0 <= subtotal <= 100_000_000 and 0 <= tip_pct <= 100):  # (también descarta NaN)
+        raise HTTPException(400, "Valores inválidos")
+    return service.totals(r, subtotal, tip_pct)
 
 
 class FeedbackIn(BaseModel):

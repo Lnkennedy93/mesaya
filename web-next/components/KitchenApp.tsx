@@ -148,7 +148,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
                       {o.diner_name && <div className="muted small">{o.diner_name}</div>}
                       <div className="row" style={{ marginTop: ".6rem" }}>
                         <button className={"btn grow " + (st === "ready" ? "ok" : "")} onClick={() => act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: NEXT[st][0] } }))}>{NEXT[st][1]}</button>
-                        <button className="btn ghost sm" onClick={() => { if (confirm("¿Cancelar este pedido?")) act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "cancelled" } })); }}>✕</button>
+                        <button className="btn ghost sm" onClick={() => { const reason = prompt("Motivo de la cancelación (opcional):"); if (reason !== null) act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "cancelled", reason } })); }}>✕</button>
                       </div>
                     </div>
                   );
@@ -248,6 +248,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
   const ref = useRef<HTMLDialogElement>(null);
   const [lines, setLines] = useState<Any[] | null>(null);
   const [inv, setInv] = useState({ doc_type: "CC", doc_number: "", name: "", email: "" });
+  const [busy, setBusy] = useState(false); // evita el doble toque en «cobrar»: un segundo envío no debe cobrar de nuevo
 
   useEffect(() => {
     const d = ref.current;
@@ -255,6 +256,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
     if (label === null) { if (d.open) d.close(); return; }
     let dead = false;
     setLines(null);
+    setBusy(false);
     setInv({ doc_type: "CC", doc_number: "", name: "", email: "" });
     api(`/api/floor/${encodeURIComponent(label)}`).then((r) => { if (!dead) { setLines(r.lines); if (!d.open) d.showModal(); } }).catch((e) => { onError(e.message); onClose(); });
     return () => { dead = true; };
@@ -264,11 +266,23 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
   const total = L.filter((l) => l.state === "unpaid").reduce((s, l) => s + l.line_total, 0);
 
   async function settle(method: string) {
+    if (busy || !confirm(`¿Cerrar la mesa ${label} con un cobro de ${money(total)}?`)) return;
+    setBusy(true);
     try {
       const invoice = inv.doc_number && inv.name ? inv : null;
       await api(`/api/floor/${encodeURIComponent(label!)}/settle`, { method: "POST", body: { method, invoice } });
       onSettled();
-    } catch (e: Any) { onError(e.message); }
+    } catch (e: Any) { onError(e.message); } finally { setBusy(false); }
+  }
+
+  async function voidTable() { // el cliente se fue sin pagar: se cancela lo entregado y queda el motivo
+    const reason = prompt("El cliente se fue sin pagar. Motivo (opcional):");
+    if (reason === null || busy) return;
+    setBusy(true);
+    try {
+      await api(`/api/floor/${encodeURIComponent(label!)}/void`, { method: "POST", body: { reason } });
+      onSettled();
+    } catch (e: Any) { onError(e.message); } finally { setBusy(false); }
   }
 
   return (
@@ -303,15 +317,16 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
             )}
             {ME.features.payments ? (
               <div className="row">
-                <button className="btn grow ok" disabled={!total} onClick={() => settle("cash")}>Cobrado en efectivo</button>
-                <button className="btn grow" disabled={!total} onClick={() => settle("card")}>Cobrado con datáfono</button>
+                <button className="btn grow ok" disabled={!total || busy} onClick={() => settle("cash")}>Cobrado en efectivo</button>
+                <button className="btn grow" disabled={!total || busy} onClick={() => settle("card")}>Cobrado con datáfono</button>
               </div>
             ) : (
               <>
-                <button className="btn block ok" disabled={!total} onClick={() => settle("cash")}>✅ Cerrar mesa (cuenta cobrada)</button>
+                <button className="btn block ok" disabled={!total || busy} onClick={() => settle("cash")}>✅ Cerrar mesa (cuenta cobrada)</button>
                 <p className="muted small" style={{ margin: ".4rem 0 0" }}>Cobra en caja como siempre y cierra la mesa para dejarla libre.</p>
               </>
             )}
+            {total > 0 && <button className="btn ghost sm block" style={{ marginTop: "1rem" }} disabled={busy} onClick={voidTable}>Cerrar sin cobrar (el cliente se fue)</button>}
           </>
         )}
       </div>

@@ -109,6 +109,17 @@ CREATE TABLE IF NOT EXISTS item_events (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_item_events_r ON item_events(restaurant_id, created_at);
+CREATE TABLE IF NOT EXISTS order_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  order_id INTEGER NOT NULL,
+  from_status TEXT NOT NULL,
+  to_status TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT '',
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_order_events_r ON order_events(restaurant_id, created_at);
 CREATE TABLE IF NOT EXISTS calls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
