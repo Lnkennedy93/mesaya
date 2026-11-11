@@ -89,7 +89,7 @@ def change_password(body: ChangePwIn, request: Request, response: Response, s: S
     pw_hash = auth.hash_password(body.password)
     with db.tx(s.id) as c:
         c.execute("UPDATE restaurants SET password_hash=? WHERE id=?", (pw_hash, s.id))
-        c.execute("DELETE FROM sessions WHERE restaurant_id=? AND token != ?", (s.id, keep or ""))
+        c.execute("DELETE FROM sessions WHERE restaurant_id=? AND token != ?", (s.id, auth.tok(keep or "")))
     return {"ok": True}
 
 

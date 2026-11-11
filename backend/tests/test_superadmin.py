@@ -39,7 +39,7 @@ with TestClient(app) as c, TestClient(app) as dueno:
     check(r["name"] == "Café Uno" and r["tables_used"] == 7 and r["tables_limit"] == 7 and r["active"] and r["effective_plan"] == "Esencial",
           "lista: negocio con mesas usadas/límite y plan efectivo")
 
-    check(a("activate", plan="pro").status_code == 200, "activar Pro")
+    check(a("activate", plan="pro", no_expiry=True).status_code == 200, "activar Pro")
     r = c.get("/api/superadmin/restaurants", headers=H).json()["restaurants"][0]
     check(r["effective_plan"] == "Pro" and r["tables_limit"] == 13 and r["ai_asks"] == 300, "Pro activo: 13 mesas y 300 preguntas de IA")
     check(a("activate", plan="pro", extra_tables=5).status_code == 200 and
@@ -49,7 +49,7 @@ with TestClient(app) as c, TestClient(app) as dueno:
     r = c.get("/api/superadmin/restaurants", headers=H).json()["restaurants"][0]
     check(not r["active"] and r["effective_plan"] == "Gratis" and r["tables_limit"] == 3, "desactivada en plena prueba: queda en plan Gratis")
 
-    check(a("activate", plan="basic", ai_addon=True).status_code == 200 and
+    check(a("activate", plan="basic", ai_addon=True, no_expiry=True).status_code == 200 and
           c.get("/api/superadmin/restaurants", headers=H).json()["restaurants"][0]["ai_asks"] == 120, "reactivar Esencial con IA: 120 preguntas")
     check(a("activate", plan="basic", ai_addon=False).status_code == 200 and
           c.get("/api/superadmin/restaurants", headers=H).json()["restaurants"][0]["ai_asks"] == 0, "quitar la IA al Esencial")

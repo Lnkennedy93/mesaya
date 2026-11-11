@@ -69,7 +69,7 @@ export default function SettingsTab() {
       <div className="card" style={{ marginTop: ".8rem" }}>
         <h3>Operación</h3>
         <label className="chk"><input type="checkbox" checked={f.accepting} onChange={(e) => setF({ ...f, accepting: e.target.checked })} /> Recibir pedidos desde el QR (si lo apagas, el QR solo muestra la carta)</label>
-        <label>PIN del equipo (cocina y meseros) — entran en <b>/kitchen</b> con el código <b>{r.slug}</b></label>
+        <label>PIN del equipo, de 6 a 8 dígitos (cocina y meseros) — entran en <b>/kitchen</b> con el código <b>{r.slug}</b>. Si lo cambias, el equipo debe volver a entrar.</label>
         <input value={f.pin} onChange={set("pin")} inputMode="numeric" maxLength={8} style={{ maxWidth: 160 }} />
       </div>
       <p><button className="btn" onClick={save}>Guardar cambios</button></p>

@@ -1,5 +1,6 @@
 """Lógica de negocio compartida: cuentas, totales, validación de pedidos."""
 import hmac
+import json
 import re
 import secrets
 import unicodedata
@@ -32,8 +33,11 @@ def unique_slug(base: str) -> str:
     return cand
 
 
+TIP_MAX_PCT = 15  # la propina es voluntaria: 10 % sugerido (Ley 1935) y hasta 15 % si el cliente quiere dar más; nada por encima
+
+
 def new_secret() -> str:
-    return secrets.token_hex(4)
+    return secrets.token_hex(8)
 
 
 def decimals_for(currency: str) -> int:
@@ -56,7 +60,7 @@ def totals(r: dict, subtotal: int, tip_pct: float) -> dict:
             tax = round(subtotal - subtotal / (1 + r["tax_pct"] / 100))
         else:
             tax = round(subtotal * r["tax_pct"] / 100)
-    tip = round(subtotal * max(0, min(tip_pct, 50)) / 100)
+    tip = round(subtotal * max(0, min(tip_pct, TIP_MAX_PCT)) / 100)
     total = subtotal + (0 if r["tax_included"] else tax) + tip
     return {"subtotal": subtotal, "tax": tax, "tip": tip, "total": total}
 
@@ -175,15 +179,29 @@ def finalize_payment(payment_id: int, approved: bool) -> bool:
     p0 = db.row("SELECT restaurant_id FROM payments WHERE id=?", (payment_id,))
     if not p0:
         return False
+    conflict = False
     with db.tx(p0["restaurant_id"]) as c:
         p = c.execute("SELECT * FROM payments WHERE id=?", (payment_id,)).fetchone()
-        if not p or p["status"] not in ("pending", "review"):
+        # una aprobación tardía (el cliente canceló o el pago venció, pero el banco sí cobró) también cuenta
+        if not p or p["status"] not in (("pending", "review", "failed") if approved else ("pending", "review")):
             return False
-        c.execute("UPDATE payments SET status=?, paid_at=? WHERE id=?",
-                  ("paid" if approved else "failed", now() if approved else None, payment_id))
+        status = "paid" if approved else "failed"
+        if approved:
+            ids = [i for i in json.loads(p["item_ids"] or "[]") if isinstance(i, int)]
+            for i in ids:  # ¿esas líneas ya las cobró otro pago? entonces este es un cobro doble: no se factura, se devuelve
+                row = c.execute("""SELECT oi.paid_payment_id, o.status AS ostatus, p2.status AS pstatus FROM order_items oi
+                                   JOIN orders o ON o.id = oi.order_id LEFT JOIN payments p2 ON p2.id = oi.paid_payment_id
+                                   WHERE oi.id=?""", (i,)).fetchone()
+                if row and (row["ostatus"] == "cancelled" or (row["paid_payment_id"] not in (None, payment_id) and row["pstatus"] in ("paid", "review"))):
+                    conflict = True
+            if conflict:
+                status = "conflict"
+            elif ids:
+                c.execute(f"UPDATE order_items SET paid_payment_id=? WHERE id IN ({','.join('?' * len(ids))})", (payment_id, *ids))
+        c.execute("UPDATE payments SET status=?, paid_at=? WHERE id=?", (status, now() if approved else None, payment_id))
     rid, label = p["restaurant_id"], p["table_label"]
-    events.publish(f"r{rid}", "paid" if approved else "call", {"table": label, "total": p["total"]})
+    events.publish(f"r{rid}", "payment" if conflict else ("paid" if approved else "call"), {"table": label, "total": p["total"]})
     events.publish(f"t{rid}:{label}", "update", {})
-    if approved:
+    if approved and not conflict:
         invoicing.enqueue(payment_id)
     return True

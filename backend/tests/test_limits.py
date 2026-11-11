@@ -57,8 +57,8 @@ with TestClient(app) as c:
              for n in range(1, 31)]
     check(calls.count(200) == 30, "30 mesas llaman al mesero desde la misma IP")
 
-    # calificaciones por mesa (no llevan clave)
-    fb = [c.post(f"/api/public/{slug}/feedback", headers=WIFI, json={"table": str(n), "rating": 5}).status_code for n in range(1, 21)]
+    # calificaciones por mesa (con la clave del QR)
+    fb = [c.post(f"/api/public/{slug}/feedback", headers=WIFI, json={"table": str(n), "key": f"k{n}", "rating": 5}).status_code for n in range(1, 21)]
     check(fb.count(200) == 20, "20 mesas califican desde la misma IP")
 
     # fuerza bruta de la clave de una mesa: se corta por IP

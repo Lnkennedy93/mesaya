@@ -82,7 +82,7 @@ with TestClient(app) as c, TestClient(app) as other:
 
     # complemento de IA en Esencial: 120 preguntas al mes; sin él vuelve a bloquear
     def act(email, **b):
-        return c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "basic", "email": email, **b}).status_code
+        return c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "basic", "email": email, "no_expiry": True, **b}).status_code
     check(act("uno@b.co", ai_addon=True) == 200, "complemento de IA activado")
     script[:] = [model_turn({"text": "Hola"})]
     r = c.post("/api/assistant", json={"question": "hola"})
@@ -100,7 +100,7 @@ with TestClient(app) as c, TestClient(app) as other:
         check(t3.post("/api/tables", json={"count": 2}).status_code == 200, "2 mesas adicionales contratadas caben (9)")
         check(act("tres@b.co") == 200 and t3.post("/api/tables", json={"count": 1}).status_code == 402, "reactivar sin indicar extras los conserva")
 
-    check(c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "pro", "email": "uno@b.co"}).status_code == 200, "plan Pro activado")
+    check(c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "pro", "email": "uno@b.co", "no_expiry": True}).status_code == 200, "plan Pro activado")
     order(c, slug, items["Empanadas"], 2, "d1")
     order(c, slug, items["Sopa"], 1, "d2")
 

@@ -26,7 +26,7 @@ with TestClient(app) as c:
     slug = c.post("/api/signup", json={"accept_terms": True, "name": "El Fogón", "email": "f@b.co", "password": "secreto123", "tables": 3}).json()["restaurant"]["slug"]
     c.post("/api/import/commit", json=c.post("/api/import/text", json={"text": "# Platos\nEmpanadas - 8.000\nLimonada - 6.500\nSopa - 12.000\n"}).json())
     items = {i["name"]: i["id"] for cat in c.get("/api/menu").json()["categories"] for i in cat["items"]}
-    c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "pro", "email": "f@b.co"})
+    c.post("/api/superadmin/activate", headers={"x-admin-key": "k"}, json={"plan": "pro", "email": "f@b.co", "no_expiry": True})
     for n, (dish, qty) in enumerate([("Empanadas", 3), ("Sopa", 1), ("Empanadas", 2), ("Sopa", 2)]):
         t = c.get("/api/tables").json()["tables"][n % 3]
         c.post(f"/api/public/{slug}/orders", json={"table": t["label"], "key": t["secret"], "diner_id": f"d{n}", "diner_name": "Ana",

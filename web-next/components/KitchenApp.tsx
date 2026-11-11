@@ -113,7 +113,14 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       </header>
 
       <div className="calls">
-        {reviews.map((p) => (
+        {reviews.filter((p) => p.status === "conflict").map((p) => (
+          <div className="call" style={{ background: "#5a1d1d", animation: "none" }} key={"p" + p.id}>
+            <b>⚠ Cobro duplicado · Mesa {p.table_label} · {money(p.total)}</b>
+            <span className="muted small">El cliente pagó dos veces: devuélvele este valor.</span>
+            <button className="btn sm ok" onClick={() => act(async () => { await api(`/api/payments/${p.id}/reject`, { method: "POST" }); toast("Marcado como devuelto ✓"); })}>Ya lo devolví</button>
+          </div>
+        ))}
+        {reviews.filter((p) => p.status !== "conflict").map((p) => (
           <div className="call" style={{ background: "#1d3f5a", animation: "none" }} key={"p" + p.id}>
             <b>💸 Confirmar Bre-B · Mesa {p.table_label} · {money(p.total)}</b>
             <span className="muted small">ref {p.reference.slice(-6).toUpperCase()}</span>

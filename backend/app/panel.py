@@ -38,7 +38,21 @@ def _set_cookie(resp: Response, token: str):
                     max_age=30 * 86400, path="/")
 
 
+STAFF_FIELDS = ("id", "slug", "name", "currency", "decimals", "brand_color", "tagline", "logo", "tip_pct", "tax_pct", "tax_included",
+                "tz_offset", "accepting_orders", "online_payments", "takeaway", "plan", "inv_provider")
+
+
 def _me(r: dict, role: str) -> dict:
+    out = _me_full(r, role)
+    if role == "owner":
+        return out
+    out["restaurant"] = {k: out["restaurant"][k] for k in STAFF_FIELDS}
+    for k in ("takeaway_url", "integrations"):
+        out.pop(k, None)
+    return out
+
+
+def _me_full(r: dict, role: str) -> dict:
     plan = auth.plan_info(r)
     left, sub_left = None, None
     if r["subscription_status"] == "active" and r["paid_until"]:  # días que le quedan a lo pagado (negativo: ya venció)
@@ -87,7 +101,7 @@ def signup(body: SignupIn, request: Request, response: Response):
     cur = body.currency.upper()[:3]
     trial_end = (datetime.now(timezone.utc) + timedelta(days=config.TRIAL_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
     slug = service.unique_slug(body.name)
-    pin = f"{secrets.randbelow(10000):04d}"
+    pin = f"{secrets.randbelow(10**6):06d}"
     co = cur == "COP"  # valores por defecto de un restaurante colombiano: INC 8 % incluido y propina sugerida 10 %
     pw_hash = auth.hash_password(body.password)  # (scrypt tarda ~100 ms: fuera de la transacción)
     with db.tx() as c:
@@ -112,8 +126,12 @@ class LoginIn(BaseModel):
 @router.post("/login")
 def login(body: LoginIn, request: Request, response: Response):
     rate_limit(f"login:{auth.client_ip(request)}", 10, 600)
-    r = db.row("SELECT * FROM restaurants WHERE email=?", (body.email.strip().lower(),))
-    if not r or not auth.verify_password(body.password, r["password_hash"]):
+    email = body.email.strip().lower()[:120]
+    mine = f"login:e:{email}"  # además del límite por IP: unas pocas claves malas por cuenta y hora, vengan de donde vengan
+    auth.rate_check(mine, 10, 900)
+    r = db.row("SELECT * FROM restaurants WHERE email=?", (email,))
+    if not auth.verify_password(body.password, r["password_hash"] if r else auth.dummy_hash()) or not r:
+        auth.rate_hit(mine)
         raise HTTPException(401, "Correo o contraseña incorrectos")
     _set_cookie(response, auth.create_session(r["id"], "owner"))
     return _me(r, "owner")
@@ -127,8 +145,12 @@ class StaffLoginIn(BaseModel):
 @router.post("/staff-login")
 def staff_login(body: StaffLoginIn, request: Request, response: Response):
     rate_limit(f"pin:{auth.client_ip(request)}", 10, 600)
-    r = db.row("SELECT * FROM restaurants WHERE slug=?", (body.slug.strip().lower(),))
+    slug = body.slug.strip().lower()[:60]
+    mine = f"pin:r:{slug}"  # tope por restaurante: con muchas IPs el PIN no se adivina; el dueño siempre entra con su clave
+    auth.rate_check(mine, 30, 3600)
+    r = db.row("SELECT * FROM restaurants WHERE slug=?", (slug,))
     if not r or not auth.safe_eq(r["staff_pin"], body.pin.strip()):
+        auth.rate_hit(mine)
         raise HTTPException(401, "Restaurante o PIN incorrecto")
     _set_cookie(response, auth.create_session(r["id"], "staff", days=1))
     return _me(r, "staff")
@@ -138,7 +160,7 @@ def staff_login(body: StaffLoginIn, request: Request, response: Response):
 def logout(request: Request, response: Response):
     tok = request.cookies.get(auth.COOKIE)
     if tok:
-        db.run("DELETE FROM sessions WHERE token=?", (tok,))
+        db.run("DELETE FROM sessions WHERE token=?", (auth.tok(tok),))
     response.delete_cookie(auth.COOKIE, path="/")
     return {"ok": True}
 
@@ -164,6 +186,7 @@ ENUMS = {"inv_provider": {"none", "factus", "mock"}, "inv_env": {"sandbox", "pro
 @router.put("/settings")
 def update_settings(body: dict, s: Staff = Depends(owner_dep)):
     sets, vals = [], []
+    new_pin = False
     for k, typ in SETTINGS_FIELDS.items():
         if k in body:
             v = body[k]
@@ -171,10 +194,20 @@ def update_settings(body: dict, s: Staff = Depends(owner_dep)):
                 v = typ(v)
             except (TypeError, ValueError):
                 raise HTTPException(400, f"Valor inválido en {k}")
-            if k == "brand_color" and not (len(v) == 7 and v.startswith("#")):
+            if k == "brand_color" and not re.fullmatch(r"#[0-9a-fA-F]{6}", v):
                 raise HTTPException(400, "Color inválido")
-            if k == "staff_pin" and not (v.isdigit() and 4 <= len(v) <= 8):
-                raise HTTPException(400, "El PIN debe tener 4 a 8 dígitos")
+            if k == "staff_pin":
+                if v == s.r["staff_pin"]:
+                    continue  # el panel reenvía el PIN de siempre al guardar otros ajustes
+                if not (v.isdigit() and 6 <= len(v) <= 8):
+                    raise HTTPException(400, "El PIN debe tener 6 a 8 dígitos")
+                new_pin = True
+            if k == "google_review_url":
+                v = v.strip()[:300]
+                if v and not v.startswith("https://"):
+                    raise HTTPException(400, "El enlace de reseñas debe empezar por https://")
+            if k in ("whatsapp", "fiscal_phone", "breb_key"):
+                v = v.strip()[:60]
             if k == "tax_pct" and not 0 <= v <= 100:  # (también descarta NaN)
                 raise HTTPException(400, "El impuesto debe estar entre 0 y 100")
             if k == "tip_pct" and not 0 <= v <= 10:  # Ley 1935 de 2018: la propina sugerida es del 10 %, no más
@@ -206,6 +239,8 @@ def update_settings(body: dict, s: Staff = Depends(owner_dep)):
             vals.append(v)
     if sets:
         db.run(f"UPDATE restaurants SET {', '.join(sets)} WHERE id=?", (*vals, s.id))
+        if new_pin:  # quien entró con el PIN anterior sale: si se filtró, el cambio sirve
+            db.run("DELETE FROM sessions WHERE restaurant_id=? AND role='staff'", (s.id,))
         events.publish(f"r{s.id}", "settings", {})
     return _me(db.row("SELECT * FROM restaurants WHERE id=?", (s.id,)), s.role)
 
@@ -676,7 +711,12 @@ def import_commit(body: dict, s: Staff = Depends(owner_dep)):
                     iname = str(it.get("name", "")).strip()[:90]
                     if not iname:
                         continue
-                    price = round(float(it.get("price") or 0) * (1 if s.r["decimals"] == 0 else 100))
+                    try:
+                        price = round(float(it.get("price") or 0) * (1 if s.r["decimals"] == 0 else 100))
+                    except (TypeError, ValueError, OverflowError):
+                        raise HTTPException(400, f"Precio inválido en «{iname}»")
+                    if not 0 <= price <= 10_000_000_000:
+                        raise HTTPException(400, f"Precio fuera de rango en «{iname}»")
                     tags = [t for t in it.get("tags", []) if isinstance(t, str)][:6]
                     image = photo_for(c, it)
                     photos += 1 if image else 0
@@ -942,10 +982,15 @@ def settle(label: str, body: dict, s: Staff = Depends(staff_dep)):
         raise HTTPException(400, "Propina inválida")
     with db.tx(s.id) as c:
         # las líneas se leen DENTRO de la transacción (que serializa las escrituras): un segundo cobro simultáneo ya no encuentra nada por cobrar
-        lines = [l for l in service.bill_lines(s.id, label) if l["state"] == "unpaid"]
+        every = service.bill_lines(s.id, label)
+        lines = [l for l in every if l["state"] == "unpaid"]
         if not lines:
+            if any(l["state"] == "reserved" for l in every):
+                raise HTTPException(409, "Hay un pago por confirmar en esta mesa: resuélvelo en «Confirmar pago» antes de cobrar")
             return {"ok": True, "total": 0}
         subtotal = sum(l["line_total"] for l in lines)
+        if tip > subtotal * service.TIP_MAX_PCT / 100:
+            raise HTTPException(400, f"La propina no puede pasar del {service.TIP_MAX_PCT} % de la cuenta")
         tt = service.totals(s.r, subtotal, 0)
         pid = c.execute(
             """INSERT INTO payments(restaurant_id,table_label,provider,status,subtotal,tip,total,payer,item_ids,customer,paid_at,created_at)
@@ -1161,10 +1206,12 @@ def sa_activate(body: dict, request: Request):
         raise HTTPException(400, "El periodo debe estar entre 1 y 3660 días")
     ai = body.get("ai_addon")
     email = str(body.get("email", "")).strip().lower()
-    cur = db.row("SELECT paid_until FROM restaurants WHERE email=?", (email,))
+    cur = db.row("SELECT paid_until, subscription_status FROM restaurants WHERE email=?", (email,))
     if not cur:
         raise HTTPException(404, "No existe una cuenta con ese correo")
     paid = cur["paid_until"]
+    if status == "active" and not body.get("no_expiry") and not days and (cur["subscription_status"] != "active" or (paid and paid <= now())):
+        raise HTTPException(400, "Indica period_days (renovar) o no_expiry: sin eso la cuenta quedaría activa para siempre o ya vencida")
     if status == "active":
         fmt = "%Y-%m-%d %H:%M:%S"
         if body.get("no_expiry"):
@@ -1223,6 +1270,8 @@ async def wompi_webhook(slug: str, request: Request):
         t = evt["data"]["transaction"]
         p = db.row("SELECT * FROM payments WHERE restaurant_id=? AND reference=?", (r["id"], t.get("reference", "")))
         cents = (p["total"] * 100 if r["decimals"] == 0 else p["total"]) if p else 0
+        if p and p["external_ref"] and t.get("id") != p["external_ref"]:
+            p = None  # firmado, pero de otra transacción: no se toca este pago
         if p and t.get("status") == "APPROVED" and int(t.get("amount_in_cents", 0)) == cents:
             service.finalize_payment(p["id"], True)
         elif p and t.get("status") in ("DECLINED", "ERROR", "VOIDED"):
@@ -1234,7 +1283,7 @@ async def wompi_webhook(slug: str, request: Request):
 @router.get("/payments/review")
 def payments_review(s: Staff = Depends(staff_dep)):
     return {"payments": db.rows(
-        "SELECT id, table_label, total, payer, reference, created_at FROM payments WHERE restaurant_id=? AND status='review' ORDER BY id", (s.id,))}
+        "SELECT id, table_label, total, payer, reference, status, created_at FROM payments WHERE restaurant_id=? AND status IN ('review','conflict') ORDER BY id", (s.id,))}
 
 
 @router.post("/payments/{pid}/confirm")
@@ -1251,5 +1300,9 @@ def payment_reject(pid: int, s: Staff = Depends(staff_dep)):
     p = db.row("SELECT * FROM payments WHERE id=? AND restaurant_id=?", (pid, s.id))
     if not p:
         raise HTTPException(404)
+    if p["status"] == "conflict":  # cobro duplicado: ya se devolvió el dinero
+        db.run("UPDATE payments SET status='refunded' WHERE id=? AND status='conflict'", (pid,))
+        events.publish(f"r{s.id}", "payment", {})
+        return {"ok": True}
     service.finalize_payment(pid, False)
     return {"ok": True}

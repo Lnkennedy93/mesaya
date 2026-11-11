@@ -13,6 +13,8 @@ const nextConfig = {
       headers: [
         { key: "X-Frame-Options", value: "DENY" },
         { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        // En modo «solo reporte»: el navegador avisa en la consola de lo que bloquearía, sin romper nada. Pasarla a Content-Security-Policy cuando salga limpia.
+        { key: "Content-Security-Policy-Report-Only", value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" },
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },

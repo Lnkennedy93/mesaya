@@ -42,11 +42,26 @@ def verify_password(pw: str, stored: str) -> bool:
         return False
 
 
+def tok(token: str) -> str:
+    """Las sesiones se guardan con hash: quien lea la tabla no puede usarlas como cookie."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+_DUMMY = ""
+
+
+def dummy_hash() -> str:
+    """Hash de relleno: un correo que no existe tarda lo mismo en responder que uno que sí (no delata cuentas)."""
+    global _DUMMY
+    _DUMMY = _DUMMY or hash_password("mesaya")
+    return _DUMMY
+
+
 def create_session(restaurant_id: int, role: str, days: int = 30) -> str:
     token = secrets.token_urlsafe(32)
     exp = (datetime.now(timezone.utc) + timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
     db.run("INSERT INTO sessions(token, restaurant_id, role, expires_at) VALUES (?,?,?,?)",
-           (token, restaurant_id, role, exp))
+           (tok(token), restaurant_id, role, exp))
     return token
 
 
@@ -61,7 +76,7 @@ def current(request: Request, optional=False):
     token = request.cookies.get(COOKIE)
     if token:
         r = db.row("""SELECT r.*, s.role AS session_role FROM sessions s JOIN restaurants r ON r.id = s.restaurant_id
-                      WHERE s.token=? AND s.expires_at > ?""", (token, now()))
+                      WHERE s.token=? AND s.expires_at > ?""", (tok(token), now()))
         if r:
             return Staff(r, r.pop("session_role"))
     if optional:

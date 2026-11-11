@@ -266,6 +266,8 @@ def pay(slug: str, body: PayIn, request: Request):
             raise HTTPException(409, "Alguno de esos platos ya fue pagado o está en proceso de pago")
         chosen.append(l)
     subtotal = sum(l["line_total"] for l in chosen)
+    if not 0 <= body.tip_pct <= service.TIP_MAX_PCT:  # (también descarta NaN)
+        raise HTTPException(400, f"La propina va de 0 a {service.TIP_MAX_PCT} %")
     tt = service.totals(r, subtotal, body.tip_pct)
     customer = colombia.clean_customer(body.invoice)
 
@@ -283,7 +285,10 @@ def pay(slug: str, body: PayIn, request: Request):
     reference = f"mesaya-{secrets.token_hex(5)}"
     with db.tx(r["id"]) as c:
         for l in chosen:  # revalidar dentro de la transacción: evita doble pago concurrente
-            row = c.execute("SELECT paid_payment_id FROM order_items WHERE id=?", (l["id"],)).fetchone()
+            row = c.execute("""SELECT oi.paid_payment_id, o.status AS ostatus FROM order_items oi JOIN orders o ON o.id = oi.order_id
+                               WHERE oi.id=?""", (l["id"],)).fetchone()
+            if row["ostatus"] == "cancelled":
+                raise HTTPException(409, "Alguno de esos platos fue cancelado")
             if row["paid_payment_id"]:
                 p = c.execute("SELECT status, created_at FROM payments WHERE id=?", (row["paid_payment_id"],)).fetchone()
                 if p and (p["status"] in ("paid", "review") or (p["status"] == "pending" and p["created_at"] >= _cutoff())):
@@ -367,7 +372,7 @@ def pay_claim(slug: str, pid: int, body: dict, request: Request):
     rate_limit(f"claim:t:{r['id']}:{p['table_label']}", 8, 600)
     if p["provider"] != "breb" or p["status"] not in ("pending", "review"):
         raise HTTPException(409, "Este pago no se puede reportar")
-    db.run("UPDATE payments SET status='review' WHERE id=?", (pid,))
+    db.run("UPDATE payments SET status='review' WHERE id=? AND status IN ('pending','review')", (pid,))  # (si ya lo confirmó el equipo, no vuelve a «por confirmar»)
     events.publish(f"r{r['id']}", "payment", {"table": p["table_label"], "total": p["total"]})
     events.publish(f"t{r['id']}:{p['table_label']}", "update", {})
     return {"ok": True}
@@ -378,7 +383,7 @@ def pay_cancel(slug: str, pid: int, body: dict, request: Request):
     r = _resto(slug)
     p = _own_payment(r, pid, str(body.get("table", "")), str(body.get("key", "")), request)
     if p["status"] == "pending":
-        db.run("UPDATE payments SET status='failed' WHERE id=?", (pid,))
+        db.run("UPDATE payments SET status='failed' WHERE id=? AND status='pending'", (pid,))
         events.publish(f"t{r['id']}:{p['table_label']}", "update", {})
     return {"ok": True}
 
@@ -390,13 +395,14 @@ def quote(slug: str, body: dict):
         subtotal, tip_pct = int(body.get("subtotal", 0)), float(body.get("tip_pct", 0))
     except (TypeError, ValueError, OverflowError):
         raise HTTPException(400, "Valores inválidos")
-    if not (0 <= subtotal <= 100_000_000 and 0 <= tip_pct <= 100):  # (también descarta NaN)
+    if not (0 <= subtotal <= 100_000_000 and 0 <= tip_pct <= service.TIP_MAX_PCT):  # (también descarta NaN)
         raise HTTPException(400, "Valores inválidos")
     return service.totals(r, subtotal, tip_pct)
 
 
 class FeedbackIn(BaseModel):
-    table: str = ""
+    table: str = Field(default="", max_length=40)
+    key: str = Field(default="", max_length=80)
     rating: int = Field(ge=1, le=5)
     comment: str = Field(default="", max_length=500)
 
@@ -405,6 +411,7 @@ class FeedbackIn(BaseModel):
 def feedback(slug: str, body: FeedbackIn, request: Request):
     r = _resto(slug)
     rate_limit(f"fb:ip:{_ip(request)}:{r['id']}", IP_GUARD // 2, 3600)
+    _table(r, body.table, body.key, request)  # solo quien está en la mesa (clave del QR) puede calificar
     rate_limit(f"fb:t:{r['id']}:{body.table}", 5, 3600)
     db.run("INSERT INTO feedback(restaurant_id, table_label, rating, comment, created_at) VALUES (?,?,?,?,?)",
            (r["id"], body.table, body.rating, body.comment.strip(), now()))

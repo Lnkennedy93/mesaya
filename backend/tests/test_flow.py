@@ -118,7 +118,7 @@ with TestClient(app) as c:
     # límites de plan y backoffice
     check(c.post("/api/tables", json={"count": 50}).status_code == 402, "límite de mesas del plan")
     check(c.get("/api/superadmin/restaurants").status_code == 403, "backoffice protegido")
-    check(c.post("/api/superadmin/activate", json={"email": "a@b.co", "plan": "pro"}, headers={"x-admin-key": "k"}).status_code == 200,
+    check(c.post("/api/superadmin/activate", json={"email": "a@b.co", "plan": "pro", "no_expiry": True}, headers={"x-admin-key": "k"}).status_code == 200,
           "activar suscripción")
     check(c.get("/api/me").json()["plan"]["name"] == "Pro", "plan Pro activo")
 

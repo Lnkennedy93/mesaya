@@ -90,7 +90,7 @@ with TestClient(app) as c:
         r = c.post(f"{base}/call", json={"table": t["label"], "key": t["secret"], "type": tipo, "method": "cash"})
         check(r.status_code == 409, f"mesa cerrada: no se puede pedir «{tipo}» ({r.status_code})")
     check(c.get("/api/calls").json()["calls"] == [], "mesa cerrada: no se creó ningún aviso")
-    check(c.post(f"{base}/feedback", json={"table": t["label"], "rating": 5, "comment": "Rico"}).status_code == 200, "el cliente puede calificar")
+    check(c.post(f"{base}/feedback", json={"table": t["label"], "key": t["secret"], "rating": 5, "comment": "Rico"}).status_code == 200, "el cliente puede calificar")
     # un pedido nuevo en esa mesa la reabre sola (el siguiente grupo puede usarla)
     check(c.post(f"{base}/orders", json={**order, "diner_id": "d2"}).status_code == 200, "mesa cerrada: un pedido nuevo se acepta")
     check(c.get(f"{base}/bill", params=q).json()["closed"] is False, "con un pedido nuevo la mesa deja de estar cerrada")

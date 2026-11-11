@@ -218,7 +218,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
 
   async function sendFeedback() {
     try {
-      const r = await api(`/api/public/${slug}/feedback`, { method: "POST", body: { table: TABLE, rating, comment } });
+      const r = await api(`/api/public/${slug}/feedback`, { method: "POST", body: { table: TABLE, key: KEY, rating, comment } });
       setRated(true);
       if (r.review_url) setReviewUrl(r.review_url);
     } catch (e: Any) { toast(e.message, true); }
