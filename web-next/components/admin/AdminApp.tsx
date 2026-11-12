@@ -14,6 +14,7 @@ import AssistantTab from "./AssistantTab";
 import FiscalTab from "./FiscalTab";
 import CustomersTab from "./CustomersTab";
 import TakeawayTab from "./TakeawayTab";
+import Icon, { type IconName } from "@/components/Icon";
 
 export default function AdminApp({ welcome }: { welcome: boolean }) {
   const [ME, setMEState] = useState<Any>(null);
@@ -49,8 +50,8 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
 
   if (!ME || !ctx) return <div className="admin-root" />;
 
-  const tabs: [string, string][] = [["home", "📊 Resumen"], ["menu", "🍽️ Carta"], ["tables", "🔳 Mesas y QR"], ["takeaway", "🥡 Para llevar"], ["reviews", "⭐ Opiniones"], ["customers", "🎁 Fidelización Clientes"], ["assistant", "🤖 Asistente"], ["settings", "⚙️ Ajustes"]];
-  if (ME.features.payments || ME.features.invoicing) tabs.splice(3, 0, ["fiscal", "🧾 Facturas y pagos"]);
+  const tabs: [string, string, IconName][] = [["home", "Resumen", "chart"], ["menu", "Carta", "menu"], ["tables", "Mesas y QR", "qr"], ["takeaway", "Para llevar", "takeaway"], ["reviews", "Opiniones", "star"], ["customers", "Fidelización Clientes", "gift"], ["assistant", "Asistente", "robot"], ["settings", "Ajustes", "gear"]];
+  if (ME.features.payments || ME.features.invoicing) tabs.splice(3, 0, ["fiscal", "Facturas y pagos", "receipt"]);
   // funciones que el superusuario dejó apagadas para este negocio: no se muestran (y el servidor las rechaza)
   const shownTabs = tabs.filter(([k]) => k === "fiscal" || ME.modules?.[k] !== false);
   const cur = shownTabs.some(([k]) => k === tab) ? tab : shownTabs[0]?.[0] ?? "";
@@ -69,7 +70,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
     R.subscription_status === "active" ? subBanner : !ME.active ? (
       <div className="banner bad"><b>{R.cancel_requested_at ? "Cancelaste tu suscripción: estás en el plan Gratis." : "Tu prueba terminó: estás en el plan Gratis."}</b> Solo las primeras {ME.plan.tables} mesas reciben pedidos desde el QR. <a className="btn sm" href={mail}>Activar mi plan</a></div>
     ) : (
-      <div className="banner"><span>🎁 Prueba gratis: te quedan <b>{ME.trial_days_left} días</b></span><a className="btn sm" href={mail}>Elegir plan</a></div>
+      <div className="banner"><span><Icon n="gift" /> Prueba gratis: te quedan <b>{ME.trial_days_left} días</b></span><a className="btn sm" href={mail}>Elegir plan</a></div>
     );
 
   const Tab = ({ home: HomeTab, menu: MenuTab, tables: TablesTab, fiscal: FiscalTab, reviews: ReviewsTab, customers: CustomersTab, takeaway: TakeawayTab, assistant: AssistantTab, settings: SettingsTab } as Record<string, React.ComponentType>)[cur];
@@ -81,12 +82,12 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
           <nav>
             <div className="logo">Mesa<b>Ya</b></div>
             <div>
-              {shownTabs.map(([k, l]) => (
-                <button key={k} className={k === cur ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
+              {shownTabs.map(([k, l, ic]) => (
+                <button key={k} className={k === cur ? "on" : ""} onClick={() => setTab(k)}><Icon n={ic} /> {l}</button>
               ))}
             </div>
             <div className="sp"></div>
-            <a className="btn sm ghost" href="/kitchen" target="_blank">Cocina y sala ↗</a>
+            <a className="btn sm ghost" href="/kitchen" target="_blank">Cocina y sala <Icon n="ext" /></a>
             <button style={{ marginTop: ".3rem" }} onClick={async () => { await api("/api/logout", { method: "POST" }); location.href = "/login"; }}>Salir</button>
             <Powered />
           </nav>

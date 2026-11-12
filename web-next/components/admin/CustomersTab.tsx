@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import Modal from "@/components/Modal";
 import { Any, useAdmin } from "./ctx";
+import Icon from "@/components/Icon";
 
 export default function CustomersTab() {
   const { toast } = useAdmin();
@@ -45,7 +46,7 @@ export default function CustomersTab() {
       <div className="row spread wrap">
         <h1>Fidelización Clientes</h1>
         <div className="row">
-          {list.length > 0 && <a className="btn sm ghost" href="/api/customers.xlsx" download>⬇ Exportar a Excel</a>}
+          {list.length > 0 && <a className="btn sm ghost" href="/api/customers.xlsx" download><Icon n="download" /> Exportar a Excel</a>}
           <button className="btn sm" onClick={() => setOpen(true)}>+ Agregar cliente</button>
         </div>
       </div>
@@ -58,7 +59,7 @@ export default function CustomersTab() {
               <b>{c.name}</b>
               <div className="muted small">CC {c.document} · {c.phone} · {c.email}</div>
             </div>
-            <button className="btn sm ghost" title="Eliminar" onClick={() => remove(c)}>✕</button>
+            <button className="btn sm ghost" title="Eliminar" onClick={() => remove(c)} aria-label="Eliminar"><Icon n="close" /></button>
           </div>
         ))}
         {!shown.length && <p className="muted">{list.length ? "Sin resultados." : "Aún no tienes clientes fidelizados. Agrega el primero con «+ Agregar cliente»."}</p>}

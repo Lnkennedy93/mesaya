@@ -48,6 +48,8 @@
 .landing .steps .card:before{counter-increment:s;content:counter(s);position:absolute;top:-14px;left:1.1rem;width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--bg);font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 40%,transparent)}
 .landing .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem}
 .landing .feat .card h3{font-size:1.05rem}
+.landing .feat .ico .ic{width:1.4rem;height:1.4rem}
+.landing .cmp .ic.yes{color:var(--ok)}.landing .cmp .ic.no{color:var(--bad)}
 .landing .feat .ico{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:color-mix(in srgb,var(--solid) 70%,transparent);border:1px solid var(--line);font-size:1.35rem;margin-bottom:.5rem}
 .landing .ask{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;align-items:start}
 @media(max-width:860px){.landing .ask{grid-template-columns:1fr}}

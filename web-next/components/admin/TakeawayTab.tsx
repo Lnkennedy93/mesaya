@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, poll } from "@/lib/api";
 import { Any, useAdmin } from "./ctx";
+import Icon from "@/components/Icon";
 
 export default function TakeawayTab() {
   const { ME, setME, toast } = useAdmin();
@@ -24,7 +25,7 @@ export default function TakeawayTab() {
 
   return (
     <>
-      <h1>🥡 Para llevar</h1>
+      <h1><Icon n="takeaway" /> Para llevar</h1>
       <p className="muted">
         Para negocios sin mesas (postres, comida rápida…): el cliente escanea <b>un solo QR</b>, ve la carta y hace su pedido con su nombre.
         Se aceptan máximo <b>{max} pedidos a la vez</b>: mientras haya {max} en curso no entra ninguno más, y cuando entregas uno
@@ -43,7 +44,7 @@ export default function TakeawayTab() {
           <div style={{ margin: "1rem auto", maxWidth: 220 }}><img src="/api/qr/takeaway.svg" alt="QR para llevar" style={{ width: "100%" }} /></div>
           <div className="muted small" style={{ wordBreak: "break-all" }}>{ME.takeaway_url}</div>
           <div className="row" style={{ justifyContent: "center", marginTop: ".8rem" }}>
-            <a className="btn sm" href="/print/qr?solo=llevar" target="_blank">🖨 Imprimir QR</a>
+            <a className="btn sm" href="/print/qr?solo=llevar" target="_blank"><Icon n="print" /> Imprimir QR</a>
             <button className="btn sm ghost" title="Genera un QR nuevo e invalida el impreso" onClick={() => { if (confirm("El QR impreso actual dejará de funcionar. ¿Renovar?")) save(true, true); }}>Renovar QR</button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { api, shrinkImage } from "@/lib/api";
 import { Any, CURRENCIES, useAdmin } from "./ctx";
+import Icon from "@/components/Icon";
 
 export default function SettingsTab() {
   const { ME, setME, toast } = useAdmin();
@@ -18,7 +19,7 @@ export default function SettingsTab() {
     try {
       const me = await api("/api/settings", { method: "PUT", body: { name: f.name, tagline: f.tagline, brand_color: f.color, tip_pct: +f.tip, currency: f.cur, tz_offset: +f.tz, google_review_url: f.google, accepting_orders: f.accepting ? 1 : 0, staff_pin: f.pin } });
       setME(me);
-      toast("Guardado ✓");
+      toast("Guardado");
     } catch (e: Any) { toast(e.message, true); }
   }
 
@@ -104,7 +105,7 @@ export default function SettingsTab() {
         <p className="muted small" style={{ marginTop: 0 }}>
           Consulta los <a href="/terminos" target="_blank">Términos</a> y la <a href="/privacidad" target="_blank">Política de datos</a>. Puedes llevarte tus pedidos o borrar todo (derecho de supresión).
         </p>
-        <p><a className="btn ghost sm" href="/api/export/orders.csv">⬇ Exportar pedidos (CSV)</a> <button className="btn bad sm" onClick={deleteAccount}>Borrar mi cuenta y mis datos</button></p>
+        <p><a className="btn ghost sm" href="/api/export/orders.csv"><Icon n="download" /> Exportar pedidos (CSV)</a> <button className="btn bad sm" onClick={deleteAccount}>Borrar mi cuenta y mis datos</button></p>
       </div>
     </>
   );

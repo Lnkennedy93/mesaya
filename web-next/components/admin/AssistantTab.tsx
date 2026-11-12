@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { Any, useAdmin } from "./ctx";
+import Icon from "@/components/Icon";
 
 type Msg = { role: "user" | "assistant"; text: string; actions?: Any[] };
 
@@ -94,7 +95,7 @@ export default function AssistantTab() {
               return (
                 <div key={k} style={{ marginTop: ".4rem" }}>
                   <button className="btn sm" disabled={done[k]} onClick={() => apply(a)}>
-                    {done[k] ? "✓ Hecho" : a.available ? `Encender «${a.name}»` : `Apagar «${a.name}»`}
+                    {done[k] ? <><Icon n="check" /> Hecho</> : a.available ? `Encender «${a.name}»` : `Apagar «${a.name}»`}
                   </button>
                 </div>
               );

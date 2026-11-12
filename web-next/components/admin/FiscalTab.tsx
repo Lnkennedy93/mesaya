@@ -43,14 +43,14 @@ function FiscalForm({ reload }: { reload: () => void }) {
     try {
       const { ranges } = await api("/api/invoicing/test", { method: "POST" });
       setRanges(ranges);
-      toast("Conexión exitosa ✓");
+      toast("Conexión exitosa");
     } catch (e: Any) { toast(e.message, true); }
   }
 
   async function retry(id: number) {
     try {
       const r2 = await api(`/api/invoices/${id}/retry`, { method: "POST" });
-      toast(r2.invoice.status === "issued" ? "Factura emitida ✓" : "Sigue con error: " + r2.invoice.error, r2.invoice.status !== "issued");
+      toast(r2.invoice.status === "issued" ? "Factura emitida" : "Sigue con error: " + r2.invoice.error, r2.invoice.status !== "issued");
       reload();
     } catch (e: Any) { toast(e.message, true); }
   }
@@ -69,7 +69,7 @@ function FiscalForm({ reload }: { reload: () => void }) {
         },
       });
       setME(me);
-      toast("Guardado ✓");
+      toast("Guardado");
       reload();
     } catch (e: Any) { toast(e.message, true); }
   }

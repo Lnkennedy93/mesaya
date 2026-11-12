@@ -6,6 +6,7 @@ const API = (process.env.MESAYA_API_URL || "http://127.0.0.1:8000").replace(/\/$
 const nextConfig = {
   compress: false, // el stream en vivo (SSE) de la cocina no debe comprimirse ni quedarse en buffer
   poweredByHeader: false,
+  experimental: { optimizePackageImports: ["@remixicon/react"] }, // un icono = un SVG pequeño, no toda la biblioteca
   async headers() {
     // Páginas de Next (la API y las páginas de legado ya las pone FastAPI). Sin CSP completa: las páginas usan scripts y estilos en línea.
     return [{

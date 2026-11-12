@@ -5,6 +5,7 @@ import { api, poll, ls, makeMoney, setBrand } from "@/lib/api";
 import { I18N } from "@/lib/i18n";
 import Powered from "@/components/Powered";
 import { ToastView } from "@/components/useToast";
+import Icon from "@/components/Icon";
 
 type Any = any;
 type CartLine = { item_id: number; name: string; qty: number; unit: number; options: { group: string; name: string }[]; note: string };
@@ -126,7 +127,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     setBill(fresh);
     const mineReady = fresh.lines.some((l: Any) => l.diner_id === dinerId.current && l.order_status === "ready" && before.get(l.order_id) !== "ready");
     if (mineReady) {
-      toast("🍽️ " + T("ready"));
+      toast(T("ready"));
       if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
     }
   }
@@ -192,7 +193,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       const res = await api(`/api/public/${slug}/pay`, { method: "POST", body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, method, phone: document.getElementById("nph") ? phone : "", invoice } });
       if (res.mode === "redirect") { location.href = res.url; return; }
       setSel(new Set());
-      if (res.mode === "cashier") toast("🧾 " + T("askBill"));
+      if (res.mode === "cashier") toast(T("askBill"));
       else if (res.mode === "push") {
         setDlg({ t: "nequi", res, phase: "wait" });
         pollPayment(res.payment_id, (s) => setDlg({ t: "thanks", paymentId: res.payment_id, invoice: s.invoice }), (timeout) => setDlg({ t: "nequi", res, phase: "fail", timeout }));
@@ -218,7 +219,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     try {
       await api(`/api/public/${slug}/call`, { method: "POST", body: { table: TABLE, key: KEY, type, method } });
       await refreshBill();
-      toast(type === "bill" ? "🧾 " + T("billAsked") : "🙋 " + T("waiterCalled"));
+      toast(type === "bill" ? T("billAsked") : T("waiterCalled"));
     } catch (e: Any) { toast(e.message, true); }
   }
 
@@ -281,7 +282,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
               <article key={i.id} className={"card item " + (i.available ? "" : "off")} onClick={() => setDlg({ t: "item", id: i.id })}>
                 <div className="thumb">{i.image ? <img loading="lazy" src={i.image} alt="" /> : initial(i.name)}</div>
                 <div className="grow">
-                  <h3>{i.featured && <span className="tag star" aria-hidden="true">★</span>}<button type="button" className="namebtn" onClick={(e) => { e.stopPropagation(); setDlg({ t: "item", id: i.id }); }}>{i.name}</button></h3>
+                  <h3>{i.featured && <span className="tag star" aria-hidden="true"><Icon n="star" /></span>}<button type="button" className="namebtn" onClick={(e) => { e.stopPropagation(); setDlg({ t: "item", id: i.id }); }}>{i.name}</button></h3>
                   <p>{i.description}</p>
                   <div>{i.tags.map((t: string) => <span key={t} className={"tag " + (t === "picante" ? "hot" : "")}>{t}</span>)}</div>
                   <div className="price">{i.available ? money(i.price) : <span className="pill bad">{T("soldout")}</span>}</div>
@@ -299,18 +300,18 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     const called = bill.calls.includes("waiter");
     return (
       <div className="row" style={{ margin: "1rem 0" }}>
-        <button className="btn ghost grow" disabled={called || !!bill.closed} onClick={() => sendCall("waiter")}>🙋 {called ? T("waiterCalled") : T("callWaiter")}</button>
+        <button className="btn ghost grow" disabled={called || !!bill.closed} onClick={() => sendCall("waiter")}><Icon n="hand" /> {called ? T("waiterCalled") : T("callWaiter")}</button>
       </div>
     );
   })();
 
   const feedbackBox = rated ? (
-    <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}>{T("rated")}</div>
+    <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}><Icon n="heart" /> {T("rated")}</div>
   ) : (
     <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}>
       <h3>{T("rate")}</h3>
       <div className="stars">
-        {[1, 2, 3, 4, 5].map((n) => <button key={n} className={rating >= n ? "on" : ""} aria-label={`${n} / 5`} aria-pressed={rating >= n} onClick={() => setRating(n)}>{rating >= n ? "★" : "☆"}</button>)}
+        {[1, 2, 3, 4, 5].map((n) => <button key={n} className={rating >= n ? "on" : ""} aria-label={`${n} / 5`} aria-pressed={rating >= n} onClick={() => setRating(n)}>{rating >= n ? <Icon n="star" /> : <Icon n="starO" />}</button>)}
       </div>
       <input aria-label={T("comment")} placeholder={T("comment")} maxLength={400} style={{ margin: ".6rem 0" }} value={comment} onChange={(e) => setComment(e.target.value)} />
       <button className="btn block" disabled={!rating} onClick={sendFeedback}>{T("sendRate")}</button>
@@ -321,8 +322,8 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     <div style={{ marginTop: ".9rem" }}>
       <b>{T("howPay")}</b>
       <div className="row" style={{ marginTop: ".5rem" }}>
-        <button className="btn grow" onClick={() => onPick("cash")}>{T("payCash")}</button>
-        <button className="btn grow" onClick={() => onPick("card")}>{T("payCard")}</button>
+        <button className="btn grow" onClick={() => onPick("cash")}><Icon n="cash" /> {T("payCash")}</button>
+        <button className="btn grow" onClick={() => onPick("card")}><Icon n="card" /> {T("payCard")}</button>
       </div>
       <button className="btn ghost block" style={{ marginTop: ".5rem" }} onClick={() => setPicking(null)}>{T("cancelPick")}</button>
     </div>
@@ -332,7 +333,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     if (!unpaid.length)
       return (
         <>
-          <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}><div style={{ fontSize: "2rem" }}>✅</div><b>{T("tableClosed")}</b></div>
+          <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}><div style={{ fontSize: "2rem" }}><Icon n="checkc" /></div><b>{T("tableClosed")}</b></div>
           {feedbackBox}
         </>
       );
@@ -348,7 +349,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
           {R.tip_pct ? <div className="muted small">{T("tipSuggested")} ({R.tip_pct}%): {money(tipS)}</div> : null}
           {picking === "simple" && !asked
             ? methodPicker((m) => { setPicking(null); sendCall("bill", m); })
-            : <button className="btn block" style={{ marginTop: ".9rem" }} disabled={asked} onClick={() => setPicking("simple")}>{asked ? T("billAsked") : "🧾 " + T("finishTable")}</button>}
+            : <button className="btn block" style={{ marginTop: ".9rem" }} disabled={asked} onClick={() => setPicking("simple")}>{asked ? T("billAsked") : <><Icon n="bill" /> {T("finishTable")}</>}</button>}
         </div>
         {asked && feedbackBox}
       </>
@@ -359,7 +360,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     const open = inv.open !== undefined ? inv.open : !!(inv.doc_number && inv.name);
     return (
       <details style={{ marginTop: ".8rem" }} open={open} onToggle={(e) => setInv((i: Any) => ({ ...i, open: (e.target as HTMLDetailsElement).open }))}>
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>🧾 {T("wantInvoice")}</summary>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}><Icon n="receipt" /> {T("wantInvoice")}</summary>
         <p className="muted small" style={{ margin: ".4rem 0" }}>{T("invoiceHint")}</p>
         <div className="row">
           <select style={{ width: "42%" }} value={inv.doc_type} onChange={(e) => setInv({ ...inv, doc_type: e.target.value })}>
@@ -388,7 +389,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
               <div className="card" style={{ marginTop: ".8rem" }} key={o.order_id}>
                 <div className="row spread"><b>#{o.seq} · {o.diner_name}</b><span className={"pill " + (idx >= 2 ? "ok" : "warn")}>{T("status")[idx]}</span></div>
                 <div className="steps">{[0, 1, 2, 3].map((i) => <i key={i} className={i <= idx ? "on" : ""} />)}</div>
-                {o.order_status === "ready" && <p style={{ textAlign: "center", fontWeight: 700, margin: ".6rem 0 0" }}>✅ {T("takeawayReady")}</p>}
+                {o.order_status === "ready" && <p style={{ textAlign: "center", fontWeight: 700, margin: ".6rem 0 0" }}><Icon n="checkc" /> {T("takeawayReady")}</p>}
                 {lines.map((l) => <div className="line" key={l.id}><div className="grow"><b>{l.qty}× {l.name}</b></div><b>{money(l.line_total)}</b></div>)}
                 <div className="row spread" style={{ marginTop: ".4rem" }}><span className="muted">{T("total")}</span><b>{money(lines.reduce((a, l) => a + l.line_total, 0))}</b></div>
               </div>
@@ -406,7 +407,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     if (bill.closed) // mesa cerrada en sala: solo queda opinar, y llamar al mesero ya no se puede
       return (
         <main>
-          <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}><div style={{ fontSize: "2rem" }}>✅</div><b>{T("tableClosed")}</b></div>
+          <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}><div style={{ fontSize: "2rem" }}><Icon n="checkc" /></div><b>{T("tableClosed")}</b></div>
           {feedbackBox}
           {callButtons}
         </main>
@@ -425,7 +426,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     const active = orders.filter((o) => o.order_status !== "served" || L.some((l) => l.order_id === o.order_id && l.state !== "paid"));
     const list = (
       <>
-        {reviewUrl && <a className="btn block" style={{ margin: ".6rem 0" }} href={reviewUrl} target="_blank" rel="noopener">⭐ {T("google")}</a>}
+        {reviewUrl && <a className="btn block" style={{ margin: ".6rem 0" }} href={reviewUrl} target="_blank" rel="noopener"><Icon n="star" /> {T("google")}</a>}
         {active.map((o) => {
           const idx = STATUS_IDX[o.order_status] ?? 0;
           return (
@@ -447,7 +448,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
                 <div className="grow">
                   <b>{l.qty}× {l.name}</b>{" "}
                   {l.state === "paid" ? <span className="pill ok">{T("paid")}</span> : l.state === "reserved" ? <span className="pill warn">{T("reserved")}</span> : null}
-                  <div className="muted small">{l.options_text} {l.diner_name ? "· " + l.diner_name : ""}{l.diner_id === dinerId.current ? " ✦" : ""}</div>
+                  <div className="muted small">{l.options_text} {l.diner_name ? "· " + l.diner_name : ""}{l.diner_id === dinerId.current ? <> <Icon n="user" /></> : ""}</div>
                 </div>
                 <b>{money(l.line_total)}</b>
               </div>
@@ -500,7 +501,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       <div className="hero">
         <div className="thumb logo">{R.logo ? <img src={R.logo} alt="" /> : initial(R.name)}</div>
         <div className="grow"><h1>{R.name}</h1><div className="muted small">{R.tagline || ""}</div></div>
-        {M.table_ok && <div className="tablebadge">{TAKEAWAY ? "🥡 " + T("takeaway") : `${T("table")} ${M.table}`}</div>}
+        {M.table_ok && <div className="tablebadge">{TAKEAWAY ? <><Icon n="takeaway" /> {T("takeaway")}</> : `${T("table")} ${M.table}`}</div>}
         <div className="langs">
           {["es", "en"].map((l) => (
             <button key={l} lang={l} aria-label={l === "es" ? "Español" : "English"} aria-pressed={l === lang} onClick={() => changeLang(l)} style={l === lang ? { background: "var(--ink)", color: "var(--bg)" } : undefined}>{l.toUpperCase()}</button>
@@ -539,21 +540,21 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
               setDinerName(name); ls("mesaya_name", name);
               try {
                 await api(`/api/public/${slug}/orders`, { method: "POST", body: { table: TABLE, key: KEY, diner_id: dinerId.current, diner_name: name, note, request_id: reqId.current || (reqId.current = newReqId()), items: cart.map((l) => ({ item_id: l.item_id, qty: l.qty, options: l.options, note: l.note })) } });
-                saveCart([]); setDlg(null); await refreshBill(); setView("bill"); toast("✅ " + (TAKEAWAY ? T("takeawaySent") : T("sent") + " " + T("sentSub")));
+                saveCart([]); setDlg(null); await refreshBill(); setView("bill"); toast(TAKEAWAY ? T("takeawaySent") : T("sent") + " " + T("sentSub"));
                 return true;
               } catch (e: Any) { toast(e.status === 0 ? T("sendRetry") : e.message, true); return false; }
             }} />
         )}
         {dlg?.t === "nequi" && (dlg.phase === "wait" ? (
           <div style={{ textAlign: "center", padding: ".6rem 0" }}>
-            <div style={{ fontSize: "2.6rem" }}>📲</div><h2>{T("openNequi")}</h2>
+            <div style={{ fontSize: "2.6rem" }}><Icon n="phone" /></div><h2>{T("openNequi")}</h2>
             <p className="muted">{T("nequiWait")}</p><div className="big">{money(dlg.res.total)}</div>
             <p className="small muted">{T("waiting")}</p>
             <button className="btn ghost" onClick={() => cancelPayment(dlg.res)}>{T("cancel")}</button>
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "1rem 0" }}>
-            <div style={{ fontSize: "2.6rem" }}>⚠️</div><h2>{dlg.timeout ? T("payTimeout") : T("payDeclined")}</h2>
+            <div style={{ fontSize: "2.6rem" }}><Icon n="alert" /></div><h2>{dlg.timeout ? T("payTimeout") : T("payDeclined")}</h2>
             <button className="btn" onClick={closePay}>OK</button>
           </div>
         ))}
@@ -564,7 +565,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
               <div className="muted small">{T("brebKey")} ({dlg.res.breb.type})</div>
               <div className="big">{dlg.res.breb.key}</div>
               {dlg.res.breb.holder && <div className="muted small">{dlg.res.breb.holder}</div>}
-              <button className="btn sm soft" style={{ marginTop: ".4rem" }} onClick={() => { navigator.clipboard?.writeText(dlg.res.breb.key); toast("✓"); }}>{T("copyKey")}</button>
+              <button className="btn sm soft" style={{ marginTop: ".4rem" }} onClick={() => { navigator.clipboard?.writeText(dlg.res.breb.key); toast("OK"); }}>{T("copyKey")}</button>
             </div>
             <p style={{ margin: ".8rem 0 .2rem" }}>{T("exactAmount")}</p><div className="big">{money(dlg.res.total)}</div>
             <p className="muted small">{T("brebRef")}: <b>{dlg.res.reference}</b> · {T("mesaLbl")} {M.table}</p>
@@ -572,9 +573,9 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
             <button className="btn ghost block" style={{ marginTop: ".4rem" }} onClick={() => cancelPayment(dlg.res)}>{T("cancel")}</button>
           </div>
         ) : dlg.phase === "check" ? (
-          <div style={{ textAlign: "center", padding: "1rem 0" }}><div style={{ fontSize: "2.6rem" }}>⏳</div><h2>{T("brebCheck")}</h2><p className="muted">{T("brebCheckSub")}</p></div>
+          <div style={{ textAlign: "center", padding: "1rem 0" }}><div style={{ fontSize: "2.6rem" }}><Icon n="hourglass" /></div><h2>{T("brebCheck")}</h2><p className="muted">{T("brebCheckSub")}</p></div>
         ) : (
-          <div style={{ textAlign: "center", padding: "1rem 0" }}><div style={{ fontSize: "2.6rem" }}>⚠️</div><h2>{T("brebNo")}</h2><button className="btn" onClick={closePay}>OK</button></div>
+          <div style={{ textAlign: "center", padding: "1rem 0" }}><div style={{ fontSize: "2.6rem" }}><Icon n="alert" /></div><h2>{T("brebNo")}</h2><button className="btn" onClick={closePay}>OK</button></div>
         ))}
         {dlg?.t === "thanks" && <ThanksDialog T={T} invoicing={!!R.invoicing} paymentId={dlg.paymentId} first={dlg.invoice} statusUrl={statusUrl} onClose={closePay} />}
       </Modal>
@@ -628,7 +629,7 @@ function ItemDialog({ it, money, T, canOrder, onClose, onAdd, toast }: { it: Any
       <div className="sheet-h"><h2 style={{ margin: 0 }}>{it.name}</h2><button className="x" aria-label={T("close")} onClick={onClose}>×</button></div>
       {it.image && <div className="thumb" style={{ height: 200, borderRadius: 14, marginBottom: ".6rem" }}><img src={it.image} alt="" /></div>}
       <p className="muted" style={{ marginTop: 0 }}>{it.description}</p>
-      {it.allergens.length > 0 && <p className="small muted">⚠️ {T("allergens")}: {it.allergens.join(", ")}</p>}
+      {it.allergens.length > 0 && <p className="small muted"><Icon n="alert" /> {T("allergens")}: {it.allergens.join(", ")}</p>}
       {it.options.map((g: Any) => (
         <div key={g.name}>
           <h3 style={{ margin: "1rem 0 .2rem", fontSize: "1rem" }}>{g.name} {g.required && <span className="pill brand">{T("required")}</span>}</h3>
@@ -664,7 +665,7 @@ function CartDialog({ cart, T, money, table, dinerName, onClose, onChange, onSen
   const step = (i: number, d: number) => onChange(cart.map((l, j) => (j === i ? { ...l, qty: Math.min(Math.max(1, l.qty + d), 20) } : l)));
   return (
     <>
-      <div className="sheet-h"><h2 style={{ margin: 0 }}>{T("viewOrder")} · {needName ? "🥡 " + T("takeaway") : `${T("table")} ${table}`}</h2><button className="x" aria-label={T("close")} onClick={onClose}>×</button></div>
+      <div className="sheet-h"><h2 style={{ margin: 0 }}>{T("viewOrder")} · {needName ? <><Icon n="takeaway" /> {T("takeaway")}</> : `${T("table")} ${table}`}</h2><button className="x" aria-label={T("close")} onClick={onClose}>×</button></div>
       {cart.map((l, i) => (
         <div className="line" key={i}>
           <div className="grow"><b>{l.name}</b><div className="muted small">{l.options.map((o) => o.name).join(", ")}{l.note ? ` · “${l.note}”` : ""}</div></div>
@@ -706,10 +707,10 @@ function ThanksDialog({ T, invoicing, paymentId, first, statusUrl, onClose }: { 
   }, [paymentId, invoicing]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div style={{ textAlign: "center", padding: "1rem 0" }}>
-      <div style={{ fontSize: "3rem" }}>✅</div><h2>{T("thanks")}</h2>
+      <div style={{ fontSize: "3rem" }}><Icon n="checkc" /></div><h2>{T("thanks")}</h2>
       {inv && inv.status === "issued" ? (
         <>
-          <p>🧾 {T("invoiceNo")} <b>{inv.number}</b></p>
+          <p><Icon n="receipt" /> {T("invoiceNo")} <b>{inv.number}</b></p>
           {inv.public_url && <a className="btn sm soft" target="_blank" rel="noopener" href={inv.public_url}>{T("viewInvoice")}</a>}
         </>
       ) : inv ? <p className="muted small">{T("invoiceSoon")}</p> : null}

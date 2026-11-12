@@ -4,6 +4,8 @@
 .admin-root nav .logo{font-weight:800;font-size:1.35rem;letter-spacing:-.03em;margin:.2rem .4rem 1rem}.admin-root nav .logo b{color:var(--ok)}
 .admin-root nav>div:nth-of-type(2){display:flex;flex-direction:column;gap:.2rem}
 .admin-root nav button{text-align:left;border:0;background:none;padding:.65em .85em;border-radius:12px;font-weight:600;cursor:pointer;font-size:.95rem;color:var(--ink);min-height:44px}
+.admin-root nav button{display:flex;align-items:center;gap:.55em}
+.admin-root nav button .ic{width:1.2em;height:1.2em}
 .admin-root nav button:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
 .admin-root nav button.on{background:var(--ink);color:var(--bg)}
 .admin-root nav .sp{flex:1}

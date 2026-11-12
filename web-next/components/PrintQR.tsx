@@ -2,6 +2,7 @@
 // Hoja imprimible con el QR de cada mesa (portada de web/print.html).
 import { useEffect, useState } from "react";
 import { api, setBrand } from "@/lib/api";
+import Icon from "@/components/Icon";
 
 export default function PrintQR() {
   const [data, setData] = useState<{ me: any; tables: any[] } | null>(null);
@@ -28,7 +29,7 @@ export default function PrintQR() {
         {data?.me.restaurant.takeaway && data.me.modules.takeaway ? (
           <div className="tent">
             <div className="name">{data.me.restaurant.name}</div>
-            <div className="num">🥡 Para llevar</div>
+            <div className="num"><Icon n="takeaway" /> Para llevar</div>
             <img src="/api/qr/takeaway.svg" alt="QR para llevar" />
             <div className="how"><b>Escanea y pide</b> desde tu celular.<br />Te avisamos cuando esté listo.</div>
             <div className="foot">{String(data.me.public_url).replace(/^https?:\/\//, "")}</div>

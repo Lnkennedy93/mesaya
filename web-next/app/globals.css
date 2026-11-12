@@ -84,6 +84,9 @@ dialog::backdrop{background:rgba(8,14,26,.38);-webkit-backdrop-filter:blur(6px);
 
 /* piezas del lenguaje visual: números tabulares, punto de estado, barra de avance y mini-barras (como el tablero de referencia) */
 .kpi .v,.big,.price,.num{font-variant-numeric:tabular-nums}
+/* iconos (Remix Icon): siguen el color y el tamaño del texto */
+.ic{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none;fill:currentColor}
+.btn .ic{vertical-align:middle}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 28%,transparent)}
 .meter{height:6px;border-radius:99px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
 .meter i{display:block;height:100%;background:var(--ink);border-radius:99px}

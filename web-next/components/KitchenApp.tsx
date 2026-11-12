@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, beep, keepAwake, poll, makeMoney, secsSince, unlockAudio } from "@/lib/api";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
+import Icon from "@/components/Icon";
 
 type Any = any;
 type Tab = "kitchen" | "floor" | "stock";
@@ -119,7 +120,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
 
   return (
     <div className="kitchen-root">
-      {offline && <div className="offline-bar" role="alert">⚠ Sin conexión desde las {new Date(offline).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} — puede que no estén llegando pedidos nuevos. Reintentando…</div>}
+      {offline && <div className="offline-bar" role="alert"><Icon n="alert" /> Sin conexión desde las {new Date(offline).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} — puede que no estén llegando pedidos nuevos. Reintentando…</div>}
       <header>
         <h1>{ME.restaurant.name}</h1>
         <div className="tabs" role="tablist">
@@ -128,7 +129,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
           <button role="tab" aria-selected={tab === "stock"} className={tab === "stock" ? "on" : ""} onClick={() => { live.current.menu = true; setTab("stock"); safeRefresh(); }}>Agotados</button>
         </div>
         <span className="grow"></span>
-        <button className="btn sm ghost" onClick={() => { const n = !sound; setSound(n); if (n) beep(); }}>{sound ? "🔔 Sonido" : "🔕 Silencio"}</button>
+        <button className="btn sm ghost" onClick={() => { const n = !sound; setSound(n); if (n) beep(); }}>{sound ? <><Icon n="bell" /> Sonido</> : <><Icon n="bellOff" /> Silencio</>}</button>
         {ME.role === "owner" && <a className="btn sm ghost" href="/admin">Panel</a>}
         <button className="btn sm ghost" onClick={async () => { await api("/api/logout", { method: "POST" }); location.reload(); }}>Salir</button>
       </header>
@@ -136,22 +137,22 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       <div className="calls">
         {reviews.filter((p) => p.status === "conflict").map((p) => (
           <div className="call" style={{ background: "#5a1d1d", animation: "none" }} key={"p" + p.id}>
-            <b>⚠ Cobro duplicado · Mesa {p.table_label} · {money(p.total)}</b>
+            <b><Icon n="alert" /> Cobro duplicado · Mesa {p.table_label} · {money(p.total)}</b>
             <span className="muted small">El cliente pagó dos veces: devuélvele este valor.</span>
-            <button className="btn sm ok" onClick={() => act(async () => { await api(`/api/payments/${p.id}/reject`, { method: "POST" }); toast("Marcado como devuelto ✓"); })}>Ya lo devolví</button>
+            <button className="btn sm ok" onClick={() => act(async () => { await api(`/api/payments/${p.id}/reject`, { method: "POST" }); toast("Marcado como devuelto"); })}>Ya lo devolví</button>
           </div>
         ))}
         {reviews.filter((p) => p.status !== "conflict").map((p) => (
           <div className="call" style={{ background: "#1d3f5a", animation: "none" }} key={"p" + p.id}>
-            <b>💸 Confirmar Bre-B · Mesa {p.table_label} · {money(p.total)}</b>
+            <b><Icon n="money" /> Confirmar Bre-B · Mesa {p.table_label} · {money(p.total)}</b>
             <span className="muted small">ref {p.reference.slice(-6).toUpperCase()}</span>
-            <button className="btn sm ok" onClick={() => act(async () => { await api(`/api/payments/${p.id}/confirm`, { method: "POST" }); toast("Pago confirmado ✓"); })}>Ya llegó</button>
+            <button className="btn sm ok" onClick={() => act(async () => { await api(`/api/payments/${p.id}/confirm`, { method: "POST" }); toast("Pago confirmado"); })}>Ya llegó</button>
             <button className="btn sm ghost" onClick={() => { if (confirm("¿El dinero NO llegó a tu cuenta? Se liberará la cuenta del cliente.")) act(() => api(`/api/payments/${p.id}/reject`, { method: "POST" })); }}>No llegó</button>
           </div>
         ))}
         {calls.map((c) => (
           <div className="call" key={"c" + c.id}>
-            <b>{c.type === "bill" ? "🧾 Cuenta" : "🙋 Mesero"} · Mesa {c.table_label}{c.method === "card" ? " · 💳 Llevar datáfono" : c.method === "cash" ? " · 💵 Efectivo" : ""}</b>
+            <b>{c.type === "bill" ? <><Icon n="bill" /> Cuenta</> : <><Icon n="hand" /> Mesero</>} · Mesa {c.table_label}{c.method === "card" ? <> · <Icon n="card" /> Llevar datáfono</> : c.method === "cash" ? <> · <Icon n="cash" /> Efectivo</> : ""}</b>
             <button className="btn sm" onClick={() => act(() => api(`/api/calls/${c.id}/resolve`, { method: "POST" }))}>Atendido</button>
           </div>
         ))}
@@ -169,7 +170,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
                   const cls = st === "ready" ? "" : mins > 15 ? "late" : mins > 8 ? "warn" : "";
                   return (
                     <div className={"ticket " + cls} key={o.id}>
-                      <div className="row spread"><span className="t">{String(o.table_label).startsWith("PL-") ? "🥡 Para llevar" : `Mesa ${o.table_label}`}</span><span className="muted">#{o.seq} · {Math.floor(mins)} min</span></div>
+                      <div className="row spread"><span className="t">{String(o.table_label).startsWith("PL-") ? <><Icon n="takeaway" /> Para llevar</> : `Mesa ${o.table_label}`}</span><span className="muted">#{o.seq} · {Math.floor(mins)} min</span></div>
                       <ul>
                         {o.items.map((i: Any, n: number) => (
                           <li key={n}>
@@ -179,11 +180,11 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
                           </li>
                         ))}
                       </ul>
-                      {o.note && <div className="note">📝 {o.note}</div>}
+                      {o.note && <div className="note"><Icon n="note" /> {o.note}</div>}
                       {o.diner_name && <div className="muted small">{o.diner_name}</div>}
                       <div className="row" style={{ marginTop: ".6rem" }}>
                         <button className={"btn grow " + (st === "ready" ? "ok" : "")} onClick={() => act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: NEXT[st][0] } }))}>{NEXT[st][1]}</button>
-                        <button className="btn ghost sm" onClick={() => { const reason = prompt("Motivo de la cancelación (opcional):"); if (reason !== null) act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "cancelled", reason } })); }}>✕</button>
+                        <button className="btn ghost sm" onClick={() => { const reason = prompt("Motivo de la cancelación (opcional):"); if (reason !== null) act(() => api(`/api/orders/${o.id}/status`, { method: "POST", body: { status: "cancelled", reason } })); }} aria-label="Cancelar pedido"><Icon n="close" /></button>
                       </div>
                     </div>
                   );
@@ -201,15 +202,15 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
             <div className="cell" key={t.label}>
               <div className={"tb " + (t.calls.length ? "call" : t.orders.some((o: Any) => o.status === "ready") ? "ready" : t.unpaid ? "occ" : t.has_paid ? "done" : "")} role="button" tabIndex={0}
                 onClick={() => setTableOpen(t.label)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTableOpen(t.label); } }}>
-                <span className="muted small">{t.takeaway ? "🥡 Para llevar" : "Mesa"}</span><b>{t.takeaway ? (t.name || "Cliente") : t.label}</b>
+                <span className="muted small">{t.takeaway ? <><Icon n="takeaway" /> Para llevar</> : "Mesa"}</span><b>{t.takeaway ? (t.name || "Cliente") : t.label}</b>
                 {t.unpaid ? <div>{money(t.unpaid)}</div> : <div className="muted small">libre</div>}
-                <div className="small">{t.active ? `🍳 ${t.active} en cocina` : ""}{t.calls.length ? " 🔔" : ""}</div>
+                <div className="small">{t.active ? <><Icon n="fire" /> {t.active} en cocina</> : ""}{t.calls.length ? <> <Icon n="bell" /></> : ""}</div>
               </div>
               {t.orders.map((o: Any) => {
                 const ready = o.status === "ready";
                 return (
                   <div className={ready ? "ready-alert" : "order-info"} key={o.id} role={ready ? "alert" : undefined}>
-                    <b>{ready ? `✅ Pedido #${o.seq} listo` : `${o.status === "new" ? "🕐 Nuevo" : "🍳 En preparación"} · #${o.seq}`}</b>
+                    <b>{ready ? <><Icon n="checkc" /> Pedido #{o.seq} listo</> : <>{o.status === "new" ? <><Icon n="clock" /> Nuevo</> : <><Icon n="fire" /> En preparación</>} · #{o.seq}</>}</b>
                     <ul className="small">
                       {o.items.map((i: Any, n: number) => (
                         <li key={n}>{i.qty}× {i.name}{i.options_text ? <span className="muted"> ({i.options_text})</span> : null}{i.note ? <span className="muted"> — {i.note}</span> : null}</li>
@@ -246,7 +247,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       )}
 
       <TableDialog label={tableOpen} ME={ME} money={money} onClose={() => setTableOpen(null)}
-        onSettled={() => { setTableOpen(null); toast("Mesa cerrada ✓"); safeRefresh(); }} onError={(m) => toast(m, true)} />
+        onSettled={() => { setTableOpen(null); toast("Mesa cerrada"); safeRefresh(); }} onError={(m) => toast(m, true)} />
       {toastNode}
       <Powered />
     </div>
@@ -326,7 +327,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
       <div className="dlg">
         {label !== null && lines && (
           <>
-            <div className="row spread"><h2 style={{ margin: 0 }}>{label.startsWith("PL-") ? "🥡 Para llevar" : `Mesa ${label}`}</h2><button style={{ color: "#fff", background: "none", border: 0, fontSize: "1.6rem" }} onClick={onClose}>×</button></div>
+            <div className="row spread"><h2 style={{ margin: 0 }}>{label.startsWith("PL-") ? <><Icon n="takeaway" /> Para llevar</> : `Mesa ${label}`}</h2><button style={{ color: "#fff", background: "none", border: 0, fontSize: "1.6rem" }} onClick={onClose}>×</button></div>
             {L.map((l) => (
               <div className="line" key={l.id}>
                 <div className="grow">{l.qty}× {l.name} <span className="muted small">{l.diner_name || ""}</span></div>
@@ -338,7 +339,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
             {ME.features.invoicing && ME.restaurant.inv_provider !== "none" && total > 0 && (
               <>
                 <details style={{ margin: ".4rem 0" }}>
-                  <summary style={{ cursor: "pointer" }}>🧾 Factura a nombre del cliente (opcional)</summary>
+                  <summary style={{ cursor: "pointer" }}><Icon n="receipt" /> Factura a nombre del cliente (opcional)</summary>
                   <div className="row" style={{ marginTop: ".4rem" }}>
                     <select style={{ width: "35%" }} value={inv.doc_type} onChange={(e) => setInv({ ...inv, doc_type: e.target.value })}>
                       <option>CC</option><option>NIT</option><option>CE</option><option value="PP">Pasaporte</option>
@@ -358,7 +359,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
               </div>
             ) : (
               <>
-                <button className="btn block ok" disabled={!total || busy} onClick={() => settle("cash")}>✅ Cerrar mesa (cuenta cobrada)</button>
+                <button className="btn block ok" disabled={!total || busy} onClick={() => settle("cash")}><Icon n="checkc" /> Cerrar mesa (cuenta cobrada)</button>
                 <p className="muted small" style={{ margin: ".4rem 0 0" }}>Cobra en caja como siempre y cierra la mesa para dejarla libre.</p>
               </>
             )}

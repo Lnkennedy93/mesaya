@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Any, useAdmin } from "./ctx";
+import Icon from "@/components/Icon";
 
 export default function HomeTab() {
   const { ME, money, toast } = useAdmin();
@@ -21,7 +22,7 @@ export default function HomeTab() {
     ["Ventas", money(a.sales), a.daily.map((d: Any) => d.sales)], ["Pedidos", a.orders, a.daily.map((d: Any) => d.orders)], ["Ticket promedio", money(a.avg_ticket)],
     ...(ME.features.payments ? ([["Propinas", money(a.tips)]] as [string, Any][]) : []),
     ["Tiempo a cocina", a.avg_prep_min === null ? "—" : a.avg_prep_min + " min"],
-    ["Opiniones", a.rating_avg ? a.rating_avg + " ★ (" + a.rating_count + ")" : "—"],
+    ["Opiniones", a.rating_avg ? <>{a.rating_avg} <Icon n="star" /> ({a.rating_count})</> : "—"],
   ];
   // mini-barras de los últimos días (la última, en verde): la tendencia se ve de un vistazo, sin abrir la gráfica
   const spark = (s?: number[]) => {
@@ -72,7 +73,7 @@ export default function HomeTab() {
           </table>
         </div>
       </div>
-      <p><a className="btn ghost sm" href="/api/export/orders.csv">⬇ Exportar pedidos (CSV)</a></p>
+      <p><a className="btn ghost sm" href="/api/export/orders.csv"><Icon n="download" /> Exportar pedidos (CSV)</a></p>
     </>
   );
 }

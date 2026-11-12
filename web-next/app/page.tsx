@@ -1,5 +1,6 @@
 import Powered from "@/components/Powered";
 import "./landing.css";
+import Icon, { type IconName } from "@/components/Icon";
 
 const STEPS = [
   ["Sube tu carta", "Pega el texto o sube una foto/PDF y la IA arma tu carta. Agrega la foto de cada plato."],
@@ -10,27 +11,30 @@ const STEPS = [
 ];
 
 const FEATURES = [
-  ["🤖", "Asistente de IA para tu negocio", "Pregunta por ventas, mesas, carta u opiniones y responde con tus propios datos. En Pro y Cadena, o como complemento del plan Esencial."],
-  ["📸", "Carta con foto de cada plato", "Fotos optimizadas, etiquetas (vegano, picante…) y alérgenos visibles."],
-  ["⚡", "Importar con IA en minutos", "Foto, PDF o texto pegado → carta lista para revisar."],
-  ["🍳", "Pantalla de cocina en vivo", "Nuevo → preparando → listo. Sonido, colores por demora y número de mesa."],
-  ["🚫", "Apaga lo agotado", "Un toque y desaparece al instante de todos los celulares. Cocina también puede hacerlo."],
-  ["🧩", "Opciones y adicionales", "Término, tamaño, salsas, extras con recargo. El precio lo calcula el servidor."],
-  ["🙋", "Llamar al mesero / pedir cuenta", "Aviso en la pantalla de sala sin que el cliente tenga que gritar."],
-  ["🔒", "QR seguro por mesa", "Cada mesa tiene su código secreto: si se filtra, lo renuevas con un toque."],
-  ["⭐", "Opiniones → reseñas en Google", "Pedimos calificación al terminar la mesa; los de 4–5 ★ se envían a tu perfil de Google."],
-  ["📊", "Reportes que sí sirven", "Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV."],
-  ["🌎", "Carta en español e inglés", "Ideal para zonas turísticas. El cliente cambia el idioma con un toque."],
-  ["⏸️", "Modo «solo carta»", "En hora pico o sin cocina, pausas pedidos y el QR sigue mostrando la carta."],
+  ["robot", "Asistente de IA para tu negocio", "Pregunta por ventas, mesas, carta u opiniones y responde con tus propios datos. En Pro y Cadena, o como complemento del plan Esencial."],
+  ["camera", "Carta con foto de cada plato", "Fotos optimizadas, etiquetas (vegano, picante…) y alérgenos visibles."],
+  ["bolt", "Importar con IA en minutos", "Foto, PDF o texto pegado → carta lista para revisar."],
+  ["fire", "Pantalla de cocina en vivo", "Nuevo → preparando → listo. Sonido, colores por demora y número de mesa."],
+  ["ban", "Apaga lo agotado", "Un toque y desaparece al instante de todos los celulares. Cocina también puede hacerlo."],
+  ["puzzle", "Opciones y adicionales", "Término, tamaño, salsas, extras con recargo. El precio lo calcula el servidor."],
+  ["hand", "Llamar al mesero / pedir cuenta", "Aviso en la pantalla de sala sin que el cliente tenga que gritar."],
+  ["lock", "QR seguro por mesa", "Cada mesa tiene su código secreto: si se filtra, lo renuevas con un toque."],
+  ["star", "Opiniones → reseñas en Google", "Pedimos calificación al terminar la mesa; los de 4–5 estrellas se envían a tu perfil de Google."],
+  ["chart", "Reportes que sí sirven", "Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV."],
+  ["globe", "Carta en español e inglés", "Ideal para zonas turísticas. El cliente cambia el idioma con un toque."],
+  ["pause", "Modo «solo carta»", "En hora pico o sin cocina, pausas pedidos y el QR sigue mostrando la carta."],
 ];
 
 const ASK_TOPICS = [
-  ["📊", "Resumen", "Ventas, ticket promedio, horas pico, mesas que más venden y propinas."],
-  ["🍽️", "Carta", "Cuántos platos tienes, el más barato y el más caro, y cuáles están apagados."],
-  ["🔳", "Mesas y QR", "Cuáles están libres u ocupadas, la cuenta de cada una y los llamados al mesero."],
-  ["⭐", "Opiniones", "Promedio de estrellas, cuántas de cada nota y los últimos comentarios."],
-  ["⚙️", "Ajustes", "Tu plan, la propina, los impuestos y si estás recibiendo pedidos por QR."],
+  ["chart", "Resumen", "Ventas, ticket promedio, horas pico, mesas que más venden y propinas."],
+  ["menu", "Carta", "Cuántos platos tienes, el más barato y el más caro, y cuáles están apagados."],
+  ["qr", "Mesas y QR", "Cuáles están libres u ocupadas, la cuenta de cada una y los llamados al mesero."],
+  ["star", "Opiniones", "Promedio de estrellas, cuántas de cada nota y los últimos comentarios."],
+  ["gear", "Ajustes", "Tu plan, la propina, los impuestos y si estás recibiendo pedidos por QR."],
 ];
+
+// «✓ texto» / «✗ texto» de la tabla comparativa → icono + texto
+const mark = (s: string) => (s.startsWith("✓") ? <><Icon n="check" className="yes" /> {s.slice(1).trim()}</> : s.startsWith("✗") ? <><Icon n="close" className="no" /> {s.slice(1).trim()}</> : s);
 
 const COMPARE = [
   ["El cliente puede pedir", "✗ Espera al mesero", "✓ Desde su celular"],
@@ -68,7 +72,7 @@ export default function Landing() {
         <div className="hero">
           <div>
             <span className="pill brand">Para restaurantes, cafés y bares</span>{" "}
-            <a className="pill ok" href="#asistente" style={{ textDecoration: "none" }}>✨ Nuevo: Asistente de IA</a>
+            <a className="pill ok" href="#asistente" style={{ textDecoration: "none" }}><Icon n="spark" /> Nuevo: Asistente de IA</a>
             <h1 style={{ marginTop: ".6rem" }}>
               Tu QR ya no solo muestra la carta: <em>tus clientes piden desde la mesa y la cocina lo recibe al instante</em>
             </h1>
@@ -137,7 +141,7 @@ export default function Landing() {
           <p className="sub">Lo esencial de un menú QR, más lo que normalmente solo ofrecen los sistemas caros.</p>
           <div className="feat">
             {FEATURES.map(([ico, h, p]) => (
-              <div className="card" key={h}><div className="ico">{ico}</div><h3>{h}</h3><p className="muted">{p}</p></div>
+              <div className="card" key={h}><div className="ico"><Icon n={ico as IconName} /></div><h3>{h}</h3><p className="muted">{p}</p></div>
             ))}
           </div>
         </section>
@@ -148,7 +152,7 @@ export default function Landing() {
           <div className="ask">
             <div className="feat" style={{ gridTemplateColumns: "1fr" }}>
               {ASK_TOPICS.map(([ico, h, p]) => (
-                <div className="card" key={h}><div className="ico">{ico}</div><h3>{h}</h3><p className="muted">{p}</p></div>
+                <div className="card" key={h}><div className="ico"><Icon n={ico as IconName} /></div><h3>{h}</h3><p className="muted">{p}</p></div>
               ))}
             </div>
             <div className="card chat" aria-label="Ejemplo de conversación con el asistente">
@@ -172,7 +176,7 @@ export default function Landing() {
             <tbody>
               <tr><th></th><th>QR que solo muestra PDF</th><th>MesaYa</th></tr>
               {COMPARE.map(([a, b, c]) => (
-                <tr key={a}><td>{a}</td><td>{b}</td><td>{c}</td></tr>
+                <tr key={a}><td>{a}</td><td>{mark(b)}</td><td>{mark(c)}</td></tr>
               ))}
             </tbody>
           </table>

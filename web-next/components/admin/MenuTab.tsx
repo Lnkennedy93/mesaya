@@ -5,6 +5,7 @@ import Modal from "@/components/Modal";
 import { Any, useAdmin } from "./ctx";
 import ItemDialog from "./ItemDialog";
 import ImportDialog from "./ImportDialog";
+import Icon from "@/components/Icon";
 
 type Dlg = null | { t: "item"; item: Any | null; catId?: number } | { t: "import" };
 
@@ -31,13 +32,13 @@ export default function MenuTab() {
       <div className="row spread wrap">
         <h1>Carta</h1>
         <div className="row wrap">
-          <button className="btn ghost sm" onClick={() => setDlg({ t: "import" })}>⚡ Importar carta</button>
+          <button className="btn ghost sm" onClick={() => setDlg({ t: "import" })}><Icon n="bolt" /> Importar carta</button>
           {!empty && <button className="btn ghost sm" onClick={() => {
             const dishes = menu.reduce((n: number, c: Any) => n + c.items.length, 0);
             if (prompt(`Se borrarán ${menu.length} categorías y ${dishes} platos con sus fotos. No se puede deshacer.
 
 Escribe ELIMINAR para confirmar.`)?.trim().toUpperCase() === "ELIMINAR") run(() => api("/api/menu", { method: "DELETE" }));
-          }}>🗑 Eliminar toda la carta</button>}
+          }}><Icon n="trash" /> Eliminar toda la carta</button>}
           <button className="btn sm" onClick={() => { const n = prompt("Nombre de la categoría (ej. Entradas)"); if (n) run(() => api("/api/categories", { method: "POST", body: { name: n } })); }}>+ Categoría</button>
         </div>
       </div>
@@ -45,15 +46,15 @@ Escribe ELIMINAR para confirmar.`)?.trim().toUpperCase() === "ELIMINAR") run(() 
         <div className="card">
           <h2>Crea tu carta en 5 minutos</h2>
           <p className="muted">Importa tu menú pegando el texto o subiendo una foto/PDF, o crea las categorías a mano. Luego agrega la foto de cada plato.</p>
-          <button className="btn" onClick={() => setDlg({ t: "import" })}>⚡ Importar mi carta</button>
+          <button className="btn" onClick={() => setDlg({ t: "import" })}><Icon n="bolt" /> Importar mi carta</button>
         </div>
       )}
       {menu.map((c, ci) => (
         <div key={c.id}>
           <div className="cathead">
             <h2 style={{ margin: 0 }} className="grow">{c.name}</h2>
-            <button className="btn sm ghost" disabled={ci === 0} onClick={() => run(() => api(`/api/categories/${c.id}/move`, { method: "POST", body: { dir: "up" } }))}>↑</button>
-            <button className="btn sm ghost" disabled={ci === menu.length - 1} onClick={() => run(() => api(`/api/categories/${c.id}/move`, { method: "POST", body: { dir: "down" } }))}>↓</button>
+            <button className="btn sm ghost" disabled={ci === 0} onClick={() => run(() => api(`/api/categories/${c.id}/move`, { method: "POST", body: { dir: "up" } }))} aria-label="Subir categoría"><Icon n="up" /></button>
+            <button className="btn sm ghost" disabled={ci === menu.length - 1} onClick={() => run(() => api(`/api/categories/${c.id}/move`, { method: "POST", body: { dir: "down" } }))} aria-label="Bajar categoría"><Icon n="down" /></button>
             <button className="btn sm ghost" onClick={() => { const n = prompt("Nuevo nombre", c.name); if (n) run(() => api("/api/categories/" + c.id, { method: "PUT", body: { name: n } })); }}>Renombrar</button>
             <button className="btn sm ghost" onClick={() => { if (confirm("¿Eliminar la categoría y todos sus platos?")) run(() => api("/api/categories/" + c.id, { method: "DELETE" })); }}>Eliminar</button>
             <button className="btn sm" onClick={() => setDlg({ t: "item", item: null, catId: c.id })}>+ Plato</button>
@@ -62,7 +63,7 @@ Escribe ELIMINAR para confirmar.`)?.trim().toUpperCase() === "ELIMINAR") run(() 
             {c.items.map((i: Any) => (
               <div className="mi" key={i.id}>
                 <div className="thumb">{i.image ? <img src={i.image} alt="" /> : i.name[0] || "?"}</div>
-                <div className="grow"><b>{i.name}</b> {i.featured && <span className="pill warn">★</span>}<div className="muted small">{String(i.description).slice(0, 80)}</div></div>
+                <div className="grow"><b>{i.name}</b> {i.featured && <span className="pill warn" aria-label="Destacado"><Icon n="star" /></span>}<div className="muted small">{String(i.description).slice(0, 80)}</div></div>
                 <b>{money(i.price)}</b>
                 <label className="switch" title="Disponible">
                   <input type="checkbox" checked={i.available} onChange={(e) => run(async () => { await api(`/api/items/${i.id}/availability`, { method: "POST", body: { available: e.target.checked } }); toast(e.target.checked ? "Disponible" : "Marcado como agotado"); })} />

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { api, shrinkImage } from "@/lib/api";
 import { Any, useAdmin } from "./ctx";
+import Icon from "@/components/Icon";
 
 const TAGS = ["vegano", "vegetariano", "picante", "sin gluten", "popular"];
 const ALLERGENS = ["gluten", "lácteos", "huevo", "maní", "frutos secos", "soya", "mariscos", "pescado"];
@@ -57,7 +58,7 @@ export default function ItemDialog({ item, catId, menu, onClose, onChanged }: { 
 
   return (
     <>
-      <div className="row spread"><h2 style={{ margin: 0 }}>{isNew ? "Nuevo plato" : "Editar plato"}</h2><button className="btn sm ghost" onClick={onClose}>✕</button></div>
+      <div className="row spread"><h2 style={{ margin: 0 }}>{isNew ? "Nuevo plato" : "Editar plato"}</h2><button className="btn sm ghost" onClick={onClose} aria-label="Cerrar"><Icon n="close" /></button></div>
       <label>Nombre</label>
       <input value={name} maxLength={90} onChange={(e) => setName(e.target.value)} />
       <label>Descripción</label>
@@ -70,7 +71,7 @@ export default function ItemDialog({ item, catId, menu, onClose, onChanged }: { 
       <div className="tgl">{TAGS.map((t) => <label key={t}><input type="checkbox" checked={tags.includes(t)} onChange={() => toggle(tags, setTags, t)} />{t}</label>)}</div>
       <label>Alérgenos</label>
       <div className="tgl">{ALLERGENS.map((t) => <label key={t}><input type="checkbox" checked={allergens.includes(t)} onChange={() => toggle(allergens, setAllergens, t)} />{t}</label>)}</div>
-      <label className="chk"><input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} /> Destacar con ★</label>
+      <label className="chk"><input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} /> Destacar con <Icon n="star" /></label>
       <label>Opciones y adicionales <span className="small">(grupo en una línea · * obligatorio · + varias · luego «- opción | recargo»)</span></label>
       <textarea placeholder={"Término*\n- Medio\n- Bien cocido\n\nAdicionales+\n- Queso extra | 3000"} value={optsText} onChange={(e) => setOptsText(e.target.value)} />
       {isNew || id === undefined ? (
@@ -79,7 +80,7 @@ export default function ItemDialog({ item, catId, menu, onClose, onChanged }: { 
         <>
           <label>Foto del plato</label>
           <div className="row">
-            <div className="thumb" style={{ width: 70, height: 70, borderRadius: 12 }}>{image ? <img src={image} alt="" /> : <span>📷</span>}</div>
+            <div className="thumb" style={{ width: 70, height: 70, borderRadius: 12 }}>{image ? <img src={image} alt="" /> : <span><Icon n="camera" /></span>}</div>
             <input type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} />
           </div>
         </>

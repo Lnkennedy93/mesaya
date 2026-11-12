@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Icon from "@/components/Icon";
 
 type Msg = { text: string; err: boolean } | null;
 
@@ -15,7 +16,7 @@ export function ToastView({ msg }: { msg: Msg }) {
       else if (!msg && open) el.hidePopover?.();
     } catch { /* sin soporte */ }
   }, [msg]);
-  return <div ref={ref} popover="manual" role={msg?.err ? "alert" : "status"} aria-live={msg?.err ? "assertive" : "polite"} className={"toast" + (msg ? " show" : "") + (msg?.err ? " err" : "")}>{msg?.text}</div>;
+  return <div ref={ref} popover="manual" role={msg?.err ? "alert" : "status"} aria-live={msg?.err ? "assertive" : "polite"} className={"toast" + (msg ? " show" : "") + (msg?.err ? " err" : "")}>{msg && <Icon n={msg.err ? "alert" : "checkc"} />} {msg?.text}</div>;
 }
 
 export function useToast(): [React.ReactNode, (text: string, err?: boolean) => void] {
