@@ -137,6 +137,34 @@ const scenes = {
     await sleep(900);
     await shot(p, '26-ajustes-qr');
   },
+  // --- fidelización por QR y para llevar con pago ágil (el guion necesita REG_KEY, PL_TABLE y PL_KEY: los imprime mk_setup)
+  async 16(b) {
+    const p = await adminAt(b, 'Fidelización');
+    await p.eval(`(() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) n.nodeValue = n.nodeValue.replace('http://localhost:8000', 'https://mesaya.app'); })()`);
+    await sleep(500);
+    await shot(p, '27-fidelizacion');
+  },
+  async 17(b) {
+    const p = await openPage(b, { ...M, login: null });
+    await p.goto(BASE + '/r/dragon-dorado/registro?k=' + process.env.REG_KEY, { settleMs: 1800 });
+    await p.eval(`(() => { const s = (id, v) => { document.getElementById(id).value = v; }; s('cs-doc', '1032456789'); s('cs-name', 'Mariana Rojas'); s('cs-mail', 'mariana.rojas@correo.co'); s('cs-tel', '3105551122'); })()`);
+    await sleep(500);
+    await shot(p, '28-registro-cliente');
+  },
+  async 18(b) {
+    const p = await adminAt(b, 'Para llevar');
+    await p.eval(`(() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) n.nodeValue = n.nodeValue.replace('http://localhost:8000', 'https://mesaya.app'); })()`);
+    await sleep(500);
+    await shot(p, '29-para-llevar');
+  },
+  async 19(b) {
+    const p = await openPage(b, { ...M, login: null });
+    await p.goto(BASE + '/r/dragon-dorado?t=' + encodeURIComponent(process.env.PL_TABLE) + '&k=' + process.env.PL_KEY, { settleMs: 1800 });
+    await clickText(p, 'Mi pedido', { sel: 'button' }); await sleep(1200);
+    await clickText(p, 'Avisar cómo', { sel: 'button' }); await sleep(700);
+    await p.eval(`window.scrollTo(0, 40)`); await sleep(300);
+    await shot(p, '30-para-llevar-pago');
+  },
   // --- landing
   async 13(b) {
     const p = await openPage(b, { ...D, login: null });

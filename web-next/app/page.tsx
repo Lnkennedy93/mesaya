@@ -25,9 +25,9 @@ const FEATURES = [
   ["puzzle", "Opciones y adicionales", "Término, tamaño, salsas, extras con recargo. El precio lo calcula el servidor."],
   ["hand", "Llamar al mesero / pedir cuenta", "Aviso en la pantalla de sala sin que el cliente tenga que gritar."],
   ["qr", "Cobra con tu QR de Bre-B o Nequi", "Subes tu QR de cobro y, al pedir la cuenta, el cliente lo ve y paga desde su celular. Tu equipo revisa el comprobante y cierra la mesa."],
-  ["takeaway", "Pedidos para llevar", "Un QR propio para el mostrador, sin mesa. Aparecen en cocina y en sala con su estado hasta que se entregan."],
+  ["takeaway", "Pedidos para llevar con pago ágil", "Un QR propio para el mostrador, sin mesa. El cliente elige efectivo, datáfono o tu QR de Bre-B / Nequi, y el pedido aparece en cocina y sala."],
   ["palette", "Tu marca en todo", "Tu logo y hasta tres colores en la carta, la cocina y el panel. Se ve bien en modo claro y oscuro."],
-  ["money", "Propina e impuestos claros", "Propina voluntaria sugerida (hasta 10 %), INC o IVA incluido o aparte, y el total a la vista antes de pagar."],
+  ["gift", "Fidelización con QR", "Un QR del local abre un formulario: el cliente llena sus datos, autoriza su uso y queda en la base de tu restaurante. Exporta a Excel."],
   ["lock", "QR seguro por mesa", "Cada mesa tiene su código secreto: si se filtra, lo renuevas con un toque."],
   ["star", "Opiniones → reseñas en Google", "Pedimos calificación al terminar la mesa; los de 4–5 estrellas se envían a tu perfil de Google."],
   ["chart", "Reportes que sí sirven", "Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV."],
@@ -63,6 +63,7 @@ const FAQ = [
   ["¿Cómo se cobra la cuenta?", "El cliente toca «Terminar mesa» y elige cómo pagar: efectivo, datáfono o el QR de Bre-B o Nequi de tu negocio (lo subes tú en Ajustes). Tu equipo recibe el aviso, confirma el pago y cierra la mesa en la pantalla de sala. El dinero va directo a tu cuenta; MesaYa no lo toca."],
   ["¿Qué puede responder el asistente de IA?", "Preguntas sobre tu propio negocio: ventas, platos más y menos vendidos, tiempos de cocina, clientes por mesa, mesas libres, carta y precios, opiniones y ajustes. Si le pides apagar un plato, lo propone y tú lo confirmas con un botón."],
   ["¿Qué pasa con mis datos cuando le pregunto algo?", "El asistente consulta solo los datos de tu restaurante y los procesa con Gemini, de Google, para redactar la respuesta. Nunca muestra tus claves ni el PIN del equipo, y no cambia nada sin tu confirmación."],
+  ["¿Puedo fidelizar a mis clientes?", "Sí. En «Fidelización Clientes» generas un QR; quien lo escanea llena cédula, nombre, correo y celular, y autoriza el tratamiento de sus datos. Queda guardado en la base de tu restaurante (cada negocio tiene la suya) y puedes exportarla a Excel."],
   ["¿Funciona con mi caja o sistema de facturación?", "MesaYa no reemplaza tu caja: registra los pedidos y exporta CSV. Las integraciones con POS están en preparación (plan Cadena)."],
 ];
 

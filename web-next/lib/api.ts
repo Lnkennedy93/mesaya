@@ -50,6 +50,12 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Aplica los colores del restaurante (variables CSS en <html>): principal (botones, pestaña activa), secundario (superficies suaves) y
  *  de acento (barras, puntos y detalles). Los dos últimos pueden faltar: entonces valen los del producto. */
+/** Día (AAAA-MM-DD) en la hora del negocio de una fecha guardada en UTC ("2026-11-12 04:59:59"); tz = minutos respecto a UTC (Colombia: -300). */
+export function localDay(utc: string, tz = 0): string {
+  const d = new Date(String(utc).replace(" ", "T") + "Z");
+  return isNaN(+d) ? String(utc).slice(0, 10) : new Date(+d + tz * 60000).toISOString().slice(0, 10);
+}
+
 export function setBrand(color: string, color2?: string, color3?: string) {
   const root = document.documentElement;
   const dark = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;

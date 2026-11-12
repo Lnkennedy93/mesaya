@@ -1,13 +1,13 @@
 "use client";
 // Superusuario: ve todos los negocios y gestiona plan, mesas, IA y contraseña. Se entra con MESAYA_ADMIN_KEY.
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, localDay } from "@/lib/api";
 import { useToast } from "@/components/useToast";
 
 type Biz = {
   id: number; slug: string; name: string; email: string; plan: string; subscription_status: string; trial_ends_at: string;
   created_at: string; extra_tables: number; ai_addon: number; tables_used: number; active: boolean; effective_plan: string;
-  tables_limit: number; ai_asks: number; disabled_modules: string[]; paid_until: string; cancel_requested_at: string;
+  tables_limit: number; ai_asks: number; disabled_modules: string[]; paid_until: string; cancel_requested_at: string; license_start: string; tz_offset: number;
 };
 
 const MODS: [string, string][] = [["home", "Resumen"], ["menu", "Carta"], ["tables", "Mesas y QR"], ["reviews", "Opiniones"], ["customers", "Fidelización Clientes"],
@@ -22,12 +22,21 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
   const [ai, setAi] = useState(!!b.ai_addon);
   const [pw, setPw] = useState("");
   const [off, setOff] = useState<string[]>(b.disabled_modules || []);
-  const [period, setPeriod] = useState("30"); // cuánto suma al activar o renovar; sin esto una cuenta pagada nunca vencería
-  const status = b.subscription_status === "active" ? (b.active ? <span className="pill ok">Activa</span> : <span className="pill bad">Vencida (Gratis)</span>)
+  const tz = b.tz_offset || 0;
+  const nowUtc = new Date().toISOString().slice(0, 19).replace("T", " ");
+  const today = localDay(nowUtc, tz);
+  const plusDays = (d: string, n: number) => new Date(+new Date(d + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
+  const [period, setPeriod] = useState("dates"); // «dates» = elegir inicio y fin en el calendario; lo demás suma días al activar o renovar
+  const [from, setFrom] = useState(b.license_start ? localDay(b.license_start, tz) : today);
+  const [to, setTo] = useState(b.subscription_status === "active" && b.paid_until ? localDay(b.paid_until, tz) : plusDays(today, 30));
+  const scheduled = b.subscription_status === "active" && !!b.license_start && b.license_start > nowUtc;
+  const span = Math.round((+new Date(to + "T00:00:00Z") - +new Date(from + "T00:00:00Z")) / 86400000) + 1;
+  const status = scheduled ? <span className="pill warn">Programada</span>
+    : b.subscription_status === "active" ? (b.active ? <span className="pill ok">Activa</span> : <span className="pill bad">Vencida (Gratis)</span>)
     : b.active ? <span className="pill warn">En prueba</span> : <span className="pill bad">Sin licencia (Gratis)</span>;
   const save = (st: "active" | "inactive") =>
     call("activate", { email: b.email, plan, status: st, extra_tables: +extra || 0, ai_addon: ai,
-      ...(st !== "active" || period === "keep" ? {} : period === "none" ? { no_expiry: true } : { period_days: +period }) }, st === "active" ? "Licencia activada" : "Licencia desactivada");
+      ...(st !== "active" || period === "keep" ? {} : period === "dates" ? { starts_on: from, ends_on: to } : period === "none" ? { no_expiry: true } : { period_days: +period }) }, st === "active" ? "Licencia guardada" : "Licencia desactivada");
 
   return (
     <div className="card biz">
@@ -41,7 +50,8 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
           <span className="pill">{b.tables_used}/{b.tables_limit} mesas</span>
           {b.ai_asks > 0 && <span className="pill ok">IA {b.ai_asks}/mes</span>}
           {b.disabled_modules.length > 0 && <span className="pill warn">{b.disabled_modules.length} funciones apagadas</span>}
-          {b.subscription_status === "active" && b.paid_until && <span className={"pill" + (b.active ? "" : " bad")}>{b.active ? "vence " : "venció "}{b.paid_until.slice(0, 10)}</span>}
+          {scheduled && <span className="pill">inicia {localDay(b.license_start, tz)}</span>}
+          {b.subscription_status === "active" && b.paid_until && <span className={"pill" + (b.active || scheduled ? "" : " bad")}>{b.active || scheduled ? "vence " : "venció "}{localDay(b.paid_until, tz)}</span>}
           {b.cancel_requested_at && <span className="pill warn">cancelación pedida</span>}
         </div>
       </div>
@@ -70,6 +80,7 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
             <div>
               <label>Vigencia al activar o renovar</label>
               <select value={period} onChange={(e) => setPeriod(e.target.value)}>
+                <option value="dates">Elegir inicio y fin en el calendario</option>
                 <option value="30">+30 días (suma a lo que le quede)</option>
                 <option value="90">+90 días</option>
                 <option value="365">+1 año</option>
@@ -77,7 +88,25 @@ function Row({ b, call }: { b: Biz; call: (path: string, body: object, ok: strin
                 <option value="keep">Mantener la fecha actual</option>
               </select>
             </div>
+            {period === "dates" && (
+              <>
+                <div>
+                  <label>Inicia el</label>
+                  <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (to < e.target.value) setTo(e.target.value); }} />
+                </div>
+                <div>
+                  <label>Finaliza el</label>
+                  <input type="date" min={from} value={to} onChange={(e) => setTo(e.target.value)} />
+                </div>
+              </>
+            )}
           </div>
+          {period === "dates" && (
+            <p className="muted small" style={{ margin: "0 0 .6rem" }}>
+              Vigencia: <b>{from}</b> → <b>{to}</b> ({span} {span === 1 ? "día" : "días"}; el día de fin se incluye completo, en la hora del negocio).
+              {from > today && " Quedará programada: hasta esa fecha el negocio sigue como está (prueba o plan Gratis)."}
+            </p>
+          )}
           <div className="acts">
             <button className="btn ok sm" onClick={() => save("active")}>Guardar y activar licencia</button>
             <button className="btn bad sm" onClick={() => confirm(`¿Desactivar la licencia de ${b.name}? Pasará al plan Gratis.`) && save("inactive")}>Desactivar licencia</button>

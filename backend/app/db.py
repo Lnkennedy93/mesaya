@@ -399,6 +399,7 @@ MIGRATIONS = {
         "pay_qr": "TEXT NOT NULL DEFAULT ''",  # imagen del QR de cobro (Bre-B o Nequi) que sube el dueño; el cliente lo ve al pedir la cuenta
         "takeaway_qr": "INTEGER NOT NULL DEFAULT 0",  # 1 = en pedidos para llevar el cliente también puede pagar escaneando el QR del dueño (pay_qr)
         "customers_key": "TEXT NOT NULL DEFAULT ''",  # clave del QR de registro de clientes fidelizados ('' = aún no generado)
+        "license_start": "TEXT NOT NULL DEFAULT ''",  # cuándo EMPIEZA la licencia pagada, en UTC ('' = ya empezó). Antes de esa fecha sigue la prueba o el plan Gratis
         "brand_color3": "TEXT NOT NULL DEFAULT ''",  # color de acento ('' = el del producto): barras, puntos y detalles
     },
     "calls": {

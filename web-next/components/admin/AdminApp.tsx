@@ -1,7 +1,7 @@
 "use client";
 // Panel del dueño (portada de web/admin.html). Mismos endpoints /api/... y mismas pestañas.
 import { useEffect, useMemo, useState } from "react";
-import { api, makeMoney, setBrand } from "@/lib/api";
+import { api, localDay, makeMoney, setBrand } from "@/lib/api";
 import Modal from "@/components/Modal";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
@@ -59,8 +59,11 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
 
   const mail = `mailto:ventas@mesaya.app?subject=Activar%20${encodeURIComponent(ME.restaurant.slug)}`;
   const R = ME.restaurant;
-  const day = (s: string) => String(s).slice(0, 10);
-  const subBanner = !ME.active ? (
+  const day = (s: string) => localDay(s, R.tz_offset || 0);
+  const nowUtc = new Date().toISOString().slice(0, 19).replace("T", " ");
+  const subBanner = R.subscription_status === "active" && R.license_start && R.license_start > nowUtc ? (
+    <div className="banner"><span>Tu licencia empieza el <b>{day(R.license_start)}</b>{R.paid_until ? ` y va hasta el ${day(R.paid_until)}` : ""}.</span></div>
+  ) : !ME.active ? (
     <div className="banner bad"><b>Tu suscripción venció el {day(R.paid_until)}: estás en el plan Gratis.</b> Solo las primeras {ME.plan.tables} mesas reciben pedidos desde el QR; tus datos siguen intactos. <a className="btn sm" href={mail}>Renovar mi plan</a></div>
   ) : R.cancel_requested_at ? (
     <div className="banner"><span>Pediste cancelar: tu plan sigue activo hasta el <b>{day(R.paid_until)}</b> y luego pasas al plan Gratis.</span></div>

@@ -55,7 +55,7 @@ def _me(r: dict, role: str) -> dict:
 def _me_full(r: dict, role: str) -> dict:
     plan = auth.plan_info(r)
     left, sub_left = None, None
-    if r["subscription_status"] == "active" and r["paid_until"]:  # días que le quedan a lo pagado (negativo: ya venció)
+    if r["subscription_status"] == "active" and r["paid_until"] and not (r["license_start"] and r["license_start"] > now()):  # días que le quedan a lo pagado (negativo: ya venció)
         sub_left = int(-(-(datetime.strptime(r["paid_until"], "%Y-%m-%d %H:%M:%S") - datetime.utcnow()).total_seconds() // 86400))
     if r["subscription_status"] != "active":
         end = datetime.strptime(r["trial_ends_at"], "%Y-%m-%d %H:%M:%S")
@@ -63,7 +63,7 @@ def _me_full(r: dict, role: str) -> dict:
     return {
         "role": role,
         "restaurant": {k: r[k] for k in (
-            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr", "takeaway_qr",
+            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr", "takeaway_qr", "license_start",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
             "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at", "paid_until", "cancel_requested_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
@@ -1215,7 +1215,7 @@ def sa_audit(request: Request):
 def sa_list(request: Request):
     _admin(request)
     out = db.rows(
-        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,paid_until,cancel_requested_at,created_at,extra_tables,ai_addon,disabled_modules,
+        """SELECT id,slug,name,email,plan,subscription_status,trial_ends_at,paid_until,license_start,tz_offset,cancel_requested_at,created_at,extra_tables,ai_addon,disabled_modules,
                   (SELECT COUNT(*) FROM tables_ t WHERE t.restaurant_id=restaurants.id) AS tables_used
            FROM restaurants ORDER BY id DESC""")
     for r in out:  # lo que el negocio recibe hoy, ya calculado con las mismas reglas que la app
@@ -1244,25 +1244,54 @@ def sa_activate(body: dict, request: Request):
         raise HTTPException(400, "El periodo debe estar entre 1 y 3660 días")
     ai = body.get("ai_addon")
     email = str(body.get("email", "")).strip().lower()
-    cur = db.row("SELECT paid_until, subscription_status FROM restaurants WHERE email=?", (email,))
+    cur = db.row("SELECT paid_until, subscription_status, tz_offset, license_start FROM restaurants WHERE email=?", (email,))
     if not cur:
         raise HTTPException(404, "No existe una cuenta con ese correo")
-    paid = cur["paid_until"]
-    if status == "active" and not body.get("no_expiry") and not days and (cur["subscription_status"] != "active" or (paid and paid <= now())):
-        raise HTTPException(400, "Indica period_days (renovar) o no_expiry: sin eso la cuenta quedaría activa para siempre o ya vencida")
-    if status == "active":
-        fmt = "%Y-%m-%d %H:%M:%S"
+    fmt = "%Y-%m-%d %H:%M:%S"
+
+    def day(key):  # fecha elegida en el calendario del superusuario (AAAA-MM-DD)
+        v = body.get(key)
+        if v in (None, ""):
+            return None
+        try:
+            return datetime.strptime(str(v), "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(400, f"Fecha inválida en {key}: usa AAAA-MM-DD")
+    s_day, e_day = day("starts_on"), day("ends_on")
+    paid, lic = cur["paid_until"], cur["license_start"]
+    if status == "active" and (s_day or e_day) and not days:
+        off = timedelta(minutes=cur["tz_offset"] or 0)  # los días se cuentan en la hora del negocio: empieza a las 00:00 y el día de fin se incluye completo
+        if e_day and s_day and e_day < s_day:
+            raise HTTPException(400, "La fecha de fin no puede ser anterior a la de inicio")
+        if e_day and (e_day - (s_day or datetime.utcnow())).days > 3660:
+            raise HTTPException(400, "La vigencia no puede pasar de 3660 días")
+        if not e_day and not body.get("no_expiry") and (cur["subscription_status"] != "active" or (paid and paid <= now())):
+            raise HTTPException(400, "Indica también la fecha de fin (o sin vencimiento): sin eso la licencia quedaría activa para siempre o ya vencida")
         if body.get("no_expiry"):
             paid = ""
+        if e_day:
+            paid = (e_day + timedelta(days=1, seconds=-1) - off).strftime(fmt)
+            if paid <= now():
+                raise HTTPException(400, "La fecha de fin ya pasó")
+        if s_day:
+            lic = (s_day - off).strftime(fmt)
+    elif status == "active" and not body.get("no_expiry") and not days and (cur["subscription_status"] != "active" or (paid and paid <= now())):
+        raise HTTPException(400, "Indica period_days (renovar), no_expiry o las fechas de inicio y fin: sin eso la cuenta quedaría activa para siempre o ya vencida")
+    elif status == "active":
+        if body.get("no_expiry"):
+            paid, lic = "", ""
         elif days:  # renovar suma al periodo que todavía le queda; si ya venció, cuenta desde hoy
             base = max(now(), paid) if paid else now()
             paid = (datetime.strptime(base, fmt) + timedelta(days=days)).strftime(fmt)
+            lic = ""
+    if status != "active":
+        lic = ""
     # Desactivar también vence la prueba: si no, is_active() seguiría dando el plan completo hasta que termine.
     db.run("""UPDATE restaurants SET plan=?, subscription_status=?, extra_tables=COALESCE(?,extra_tables), ai_addon=COALESCE(?,ai_addon),
-              trial_ends_at=CASE WHEN ?='active' THEN trial_ends_at ELSE ? END, paid_until=?,
+              trial_ends_at=CASE WHEN ?='active' THEN trial_ends_at ELSE ? END, paid_until=?, license_start=?,
               cancel_requested_at=CASE WHEN ?='active' THEN '' ELSE cancel_requested_at END WHERE email=?""",
-           (plan, status, extra, None if ai is None else int(bool(ai)), status, auth.now(), paid, status, email))
-    _audit(request, email, "activate", f"{status} · plan {plan} · vence {paid or 'nunca'}")
+           (plan, status, extra, None if ai is None else int(bool(ai)), status, auth.now(), paid, lic, status, email))
+    _audit(request, email, "activate", f"{status} · plan {plan} · inicia {lic or 'ya'} · vence {paid or 'nunca'}")
     return {"ok": True}
 
 
