@@ -7,7 +7,7 @@ const STEPS = [
   ["Pega el QR en la mesa", "Imprime los QR listos, uno por mesa y con código secreto propio."],
   ["El cliente pide", "Escanea, elige, personaliza y envía. Sin app, sin registro."],
   ["Llega a cocina", "Pantalla en vivo con el número de mesa, alertas y cronómetro por pedido."],
-  ["Termina la mesa", "Pide la cuenta desde el celular; tu equipo cobra en caja y cierra la mesa."],
+  ["Termina la mesa", "Pide la cuenta y elige cómo pagar: efectivo, datáfono o tu QR de Bre-B / Nequi. Tu equipo cierra la mesa."],
 ];
 
 const START = [
@@ -24,6 +24,10 @@ const FEATURES = [
   ["ban", "Apaga lo agotado", "Un toque y desaparece al instante de todos los celulares. Cocina también puede hacerlo."],
   ["puzzle", "Opciones y adicionales", "Término, tamaño, salsas, extras con recargo. El precio lo calcula el servidor."],
   ["hand", "Llamar al mesero / pedir cuenta", "Aviso en la pantalla de sala sin que el cliente tenga que gritar."],
+  ["qr", "Cobra con tu QR de Bre-B o Nequi", "Subes tu QR de cobro y, al pedir la cuenta, el cliente lo ve y paga desde su celular. Tu equipo revisa el comprobante y cierra la mesa."],
+  ["takeaway", "Pedidos para llevar", "Un QR propio para el mostrador, sin mesa. Aparecen en cocina y en sala con su estado hasta que se entregan."],
+  ["palette", "Tu marca en todo", "Tu logo y hasta tres colores en la carta, la cocina y el panel. Se ve bien en modo claro y oscuro."],
+  ["money", "Propina e impuestos claros", "Propina voluntaria sugerida (hasta 10 %), INC o IVA incluido o aparte, y el total a la vista antes de pagar."],
   ["lock", "QR seguro por mesa", "Cada mesa tiene su código secreto: si se filtra, lo renuevas con un toque."],
   ["star", "Opiniones → reseñas en Google", "Pedimos calificación al terminar la mesa; los de 4–5 estrellas se envían a tu perfil de Google."],
   ["chart", "Reportes que sí sirven", "Ventas, ticket promedio, horas pico, platos estrella, tiempo de cocina y CSV."],
@@ -47,6 +51,7 @@ const COMPARE = [
   ["Pedido llega a cocina con mesa", "✗", "✓ En vivo"],
   ["Plato agotado", "✗ Se entera al pedir", "✓ Se apaga en 1 toque"],
   ["Pedir la cuenta / terminar mesa", "✗ Hay que llamar al mesero", "✓ Desde el celular"],
+  ["Pagar desde el celular", "✗ Solo en caja", "✓ Con tu QR de Bre-B o Nequi"],
   ["Fotos y alérgenos", "✗ Texto plano", "✓"],
   ["Comisión por pedido", "—", "0 %"],
 ];
@@ -55,7 +60,7 @@ const FAQ = [
   ["¿Mis clientes tienen que descargar algo?", "No. Escanean el QR y se abre la carta en el navegador del celular."],
   ["¿Necesito tarjeta para probar?", "No. Son 14 días completos sin tarjeta; al terminar eliges un plan o sigues gratis con 3 mesas."],
   ["¿Cobran comisión por cada venta?", "No. Pagas una mensualidad fija. No cobramos nada por cada pedido."],
-  ["¿Cómo se cobra la cuenta?", "Como siempre, en caja. El cliente toca «Terminar mesa» en su celular, tu equipo recibe el aviso, cobra y cierra la mesa en la pantalla de sala."],
+  ["¿Cómo se cobra la cuenta?", "El cliente toca «Terminar mesa» y elige cómo pagar: efectivo, datáfono o el QR de Bre-B o Nequi de tu negocio (lo subes tú en Ajustes). Tu equipo recibe el aviso, confirma el pago y cierra la mesa en la pantalla de sala. El dinero va directo a tu cuenta; MesaYa no lo toca."],
   ["¿Qué puede responder el asistente de IA?", "Preguntas sobre tu propio negocio: ventas, platos más y menos vendidos, tiempos de cocina, clientes por mesa, mesas libres, carta y precios, opiniones y ajustes. Si le pides apagar un plato, lo propone y tú lo confirmas con un botón."],
   ["¿Qué pasa con mis datos cuando le pregunto algo?", "El asistente consulta solo los datos de tu restaurante y los procesa con Gemini, de Google, para redactar la respuesta. Nunca muestra tus claves ni el PIN del equipo, y no cambia nada sin tu confirmación."],
   ["¿Funciona con mi caja o sistema de facturación?", "MesaYa no reemplaza tu caja: registra los pedidos y exporta CSV. Las integraciones con POS están en preparación (plan Cadena)."],

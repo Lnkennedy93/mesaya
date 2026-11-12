@@ -4,7 +4,7 @@ import {
   RiAlertLine, RiArrowDownLine, RiArrowRightUpLine, RiArrowUpLine, RiBankCardLine, RiBarChartBoxLine, RiBillLine, RiBookOpenLine, RiCameraLine,
   RiCashLine, RiCheckLine, RiCheckboxCircleLine, RiCloseLine, RiDeleteBinLine, RiDownloadLine, RiEditBoxLine, RiFireLine, RiFlashlightLine,
   RiGiftLine, RiGlobalLine, RiHand, RiHeart3Fill, RiHourglassLine, RiLockLine, RiMoneyDollarCircleLine, RiNotification3Line, RiNotificationOffLine,
-  RiPauseCircleLine, RiPrinterLine, RiProhibitedLine, RiPuzzleLine, RiQrCodeLine, RiReceiptLine, RiRestaurantLine, RiRobot2Line, RiSettings3Line,
+  RiPaletteLine, RiPauseCircleLine, RiPrinterLine, RiProhibitedLine, RiPuzzleLine, RiQrCodeLine, RiReceiptLine, RiRestaurantLine, RiRobot2Line, RiSettings3Line,
   RiSmartphoneLine, RiSparklingLine, RiStarFill, RiStarLine, RiTakeawayLine, RiTimeLine, RiUserLine,
 } from "@remixicon/react";
 
@@ -14,7 +14,7 @@ const ICONS = {
   close: RiCloseLine, trash: RiDeleteBinLine, download: RiDownloadLine, note: RiEditBoxLine, fire: RiFireLine, bolt: RiFlashlightLine,
   gift: RiGiftLine, globe: RiGlobalLine, hand: RiHand, heart: RiHeart3Fill, hourglass: RiHourglassLine, lock: RiLockLine,
   money: RiMoneyDollarCircleLine, bell: RiNotification3Line, bellOff: RiNotificationOffLine, pause: RiPauseCircleLine, print: RiPrinterLine,
-  ban: RiProhibitedLine, puzzle: RiPuzzleLine, qr: RiQrCodeLine, receipt: RiReceiptLine, menu: RiRestaurantLine, robot: RiRobot2Line,
+  ban: RiProhibitedLine, palette: RiPaletteLine, puzzle: RiPuzzleLine, qr: RiQrCodeLine, receipt: RiReceiptLine, menu: RiRestaurantLine, robot: RiRobot2Line,
   gear: RiSettings3Line, phone: RiSmartphoneLine, spark: RiSparklingLine, star: RiStarFill, starO: RiStarLine, takeaway: RiTakeawayLine,
   clock: RiTimeLine, user: RiUserLine,
 } as const;

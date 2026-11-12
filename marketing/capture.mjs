@@ -121,6 +121,22 @@ const scenes = {
     await ask('¿Qué mesas tengo libres y cuáles tienen la cuenta pendiente?', '19-asistente-mesas');
     await ask('Apaga la sopa wantán, se acabó.', '20-asistente-accion');
   },
+  // --- pago por QR (Bre-B / Nequi): el cliente de la mesa 1 pide la cuenta con «QR» (queda el aviso en cocina) y el dueño ve dónde sube su QR
+  async 14(b) {
+    const p = await openPage(b, { ...M, login: null });
+    await p.goto(BASE + '/r/dragon-dorado?t=1&k=demo1', { settleMs: 1500 });
+    await clickText(p, 'Mi cuenta', { sel: 'button' }); await sleep(1000);
+    await clickText(p, 'Terminar mesa', { sel: 'button' }); await sleep(500);
+    await shot(p, '24-cliente-metodo');
+    await clickText(p, 'QR (Nequi', { sel: 'button' }); await sleep(1600);
+    await shot(p, '25-cliente-pago-qr');
+  },
+  async 15(b) {
+    const p = await adminAt(b, 'Ajustes');
+    await p.eval(`[...document.querySelectorAll('h3')].find(h => h.textContent.includes('Pago por QR'))?.scrollIntoView({ block: 'center' })`);
+    await sleep(900);
+    await shot(p, '26-ajustes-qr');
+  },
   // --- landing
   async 13(b) {
     const p = await openPage(b, { ...D, login: null });

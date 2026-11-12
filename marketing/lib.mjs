@@ -16,7 +16,7 @@ export async function openPage(browser, { width, height, dsf = 1, mobile = false
     await page.goto(BASE + '/login', { settleMs: 500 });
     const body = login === 'owner' ? OWNER : null;
     if (body) await page.eval(`fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:${JSON.stringify(JSON.stringify(body))}}).then(r=>r.status)`);
-    else await page.eval(`fetch('/api/staff-login',{method:'POST',headers:{'content-type':'application/json'},body:${JSON.stringify(JSON.stringify({ slug: 'dragon-dorado', pin: '1234' }))}}).then(r=>r.status)`);
+    else await page.eval(`fetch('/api/staff-login',{method:'POST',headers:{'content-type':'application/json'},body:${JSON.stringify(JSON.stringify({ slug: 'dragon-dorado', pin: '482916' }))}}).then(r=>r.status)`);
   }
   return page;
 }
