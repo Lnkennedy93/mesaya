@@ -41,7 +41,22 @@
 .landing .screen .th{width:44px;height:44px;border-radius:12px;background:color-mix(in srgb,var(--ink) 9%,var(--solid));flex:none}
 .landing .screen .it .muted{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.75rem;line-height:1.3}
 .landing .screen .go{position:absolute;left:12px;right:12px;bottom:12px;background:var(--brand);color:var(--brand-ink);text-align:center;border-radius:99px;padding:.8em;font-weight:800}
-@media(max-width:860px){.landing .phone{display:none}.landing .stage{padding-bottom:0}}
+.landing .go3{position:absolute;left:calc(4% + 168px);right:0;bottom:0;padding:.9rem 1rem;display:flex;flex-direction:column;gap:.35rem}
+.landing .go3 .tt{font-weight:800;font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.1rem}
+.landing .s3{position:relative;display:flex;gap:.7rem;align-items:center;padding:.6rem .7rem;border-radius:14px;overflow:hidden;font-size:.9rem;line-height:1.3}
+.landing .s3 .muted{font-size:.8rem}
+.landing .s3 .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.85rem;background:var(--brand);color:var(--brand-ink)}
+.landing .s3 .bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--acc);transform:scaleX(0);transform-origin:left}
+@media (prefers-reduced-motion:no-preference){
+  .landing .s3{animation:s3on 12s infinite;opacity:.5}
+  .landing .s3 .bar{animation:s3bar 12s infinite}
+  .landing .s3:nth-of-type(2),.landing .s3:nth-of-type(2) .bar{animation-delay:0s}
+  .landing .s3:nth-of-type(3),.landing .s3:nth-of-type(3) .bar{animation-delay:4s}
+  .landing .s3:nth-of-type(4),.landing .s3:nth-of-type(4) .bar{animation-delay:8s}
+}
+@keyframes s3on{0%{opacity:1;background:color-mix(in srgb,var(--acc) 14%,transparent)}30%{opacity:1;background:color-mix(in srgb,var(--acc) 14%,transparent)}35%,100%{opacity:.5;background:transparent}}
+@keyframes s3bar{0%{transform:scaleX(0)}33%{transform:scaleX(1)}33.1%,100%{transform:scaleX(0)}}
+@media(max-width:860px){.landing .go3{display:none}.landing .phone{display:none}.landing .stage{padding-bottom:0}}
 
 .landing section{padding:2.6rem 0}
 .landing h2.t{font-size:clamp(1.6rem,3.6vw,2.4rem);text-align:center;margin-bottom:.5rem;letter-spacing:-.035em;font-weight:750}

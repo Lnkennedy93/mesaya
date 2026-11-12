@@ -10,6 +10,12 @@ const STEPS = [
   ["Termina la mesa", "Pide la cuenta desde el celular; tu equipo cobra en caja y cierra la mesa."],
 ];
 
+const START = [
+  ["Sube tu carta", "Pega el texto o una foto y la IA la arma."],
+  ["Pega el QR en la mesa", "Un QR por mesa, listo para imprimir."],
+  ["Recibe pedidos en cocina", "Con número de mesa, alertas y cronómetro."],
+];
+
 const FEATURES = [
   ["robot", "Asistente de IA para tu negocio", "Pregunta por ventas, mesas, carta u opiniones y responde con tus propios datos. En Pro y Cadena, o como complemento del plan Esencial."],
   ["camera", "Carta con foto de cada plato", "Fotos optimizadas, etiquetas (vegano, picante…) y alérgenos visibles."],
@@ -109,6 +115,16 @@ export default function Landing() {
                 </div>
               </div>
               <div className="note">Vista de ejemplo con datos ilustrativos.</div>
+            </div>
+            <div className="card go3" aria-label="Empieza en tres pasos">
+              <div className="tt">Empieza en 3 pasos</div>
+              {START.map(([h, p], i) => (
+                <div className="s3" key={h}>
+                  <span className="n">{i + 1}</span>
+                  <div><b>{h}</b><div className="muted">{p}</div></div>
+                  <i className="bar"></i>
+                </div>
+              ))}
             </div>
             <div className="phone" aria-hidden="true">
               <div className="screen">
