@@ -38,7 +38,7 @@ def _set_cookie(resp: Response, token: str):
                     max_age=30 * 86400, path="/")
 
 
-STAFF_FIELDS = ("id", "slug", "name", "currency", "decimals", "brand_color", "tagline", "logo", "tip_pct", "tax_pct", "tax_included",
+STAFF_FIELDS = ("id", "slug", "name", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "tip_pct", "tax_pct", "tax_included",
                 "tz_offset", "accepting_orders", "online_payments", "takeaway", "plan", "inv_provider")
 
 
@@ -63,7 +63,7 @@ def _me_full(r: dict, role: str) -> dict:
     return {
         "role": role,
         "restaurant": {k: r[k] for k in (
-            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "tagline", "logo",
+            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
             "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at", "paid_until", "cancel_requested_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
@@ -170,7 +170,7 @@ def me(s: Staff = Depends(staff_dep)):
     return _me(s.r, s.role)
 
 
-SETTINGS_FIELDS = {"name": str, "tagline": str, "brand_color": str, "tip_pct": int, "tax_pct": float,
+SETTINGS_FIELDS = {"name": str, "tagline": str, "brand_color": str, "brand_color2": str, "brand_color3": str, "tip_pct": int, "tax_pct": float,
                    "tax_included": int, "tz_offset": int, "google_review_url": str, "whatsapp": str,
                    "accepting_orders": int, "online_payments": int, "currency": str, "staff_pin": str,
                    "legal_name": str, "nit": str, "tax_type": str, "fiscal_address": str, "fiscal_phone": str,
@@ -194,8 +194,8 @@ def update_settings(body: dict, s: Staff = Depends(owner_dep)):
                 v = typ(v)
             except (TypeError, ValueError):
                 raise HTTPException(400, f"Valor inválido en {k}")
-            if k == "brand_color" and not re.fullmatch(r"#[0-9a-fA-F]{6}", v):
-                raise HTTPException(400, "Color inválido")
+            if k in ("brand_color", "brand_color2", "brand_color3") and not re.fullmatch(r"#[0-9a-fA-F]{6}", v) and not (k != "brand_color" and v == ""):
+                raise HTTPException(400, "Color inválido")  # (los colores secundario y de acento pueden ir vacíos: vuelven a los del producto)
             if k == "staff_pin":
                 if v == s.r["staff_pin"]:
                     continue  # el panel reenvía el PIN de siempre al guardar otros ajustes

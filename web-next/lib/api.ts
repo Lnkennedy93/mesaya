@@ -46,9 +46,13 @@ export function makeMoney(decimals: number, currency: string) {
   return (v: number) => f.format(v / Math.pow(10, decimals));
 }
 
-/** Aplica el color de marca del restaurante (variables CSS en <html>). */
-export function setBrand(color: string) {
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** Aplica los colores del restaurante (variables CSS en <html>): principal (botones, pestaña activa), secundario (superficies suaves) y
+ *  de acento (barras, puntos y detalles). Los dos últimos pueden faltar: entonces valen los del producto. */
+export function setBrand(color: string, color2?: string, color3?: string) {
   const root = document.documentElement;
+  const dark = typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
   root.style.setProperty("--brand", color);
   // texto del botón: el que dé más contraste (WCAG) sobre el color de marca, no una regla fija de luminosidad
   const L = (hex: string) => {
@@ -59,6 +63,17 @@ export function setBrand(color: string) {
   const onWhite = 1.05 / (lb + 0.05);
   const onDark = (lb + 0.05) / (L("#1d1a16") + 0.05);
   root.style.setProperty("--brand-ink", onWhite >= onDark ? "#fff" : "#1d1a16");
+  const c2 = color2 && HEX.test(color2) ? color2 : "";
+  const c3 = color3 && HEX.test(color3) ? color3 : "";
+  const put = (k: string, v: string) => (v ? root.style.setProperty(k, v) : root.style.removeProperty(k));
+  // en claro, el secundario se aclara a la mitad: así un color oscuro (o un negro) tampoco le quita contraste al texto de las superficies
+  put("--brand2", c2 && !dark ? `color-mix(in srgb, ${c2} 50%, white)` : c2);
+  put("--acc", c3);
+  // las luces de color que hay detrás del vidrio toman la paleta del restaurante; suaves a propósito, para que el texto nunca pierda contraste
+  const glow = (c: string, a: number) => (dark ? `color-mix(in srgb, ${c} ${a}%, transparent)` : `color-mix(in srgb, color-mix(in srgb, ${c} 55%, white) ${a}%, transparent)`);
+  put("--glow1", c3 ? glow(c3, dark ? 22 : 26) : "");
+  put("--glow2", glow(color, dark ? 20 : 22));
+  put("--glow3", c2 ? glow(c2, dark ? 24 : 40) : "");
 }
 
 /** localStorage a prueba de fallos (modo privado, cookies bloqueadas...). */

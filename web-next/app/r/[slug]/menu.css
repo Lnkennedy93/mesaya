@@ -1,10 +1,10 @@
 .menu-root{padding-bottom:calc(90px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto}
-.menu-root .hero{margin:.8rem 1rem .2rem;padding:.9rem 1rem;display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;background:var(--card);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:24px;box-shadow:var(--shadow)}
+.menu-root .hero{margin:.8rem 1rem .2rem;padding:.9rem 1rem;display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;border-bottom:3px solid var(--acc);background:color-mix(in srgb,var(--brand2) var(--tint),var(--card));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:24px;box-shadow:var(--shadow)}
 .menu-root .logo{width:56px;height:56px;border-radius:16px;flex:none;font-size:1.5rem}
 .menu-root .hero h1{font-size:1.35rem;margin:0}
 .menu-root .btn.nequi{background:#da0081;color:#fff}
 .menu-root .tablebadge{margin-left:auto;background:var(--brand);color:var(--brand-ink);padding:.35em .8em;border-radius:99px;font-weight:800;font-size:.85rem;white-space:nowrap}
-.menu-root .tools{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--solid) 62%,transparent);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);padding:.5rem 1rem .6rem;border-bottom:1px solid var(--glass-bd)}
+.menu-root .tools{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--brand2) calc(var(--tint) * .8),color-mix(in srgb,var(--solid) 62%,transparent));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);padding:.5rem 1rem .6rem;border-bottom:1px solid var(--glass-bd)}
 .menu-root .chips{display:flex;gap:.5rem;overflow-x:auto;scrollbar-width:none;padding-top:.5rem}
 .menu-root .chip{flex:none;border:1px solid var(--line);background:color-mix(in srgb,var(--solid) 62%,transparent);border-radius:99px;padding:.35em .95em;font-weight:700;font-size:.9rem;cursor:pointer}
 .menu-root .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -17,7 +17,7 @@
 .menu-root .item p{margin:0;font-size:.85rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .menu-root .item .price{font-weight:800;margin-top:.35rem}
 .menu-root .item.off{opacity:.55}
-.menu-root .item .add{position:absolute;right:.7rem;bottom:.6rem;width:34px;height:34px;border-radius:50%;border:0;background:var(--brand);color:var(--brand-ink);font-size:1.3rem;font-weight:700;line-height:1}
+.menu-root .item .add{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 35%,transparent);position:absolute;right:.7rem;bottom:.6rem;width:34px;height:34px;border-radius:50%;border:0;background:var(--brand);color:var(--brand-ink);font-size:1.3rem;font-weight:700;line-height:1}
 .menu-root .tag{font-size:.68rem;font-weight:700;padding:.1em .5em;border-radius:6px;background:color-mix(in srgb,var(--ok) 15%,transparent);color:color-mix(in srgb,var(--ok) 55%,var(--ink));margin-right:.25rem}
 .menu-root .tag.hot{background:color-mix(in srgb,var(--bad) 14%,transparent);color:color-mix(in srgb,var(--bad) 65%,var(--ink))}
 .menu-root .tag.star{background:color-mix(in srgb,var(--warn) 18%,transparent);color:color-mix(in srgb,var(--warn) 40%,var(--ink))}

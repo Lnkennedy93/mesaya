@@ -1,7 +1,7 @@
 "use client";
 // Cocina y sala (portada de web/kitchen.html). Mismos endpoints /api/... y el mismo canal en vivo /api/stream.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError, beep, keepAwake, poll, makeMoney, secsSince, unlockAudio } from "@/lib/api";
+import { api, ApiError, beep, keepAwake, poll, makeMoney, secsSince, setBrand, unlockAudio } from "@/lib/api";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
 import Icon from "@/components/Icon";
@@ -78,6 +78,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       }
       if (dead) return;
       setME(me);
+      setBrand(me.restaurant.brand_color, me.restaurant.brand_color2, me.restaurant.brand_color3);
       try { await refreshRef.current(); } catch { if (!dead) setPhase("error"); return; }
       if (dead) return;
       setPhase("ready");
@@ -122,6 +123,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
     <div className="kitchen-root">
       {offline && <div className="offline-bar" role="alert"><Icon n="alert" /> Sin conexión desde las {new Date(offline).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} — puede que no estén llegando pedidos nuevos. Reintentando…</div>}
       <header>
+        {ME.restaurant.logo && <img className="klogo" src={ME.restaurant.logo} alt="" />}
         <h1>{ME.restaurant.name}</h1>
         <div className="tabs" role="tablist">
           <button role="tab" aria-selected={tab === "kitchen"} className={tab === "kitchen" ? "on" : ""} onClick={() => setTab("kitchen")}>Cocina{nNew ? ` · ${nNew}` : ""}</button>

@@ -92,7 +92,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       }
       if (dead) return;
       setM(data);
-      setBrand(data.restaurant.brand_color);
+      setBrand(data.restaurant.brand_color, data.restaurant.brand_color2, data.restaurant.brand_color3);
       setTipPct(data.restaurant.tip_pct);
       document.title = data.restaurant.name + " · " + (I18N[l] || I18N.es).menu;
       const meta = document.querySelector("meta[name=theme-color]");

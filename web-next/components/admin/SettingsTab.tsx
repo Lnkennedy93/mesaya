@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { api, shrinkImage } from "@/lib/api";
+import { api, setBrand, shrinkImage } from "@/lib/api";
 import { Any, CURRENCIES, useAdmin } from "./ctx";
 import Icon from "@/components/Icon";
 
@@ -8,16 +8,24 @@ export default function SettingsTab() {
   const { ME, setME, toast } = useAdmin();
   const r = ME.restaurant;
   const [f, setF] = useState({
-    name: r.name as string, tagline: (r.tagline || "") as string, color: r.brand_color as string, tip: String(r.tip_pct),
+    name: r.name as string, tagline: (r.tagline || "") as string, color: r.brand_color as string, color2: (r.brand_color2 || "") as string, color3: (r.brand_color3 || "") as string, tip: String(r.tip_pct),
     cur: r.currency as string, tz: String(r.tz_offset), google: (r.google_review_url || "") as string, accepting: !!r.accepting_orders, pin: (r.staff_pin || "") as string,
   });
   const [pwCur, setPwCur] = useState("");
   const [pwNew, setPwNew] = useState("");
+  const DEF2 = "#dbe7f3", DEF3 = "#3ddc61"; // los del producto: se muestran mientras el restaurante no elija otros
+  // vista previa: el color se ve en el panel apenas se escoge (se guarda con «Guardar cambios»)
+  const pick = (k: "color" | "color2" | "color3", v: string) => {
+    const n = { ...f, [k]: v };
+    setF(n);
+    setBrand(n.color, n.color2, n.color3);
+  };
+  const resetColors = () => { const n = { ...f, color2: "", color3: "" }; setF(n); setBrand(n.color, "", ""); };
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
 
   async function save() {
     try {
-      const me = await api("/api/settings", { method: "PUT", body: { name: f.name, tagline: f.tagline, brand_color: f.color, tip_pct: +f.tip, currency: f.cur, tz_offset: +f.tz, google_review_url: f.google, accepting_orders: f.accepting ? 1 : 0, staff_pin: f.pin } });
+      const me = await api("/api/settings", { method: "PUT", body: { name: f.name, tagline: f.tagline, brand_color: f.color, brand_color2: f.color2, brand_color3: f.color3, tip_pct: +f.tip, currency: f.cur, tz_offset: +f.tz, google_review_url: f.google, accepting_orders: f.accepting ? 1 : 0, staff_pin: f.pin } });
       setME(me);
       toast("Guardado");
     } catch (e: Any) { toast(e.message, true); }
@@ -48,7 +56,7 @@ export default function SettingsTab() {
   async function uploadLogo(file: File | undefined) {
     if (!file) return;
     const fd = new FormData();
-    try { fd.append("file", await shrinkImage(file)); await api("/api/logo", { method: "POST", body: fd }); toast("Logo actualizado"); } catch (e: Any) { toast(e.message, true); }
+    try { fd.append("file", await shrinkImage(file)); const res = await api("/api/logo", { method: "POST", body: fd }); setME({ ...ME, restaurant: { ...ME.restaurant, logo: res.logo } }); toast("Logo actualizado"); } catch (e: Any) { toast(e.message, true); }
   }
 
   return (
@@ -59,8 +67,16 @@ export default function SettingsTab() {
         <div className="grid2">
           <div><label>Nombre</label><input value={f.name} onChange={set("name")} /></div>
           <div><label>Eslogan</label><input value={f.tagline} onChange={set("tagline")} /></div>
-          <div><label>Color de marca</label><input type="color" value={f.color} onChange={set("color")} style={{ height: 44, padding: ".2em" }} /></div>
-          <div><label>Logo</label><input type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /></div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label>Colores de tu marca</label>
+            <div className="colors">
+              <div><b>Principal</b><span className="muted small">Botones, pestaña activa y la cabecera de tu carta.</span><input type="color" aria-label="Color principal" value={f.color} onChange={(e) => pick("color", e.target.value)} /></div>
+              <div><b>Secundario</b><span className="muted small">Fondos suaves: barra lateral, cabeceras y tarjetas.</span><input type="color" aria-label="Color secundario" value={f.color2 || DEF2} onChange={(e) => pick("color2", e.target.value)} /></div>
+              <div><b>Acento</b><span className="muted small">Detalles: barras, puntos de estado y resaltes.</span><input type="color" aria-label="Color de acento" value={f.color3 || DEF3} onChange={(e) => pick("color3", e.target.value)} /></div>
+            </div>
+            <p className="muted small" style={{ margin: ".5rem 0 0" }}>Verás el cambio al instante; guárdalo con «Guardar cambios». <button type="button" className="linkbtn" onClick={resetColors}>Volver a los colores de MesaYa (secundario y acento)</button></p>
+          </div>
+          <div><label>Logo</label><input type="file" accept="image/*" onChange={(e) => uploadLogo(e.target.files?.[0])} /><p className="muted small" style={{ margin: ".3rem 0 0" }}>Aparece arriba a la izquierda del panel y en tu carta.</p></div>
           <div><label>Propina sugerida (%)</label><input type="number" min={0} max={10} value={f.tip} onChange={set("tip")} /></div>
           <div><label>Moneda</label><select value={f.cur} onChange={set("cur")}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
           <div><label>Zona horaria (minutos vs UTC)</label><input type="number" value={f.tz} onChange={set("tz")} /></div>

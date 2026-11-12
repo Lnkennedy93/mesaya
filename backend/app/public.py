@@ -79,7 +79,7 @@ def menu(slug: str, request: Request, t: str = "", k: str = ""):
     allowed = table_ok and _plan_allows(r, t)
     return {
         "restaurant": {
-            "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "brand_color": r["brand_color"],
+            "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"],
             "currency": r["currency"], "decimals": r["decimals"], "tip_pct": r["tip_pct"],
             "tax_pct": r["tax_pct"], "tax_included": bool(r["tax_included"]),
             "google_review_url": r["google_review_url"], "whatsapp": r["whatsapp"],

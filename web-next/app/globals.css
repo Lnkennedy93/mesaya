@@ -6,11 +6,14 @@
   --bg:#e8f0f8; --solid:#fff; --card:rgba(255,255,255,.64);
   --ink:#0b0f14; --muted:#566170;
   --line:rgba(15,23,42,.10); --glass-bd:rgba(255,255,255,.80);
-  --ok:#137a3a; --warn:#a85f00; --bad:#b52a2a; --info:#1f5fd0; --focus:#1f5fd0;
+  --ok:#11702f; --warn:#a85f00; --bad:#b52a2a; --info:#1f5fd0; --focus:#1f5fd0;
   --r:18px;
   --shadow:0 1px 0 rgba(255,255,255,.85) inset,0 10px 34px rgba(33,52,88,.10);
   --blur:blur(18px) saturate(165%);
   --glow1:rgba(61,220,97,.30); --glow2:rgba(86,140,255,.24); --glow3:rgba(120,205,255,.30);
+  --on-sem:#fff;                                /* texto sobre los rellenos de éxito y error (no depende del color del restaurante) */
+  --tint:20%;                                   /* cuánto del color secundario entra en las superficies (poco: el texto siempre se lee) */
+  --brand2:#dbe7f3;                             /* color secundario (superficies suaves); el restaurante puede cambiarlo */
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
@@ -22,6 +25,7 @@
     --ok:#4be07a; --warn:#f5b84a; --bad:#ff7a7a; --info:#7fb2ff; --focus:#7fb2ff;
     --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 34px rgba(0,0,0,.45);
     --glow1:rgba(61,220,97,.16); --glow2:rgba(86,140,255,.18); --glow3:rgba(40,120,200,.18);
+    --brand2:#1d2b3f; --on-sem:#0b0f14; --tint:12%;
     color-scheme:dark;
   }
 }
@@ -45,7 +49,7 @@ label{display:block;font-size:.85rem;font-weight:600;margin:.8em 0 .25em;color:v
 .btn.ghost{background:color-mix(in srgb,var(--solid) 55%,transparent);color:var(--ink);border-color:var(--line);box-shadow:none;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .btn.ghost:hover{filter:none;background:color-mix(in srgb,var(--solid) 82%,transparent)}
 .btn.soft{background:color-mix(in srgb,var(--brand) 10%,transparent);color:color-mix(in srgb,var(--brand) 65%,var(--ink));box-shadow:none}
-.btn.ok{background:var(--ok);color:var(--brand-ink)} .btn.bad{background:var(--bad);color:var(--brand-ink)} .btn.dark{background:var(--ink);color:var(--bg)}
+.btn.ok{background:var(--ok);color:var(--on-sem)} .btn.bad{background:var(--bad);color:var(--on-sem)} .btn.dark{background:var(--ink);color:var(--bg)}
 .btn.sm{padding:.4em .85em;font-size:.85rem}
 .btn.block{display:flex;width:100%}
 /* superficie de vidrio */
@@ -63,6 +67,7 @@ label{display:block;font-size:.85rem;font-weight:600;margin:.8em 0 .25em;color:v
 .pill.bad{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
 .pill.brand{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}
 .hidden{display:none!important}
+.linkbtn{border:0;background:none;padding:0;font:inherit;text-decoration:underline;cursor:pointer;color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(40px);background:rgba(11,15,20,.92);color:#fff;border:1px solid rgba(255,255,255,.14);padding:.75em 1.2em;border-radius:14px;opacity:0;transition:.25s;z-index:999;max-width:90vw;box-shadow:0 12px 36px rgba(0,0,0,.3);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:rgba(180,40,40,.96)}

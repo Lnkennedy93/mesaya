@@ -1,13 +1,17 @@
 /* Panel del dueño: barra lateral de vidrio, pestaña activa en negro (como el tablero de referencia) y tarjetas con mini-barras verdes. */
 .admin-root .layout{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh;gap:0}
-.admin-root nav{background:var(--card);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-right:1px solid var(--glass-bd);padding:1rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.2rem;overflow-y:auto}
+.admin-root nav{background:color-mix(in srgb,var(--brand2) var(--tint),var(--card));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-right:1px solid var(--glass-bd);padding:1rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.2rem;overflow-y:auto}
 .admin-root nav .logo{font-weight:800;font-size:1.35rem;letter-spacing:-.03em;margin:.2rem .4rem 1rem}.admin-root nav .logo b{color:var(--ok)}
+.admin-root nav .brandlogo{margin:.2rem .2rem 1rem}
+.admin-root nav .brandlogo img{display:block;max-width:100%;max-height:64px;object-fit:contain;padding:.35rem .6rem;border-radius:14px;background:rgba(255,255,255,.72);border:1px solid var(--glass-bd)}
+.admin-root nav .brandlogo span{display:block;font-size:1.2rem;line-height:1.15;overflow-wrap:anywhere}
+.admin-root nav .mine{font-size:1.05rem;margin:.6rem .4rem 0;text-align:center;opacity:.9}
 .admin-root nav>div:nth-of-type(2){display:flex;flex-direction:column;gap:.2rem}
 .admin-root nav button{text-align:left;border:0;background:none;padding:.65em .85em;border-radius:12px;font-weight:600;cursor:pointer;font-size:.95rem;color:var(--ink);min-height:44px}
 .admin-root nav button{display:flex;align-items:center;gap:.55em}
 .admin-root nav button .ic{width:1.2em;height:1.2em}
 .admin-root nav button:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
-.admin-root nav button.on{background:var(--ink);color:var(--bg)}
+.admin-root nav button.on{background:var(--brand);color:var(--brand-ink);box-shadow:0 0 0 1px color-mix(in srgb,var(--ink) 20%,transparent)}
 .admin-root nav .sp{flex:1}
 .admin-root main{padding:1.6rem;max-width:1000px;width:100%;min-width:0}
 .admin-root .muted{overflow-wrap:anywhere}
@@ -20,12 +24,15 @@
   .admin-root nav button,.admin-root nav .btn{white-space:nowrap;flex:none}
   .admin-root main{padding:1rem 1rem 96px}
 }
+.admin-root .colors{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem}
+.admin-root .colors>div{display:flex;flex-direction:column;gap:.15rem;padding:.8rem;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--solid) 50%,transparent)}
+.admin-root .colors input[type=color]{height:44px;padding:.2em;margin-top:.4rem}
 .admin-root .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.8rem;margin:1rem 0}
 .admin-root .kpi .v{font-size:clamp(1.25rem,2.4vw,1.55rem);font-weight:800;letter-spacing:-.03em;white-space:nowrap}
 .admin-root .banner{background:color-mix(in srgb,var(--warn) 14%,var(--card));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:16px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
 .admin-root .banner.bad{background:color-mix(in srgb,var(--bad) 12%,var(--card))}
 .admin-root .bars{display:flex;align-items:flex-end;gap:4px;height:140px;margin-top:.6rem}
-.admin-root .bars div{flex:1;background:linear-gradient(to top,var(--ok),var(--acc));border-radius:6px 6px 0 0;min-height:2px;position:relative}
+.admin-root .bars div{flex:1;background:linear-gradient(to top,color-mix(in srgb,var(--acc) 62%,#000),var(--acc));border-radius:6px 6px 0 0;min-height:2px;position:relative}
 .admin-root .bars div:hover:after,.admin-root .bars div:focus-visible:after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:.7rem;padding:.25em .55em;border-radius:8px;white-space:nowrap;z-index:3}
 .admin-root .axis{display:flex;gap:4px;font-size:.65rem;color:var(--muted)}.admin-root .axis span{flex:1;text-align:center}
 .admin-root .mi{display:flex;gap:.7rem;align-items:center;padding:.6rem;border-bottom:1px solid var(--line)}

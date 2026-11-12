@@ -1,7 +1,7 @@
 "use client";
 // Panel del dueño (portada de web/admin.html). Mismos endpoints /api/... y mismas pestañas.
 import { useEffect, useMemo, useState } from "react";
-import { api, makeMoney } from "@/lib/api";
+import { api, makeMoney, setBrand } from "@/lib/api";
 import Modal from "@/components/Modal";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
@@ -29,6 +29,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
       try { me = await api("/api/me"); } catch { location.href = "/login"; return; }
       if (me.role !== "owner") { location.href = "/kitchen"; return; }
       if (dead) return;
+      setBrand(me.restaurant.brand_color, me.restaurant.brand_color2, me.restaurant.brand_color3);
       setMEState(me);
       if (!me.terms_current) setTermsOpen(true);
     })();
@@ -40,7 +41,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
     const factor = Math.pow(10, ME.restaurant.decimals);
     return {
       ME,
-      setME: (m: Any) => { setMEState(m); },
+      setME: (m: Any) => { setBrand(m.restaurant.brand_color, m.restaurant.brand_color2, m.restaurant.brand_color3); setMEState(m); },
       money: makeMoney(ME.restaurant.decimals, ME.restaurant.currency),
       toMajor: (v: number) => v / factor,
       toMinor: (v: Any) => Math.round(parseFloat(v || 0) * factor),
@@ -80,7 +81,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
       <div className="admin-root">
         <div className="layout">
           <nav>
-            <div className="logo">Mesa<b>Ya</b></div>
+            <div className="logo brandlogo">{R.logo ? <img src={R.logo} alt={R.name} /> : <span>{R.name}</span>}</div>
             <div>
               {shownTabs.map(([k, l, ic]) => (
                 <button key={k} className={k === cur ? "on" : ""} onClick={() => setTab(k)}><Icon n={ic} /> {l}</button>
@@ -89,6 +90,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
             <div className="sp"></div>
             <a className="btn sm ghost" href="/kitchen" target="_blank">Cocina y sala <Icon n="ext" /></a>
             <button style={{ marginTop: ".3rem" }} onClick={async () => { await api("/api/logout", { method: "POST" }); location.href = "/login"; }}>Salir</button>
+            <div className="logo mine" aria-label="MesaYa">Mesa<b>Ya</b></div>
             <Powered />
           </nav>
           <main>

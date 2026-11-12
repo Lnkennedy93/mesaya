@@ -1,10 +1,11 @@
 /* Cocina y sala: mismo vidrio que el resto (claro u oscuro según el dispositivo). Letra grande y bordes gruesos de estado: se lee de lejos. */
 .kitchen-root{min-height:100vh}
-.kitchen-root header{display:flex;gap:.8rem;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--glass-bd);position:sticky;top:0;background:color-mix(in srgb,var(--solid) 64%,transparent);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);z-index:10;flex-wrap:wrap}
+.kitchen-root header{display:flex;gap:.8rem;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--glass-bd);position:sticky;top:0;background:color-mix(in srgb,var(--brand2) var(--tint),var(--card));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);z-index:10;flex-wrap:wrap}
+.kitchen-root .klogo{height:36px;max-width:120px;object-fit:contain;border-radius:10px;background:rgba(255,255,255,.72);padding:3px 6px}
 .kitchen-root header h1{font-size:1.1rem;margin:0}
 .kitchen-root .tabs{display:flex;gap:.2rem;margin-left:1rem;padding:.25rem;border-radius:99px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
-.kitchen-root .tabs button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:.5em 1.1em;border-radius:99px;cursor:pointer;min-height:44px}
-.kitchen-root .tabs button.on{background:var(--ink);color:var(--bg)}
+.kitchen-root .tabs button{border:0;background:transparent;color:var(--ink);font-weight:700;padding:.5em 1.1em;border-radius:99px;cursor:pointer;min-height:44px}
+.kitchen-root .tabs button.on{background:var(--brand);color:var(--brand-ink)}
 .kitchen-root .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;padding:.8rem;align-items:start}
 @media(max-width:860px){.kitchen-root .cols{grid-template-columns:1fr}}
 .kitchen-root .col h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.2rem .2rem .6rem}

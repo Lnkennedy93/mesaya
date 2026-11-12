@@ -395,6 +395,8 @@ MIGRATIONS = {
         "ai_asks_month": "TEXT NOT NULL DEFAULT ''",
         "extra_tables": "INTEGER NOT NULL DEFAULT 0",  # mesas adicionales contratadas en el plan Esencial
         "ai_addon": "INTEGER NOT NULL DEFAULT 0",  # 1 = complemento de IA del plan Esencial
+        "brand_color2": "TEXT NOT NULL DEFAULT ''",  # color secundario del restaurante ('' = el del producto): fondos y superficies suaves
+        "brand_color3": "TEXT NOT NULL DEFAULT ''",  # color de acento ('' = el del producto): barras, puntos y detalles
     },
     "calls": {
         "method": "TEXT NOT NULL DEFAULT ''",  # solo en type='bill': cash | card

@@ -11,7 +11,7 @@ export default function PrintQR() {
     (async () => {
       try {
         const me = await api("/api/me");
-        setBrand(me.restaurant.brand_color);
+        setBrand(me.restaurant.brand_color, me.restaurant.brand_color2, me.restaurant.brand_color3);
         const { tables } = await api("/api/tables");
         setData({ me, tables });
       } catch {
