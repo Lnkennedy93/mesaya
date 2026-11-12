@@ -1,7 +1,7 @@
 "use client";
 // Panel del dueño (portada de web/admin.html). Mismos endpoints /api/... y mismas pestañas.
 import { useEffect, useMemo, useState } from "react";
-import { api, makeMoney, setBrand } from "@/lib/api";
+import { api, makeMoney } from "@/lib/api";
 import Modal from "@/components/Modal";
 import Powered from "@/components/Powered";
 import { useToast } from "@/components/useToast";
@@ -28,7 +28,6 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
       try { me = await api("/api/me"); } catch { location.href = "/login"; return; }
       if (me.role !== "owner") { location.href = "/kitchen"; return; }
       if (dead) return;
-      setBrand(me.restaurant.brand_color);
       setMEState(me);
       if (!me.terms_current) setTermsOpen(true);
     })();
@@ -40,7 +39,7 @@ export default function AdminApp({ welcome }: { welcome: boolean }) {
     const factor = Math.pow(10, ME.restaurant.decimals);
     return {
       ME,
-      setME: (m: Any) => { setBrand(m.restaurant.brand_color); setMEState(m); },
+      setME: (m: Any) => { setMEState(m); },
       money: makeMoney(ME.restaurant.decimals, ME.restaurant.currency),
       toMajor: (v: number) => v / factor,
       toMinor: (v: Any) => Math.round(parseFloat(v || 0) * factor),

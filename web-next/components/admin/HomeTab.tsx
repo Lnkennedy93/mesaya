@@ -17,12 +17,18 @@ export default function HomeTab() {
   if (!a) return <p className="muted">Cargando…</p>;
   const maxS = Math.max(1, ...a.daily.map((d: Any) => d.sales));
   const maxH = Math.max(1, ...a.hourly);
-  const kpis: [string, Any][] = [
-    ["Ventas", money(a.sales)], ["Pedidos", a.orders], ["Ticket promedio", money(a.avg_ticket)],
+  const kpis: [string, Any, number[]?][] = [
+    ["Ventas", money(a.sales), a.daily.map((d: Any) => d.sales)], ["Pedidos", a.orders, a.daily.map((d: Any) => d.orders)], ["Ticket promedio", money(a.avg_ticket)],
     ...(ME.features.payments ? ([["Propinas", money(a.tips)]] as [string, Any][]) : []),
     ["Tiempo a cocina", a.avg_prep_min === null ? "—" : a.avg_prep_min + " min"],
     ["Opiniones", a.rating_avg ? a.rating_avg + " ★ (" + a.rating_count + ")" : "—"],
   ];
+  // mini-barras de los últimos días (la última, en verde): la tendencia se ve de un vistazo, sin abrir la gráfica
+  const spark = (s?: number[]) => {
+    if (!s || s.length < 2) return null;
+    const last = s.slice(-14), top = Math.max(1, ...last);
+    return <div className="spark" aria-hidden="true">{last.map((v, i) => <i key={i} className={i === last.length - 1 ? "" : "m"} style={{ height: Math.max(8, (v / top) * 100) + "%" }}></i>)}</div>;
+  };
 
   return (
     <>
@@ -40,7 +46,7 @@ export default function HomeTab() {
         </div>
       </div>
       <div className="kpis">
-        {kpis.map(([k, v]) => <div className="card kpi" key={k}><div className="muted small">{k}</div><div className="v">{v}</div></div>)}
+        {kpis.map(([k, v, s]) => <div className="card kpi" key={k}><div className="muted small">{k}</div><div className="v">{v}</div>{spark(s)}</div>)}
       </div>
       <div className="card">
         <b>Ventas por día</b>

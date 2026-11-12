@@ -44,6 +44,8 @@ async def security_headers(request: Request, call_next):
     resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     if request.url.path.startswith("/api/") and "cache-control" not in resp.headers:
         resp.headers["Cache-Control"] = "no-store"
+    elif request.url.path.startswith("/assets/") and "cache-control" not in resp.headers:
+        resp.headers["Cache-Control"] = "no-cache"  # el navegador revisa con ETag antes de reusar: un cambio de estilos llega a todos sin esperar
     return resp
 
 

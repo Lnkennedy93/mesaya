@@ -1,28 +1,44 @@
-.admin-root .layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
-.admin-root nav{background:var(--card);border-right:1px solid var(--line);padding:1rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.2rem}
-.admin-root nav .logo{font-weight:900;font-size:1.3rem;margin-bottom:1rem}.admin-root nav .logo b{color:var(--brand)}
-.admin-root nav button{text-align:left;border:0;background:none;padding:.65em .8em;border-radius:10px;font-weight:600;cursor:pointer;font-size:.95rem}
-.admin-root nav button.on{background:color-mix(in srgb,var(--brand) 13%,transparent);color:var(--brand)}
+/* Panel del dueño: barra lateral de vidrio, pestaña activa en negro (como el tablero de referencia) y tarjetas con mini-barras verdes. */
+.admin-root .layout{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh;gap:0}
+.admin-root nav{background:var(--card);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-right:1px solid var(--glass-bd);padding:1rem;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:.2rem;overflow-y:auto}
+.admin-root nav .logo{font-weight:800;font-size:1.35rem;letter-spacing:-.03em;margin:.2rem .4rem 1rem}.admin-root nav .logo b{color:var(--ok)}
+.admin-root nav>div:nth-of-type(2){display:flex;flex-direction:column;gap:.2rem}
+.admin-root nav button{text-align:left;border:0;background:none;padding:.65em .85em;border-radius:12px;font-weight:600;cursor:pointer;font-size:.95rem;color:var(--ink);min-height:44px}
+.admin-root nav button:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.admin-root nav button.on{background:var(--ink);color:var(--bg)}
 .admin-root nav .sp{flex:1}
-.admin-root main{padding:1.4rem;max-width:980px;width:100%}
-@media(max-width:760px){.admin-root .layout{grid-template-columns:1fr}.admin-root nav{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;overflow-x:auto;z-index:40;border-top:1px solid var(--line);border-right:0;padding:.4rem}.admin-root nav .logo,.admin-root nav .sp,.admin-root nav .nlabel,.admin-root nav .powered{display:none}.admin-root nav button{white-space:nowrap}.admin-root main{padding:1rem 1rem 90px}}
-.admin-root .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1rem 0}
-.admin-root .kpi .v{font-size:1.5rem;font-weight:900}
-.admin-root .banner{background:color-mix(in srgb,var(--warn) 16%,var(--card));border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
-.admin-root .banner.bad{background:color-mix(in srgb,var(--bad) 14%,var(--card))}
+.admin-root main{padding:1.6rem;max-width:1000px;width:100%;min-width:0}
+.admin-root .muted{overflow-wrap:anywhere}
+@media(max-width:760px){
+  .admin-root .layout{grid-template-columns:minmax(0,1fr)}
+  /* barra inferior: una sola fila que se desliza; el resto (logo, enlaces) se oculta */
+  .admin-root nav{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;z-index:40;border-top:1px solid var(--glass-bd);border-right:0;padding:.4rem .5rem calc(.4rem + env(safe-area-inset-bottom));gap:.3rem}
+  .admin-root nav>div:nth-of-type(2){flex-direction:row;gap:.2rem}
+  .admin-root nav .logo,.admin-root nav .sp,.admin-root nav .nlabel,.admin-root nav .powered{display:none}
+  .admin-root nav button,.admin-root nav .btn{white-space:nowrap;flex:none}
+  .admin-root main{padding:1rem 1rem 96px}
+}
+.admin-root .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.8rem;margin:1rem 0}
+.admin-root .kpi .v{font-size:clamp(1.25rem,2.4vw,1.55rem);font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.admin-root .banner{background:color-mix(in srgb,var(--warn) 14%,var(--card));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:16px;padding:.7rem 1rem;margin-bottom:1rem;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.admin-root .banner.bad{background:color-mix(in srgb,var(--bad) 12%,var(--card))}
 .admin-root .bars{display:flex;align-items:flex-end;gap:4px;height:140px;margin-top:.6rem}
-.admin-root .bars div{flex:1;background:var(--brand);border-radius:6px 6px 0 0;min-height:2px;position:relative;opacity:.9}
-.admin-root .bars div:hover:after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#1d1a16;color:#fff;font-size:.7rem;padding:.2em .5em;border-radius:6px;white-space:nowrap;z-index:3}
+.admin-root .bars div{flex:1;background:linear-gradient(to top,var(--ok),var(--acc));border-radius:6px 6px 0 0;min-height:2px;position:relative}
+.admin-root .bars div:hover:after,.admin-root .bars div:focus-visible:after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:.7rem;padding:.25em .55em;border-radius:8px;white-space:nowrap;z-index:3}
 .admin-root .axis{display:flex;gap:4px;font-size:.65rem;color:var(--muted)}.admin-root .axis span{flex:1;text-align:center}
 .admin-root .mi{display:flex;gap:.7rem;align-items:center;padding:.6rem;border-bottom:1px solid var(--line)}
-.admin-root .mi .thumb{width:52px;height:52px;border-radius:10px;flex:none}
+.admin-root .mi .thumb{width:52px;height:52px;border-radius:12px;flex:none}
 .admin-root .cathead{display:flex;align-items:center;gap:.5rem;margin:1.4rem 0 .3rem}
 .admin-root .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem}
+@media(max-width:760px){.admin-root .grid2{grid-template-columns:1fr}}
 .admin-root .qrg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem;margin-top:1rem}
-.admin-root .qrc{text-align:center}.admin-root .qrc img{width:100%;max-width:150px;border-radius:10px}
-.admin-root table{width:100%;border-collapse:collapse}.admin-root td,.admin-root th{padding:.5rem;text-align:left;border-bottom:1px solid var(--line);font-size:.92rem}
+.admin-root .qrc{text-align:center}.admin-root .qrc img{width:100%;max-width:150px;border-radius:12px;background:#fff;padding:6px}
+.admin-root table{width:100%;border-collapse:collapse}.admin-root td,.admin-root th{padding:.55rem .5rem;text-align:left;border-bottom:1px solid var(--line);font-size:.92rem}
+.admin-root th{font-size:.78rem;color:var(--muted);font-weight:650}
 .admin-root textarea{min-height:130px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem}
 .admin-root .chk{display:flex;gap:.4rem;align-items:center;font-weight:500;color:var(--ink);margin:.3rem 0}.admin-root .chk input{width:auto}
 .admin-root .tgl{display:flex;gap:.4rem;flex-wrap:wrap}
-.admin-root .tgl label{display:inline-flex;align-items:center;gap:.3rem;margin:0;padding:.3em .7em;border:1.5px solid var(--line);border-radius:99px;font-size:.82rem;cursor:pointer;color:var(--ink)}
-.admin-root .tgl input{position:absolute;opacity:0;pointer-events:none}.admin-root .tgl label{position:relative}.admin-root .tgl label:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}.admin-root .tgl label:has(input:checked){background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.admin-root .tgl label{display:inline-flex;align-items:center;gap:.3rem;margin:0;padding:.35em .8em;border:1px solid var(--line);border-radius:99px;font-size:.82rem;cursor:pointer;color:var(--ink);background:color-mix(in srgb,var(--solid) 55%,transparent);position:relative}
+.admin-root .tgl input{position:absolute;opacity:0;pointer-events:none}
+.admin-root .tgl label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.admin-root .tgl label:has(input:checked){background:var(--ink);color:var(--bg);border-color:var(--ink)}

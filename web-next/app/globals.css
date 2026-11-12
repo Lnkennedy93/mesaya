@@ -1,61 +1,96 @@
+/* Sistema de diseño «Cristal»: lienzo claro frío, superficies de vidrio esmerilado, negro como acción principal y un verde como señal.
+   Todo el producto sale de estas variables; cada restaurante solo tiñe su carta (--brand lo reemplaza setBrand en la carta del comensal). */
 :root{
-  --brand:#cf4620; --brand-ink:#fff;
-  --bg:#faf7f2; --card:#fff; --ink:#1d1a16; --muted:#6f675d; --line:#ece5da;
-  --ok:#1f9d55; --warn:#e08a00; --bad:#d64545; --info:#2a6fdb;
-  --r:14px; --shadow:0 1px 2px rgba(30,20,10,.06),0 6px 20px rgba(30,20,10,.07);
+  --brand:#0b0f14; --brand-ink:#fff;            /* acción principal del producto: negro */
+  --acc:#3ddc61;                                /* verde de señal: rellenos, puntos y barras (no se usa como texto) */
+  --bg:#e8f0f8; --solid:#fff; --card:rgba(255,255,255,.64);
+  --ink:#0b0f14; --muted:#566170;
+  --line:rgba(15,23,42,.10); --glass-bd:rgba(255,255,255,.80);
+  --ok:#137a3a; --warn:#a85f00; --bad:#b52a2a; --info:#1f5fd0; --focus:#1f5fd0;
+  --r:18px;
+  --shadow:0 1px 0 rgba(255,255,255,.85) inset,0 10px 34px rgba(33,52,88,.10);
+  --blur:blur(18px) saturate(165%);
+  --glow1:rgba(61,220,97,.30); --glow2:rgba(86,140,255,.24); --glow3:rgba(120,205,255,.30);
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
-  :root[data-auto-theme]{--bg:#15130f;--card:#201d18;--ink:#f3ede4;--muted:#a39a8d;--line:#332e26;--shadow:none;color-scheme:dark}
+  :root[data-auto-theme]{
+    --bg:#070b12; --solid:#111823; --card:rgba(255,255,255,.07);
+    --brand:#eaf0f7; --brand-ink:#0b0f14;
+    --ink:#eaf0f7; --muted:#9eacbf;
+    --line:rgba(255,255,255,.12); --glass-bd:rgba(255,255,255,.14);
+    --ok:#4be07a; --warn:#f5b84a; --bad:#ff7a7a; --info:#7fb2ff; --focus:#7fb2ff;
+    --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 34px rgba(0,0,0,.45);
+    --glow1:rgba(61,220,97,.16); --glow2:rgba(86,140,255,.18); --glow3:rgba(40,120,200,.18);
+    color-scheme:dark;
+  }
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--ink) 28%,transparent) transparent}
 html,body{margin:0}
-body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-h1,h2,h3{line-height:1.15;margin:0 0 .4em}
+body{font:16px/1.5 var(--font,system-ui),system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+/* luces de color detrás del vidrio: sin ellas el esmerilado no se nota */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(900px 560px at 8% -10%,var(--glow1),transparent 60%),radial-gradient(820px 540px at 96% 4%,var(--glow2),transparent 60%),radial-gradient(900px 640px at 72% 112%,var(--glow3),transparent 60%)}
+@media print{body::before{display:none}}
+h1,h2,h3{line-height:1.15;margin:0 0 .4em;letter-spacing:-.02em}
 a{color:inherit}
 button,input,select,textarea{font:inherit;color:inherit}
-input,select,textarea{width:100%;padding:.65em .8em;border:1.5px solid var(--line);border-radius:10px;background:var(--card)}
-input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+input,select,textarea{width:100%;padding:.7em .9em;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--solid) 72%,transparent);transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 28%,transparent)}
 label{display:block;font-size:.85rem;font-weight:600;margin:.8em 0 .25em;color:var(--muted)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4em;border:0;border-radius:999px;padding:.7em 1.2em;font-weight:700;cursor:pointer;background:var(--brand);color:var(--brand-ink);text-decoration:none;transition:transform .08s,filter .15s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4em;border:1px solid transparent;border-radius:999px;padding:.72em 1.25em;font-weight:650;cursor:pointer;background:var(--brand);color:var(--brand-ink);text-decoration:none;box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 20%,transparent);transition:transform .08s,filter .15s,box-shadow .2s}
 .btn:active{transform:scale(.97)}
-.btn:hover{filter:brightness(1.06)}
+.btn:hover{filter:brightness(1.22)}
 .btn[disabled]{opacity:.45;pointer-events:none}
-.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
-.btn.soft{background:color-mix(in srgb,var(--brand) 12%,transparent);color:color-mix(in srgb,var(--brand) 65%,var(--ink))}
-.btn.ok{background:color-mix(in srgb,var(--ok) 78%,#000)} .btn.bad{background:color-mix(in srgb,var(--bad) 85%,#000)} .btn.dark{background:#1d1a16;color:#fff}
-.btn.sm{padding:.4em .8em;font-size:.85rem}
+.btn.ghost{background:color-mix(in srgb,var(--solid) 55%,transparent);color:var(--ink);border-color:var(--line);box-shadow:none;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.btn.ghost:hover{filter:none;background:color-mix(in srgb,var(--solid) 82%,transparent)}
+.btn.soft{background:color-mix(in srgb,var(--brand) 10%,transparent);color:color-mix(in srgb,var(--brand) 65%,var(--ink));box-shadow:none}
+.btn.ok{background:var(--ok);color:var(--brand-ink)} .btn.bad{background:var(--bad);color:var(--brand-ink)} .btn.dark{background:var(--ink);color:var(--bg)}
+.btn.sm{padding:.4em .85em;font-size:.85rem}
 .btn.block{display:flex;width:100%}
-.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:1rem}
+/* superficie de vidrio */
+.card{background:var(--card);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-bd);border-radius:var(--r);box-shadow:var(--shadow);padding:1.1rem}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card{background:color-mix(in srgb,var(--solid) 90%,transparent)}}
+@media (prefers-reduced-transparency:reduce){:root{--card:color-mix(in srgb,var(--solid) 95%,transparent)}.card,dialog,.btn.ghost{-webkit-backdrop-filter:none;backdrop-filter:none}}
 .row{display:flex;gap:.6rem;align-items:center}
 .spread{justify-content:space-between}
 .wrap{flex-wrap:wrap}
 .grow{flex:1;min-width:0}
 .muted{color:var(--muted)} .small{font-size:.85rem}
-.pill{display:inline-block;padding:.15em .6em;border-radius:999px;font-size:.75rem;font-weight:700;background:color-mix(in srgb,var(--ink) 8%,transparent)}
-.pill.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:color-mix(in srgb,var(--ok) 60%,var(--ink))}
-.pill.warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:color-mix(in srgb,var(--warn) 45%,var(--ink))}
-.pill.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:color-mix(in srgb,var(--bad) 70%,var(--ink))}
-.pill.brand{background:color-mix(in srgb,var(--brand) 14%,transparent);color:color-mix(in srgb,var(--brand) 70%,var(--ink))}
+.pill{display:inline-block;padding:.15em .65em;border-radius:999px;font-size:.75rem;font-weight:700;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 13%,transparent);color:var(--ok)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 13%,transparent);color:var(--warn)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
+.pill.brand{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}
 .hidden{display:none!important}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(40px);background:#1d1a16;color:#fff;padding:.75em 1.2em;border-radius:12px;opacity:0;transition:.25s;z-index:999;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(40px);background:rgba(11,15,20,.92);color:#fff;border:1px solid rgba(255,255,255,.14);padding:.75em 1.2em;border-radius:14px;opacity:0;transition:.25s;z-index:999;max-width:90vw;box-shadow:0 12px 36px rgba(0,0,0,.3);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.err{background:var(--bad)}
+.toast.err{background:rgba(180,40,40,.96)}
 .offline-bar{position:sticky;top:0;z-index:50;background:#b3261e;color:#fff;padding:.7rem 1rem;font-weight:700;text-align:center}
 .toast[popover]{top:auto;right:auto;margin:0;border:0;overflow:visible;width:max-content;max-width:90vw}
-a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .switch{position:relative;width:46px;height:26px;flex:none}
 .switch input{opacity:0;width:0;height:0;position:absolute}
-.switch span{position:absolute;inset:0;background:#8a8070;border-radius:99px;transition:.2s;cursor:pointer}
-.switch span:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.switch span{position:absolute;inset:0;background:color-mix(in srgb,var(--ink) 50%,var(--solid));border-radius:99px;transition:.2s;cursor:pointer}
+.switch span:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .switch input:checked+span{background:var(--ok)}
 .switch input:checked+span:before{transform:translateX(20px)}
-.switch input:focus-visible+span{outline:2px solid var(--brand);outline-offset:2px}
-dialog{border:0;border-radius:18px;padding:0;max-width:min(520px,94vw);width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);background:var(--card);color:var(--ink)}
-dialog::backdrop{background:rgba(20,12,4,.55);backdrop-filter:blur(2px)}
-.dlg{padding:1.2rem}
-.thumb{background:linear-gradient(135deg,color-mix(in srgb,var(--brand) 22%,var(--card)),color-mix(in srgb,var(--brand) 6%,var(--card)));display:grid;place-items:center;color:var(--brand);font-weight:800;overflow:hidden}
+.switch input:focus-visible+span{outline:2px solid var(--focus);outline-offset:2px}
+dialog{border:1px solid var(--glass-bd);border-radius:24px;padding:0;max-width:min(520px,94vw);width:100%;box-shadow:0 30px 80px rgba(10,20,40,.30);background:color-mix(in srgb,var(--solid) 80%,transparent);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);color:var(--ink)}
+dialog::backdrop{background:rgba(8,14,26,.38);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.dlg{padding:1.3rem}
+.thumb{background:linear-gradient(135deg,color-mix(in srgb,var(--brand) 20%,var(--solid)),color-mix(in srgb,var(--brand) 5%,var(--solid)));display:grid;place-items:center;color:var(--ink);font-weight:800;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* piezas del lenguaje visual: números tabulares, punto de estado, barra de avance y mini-barras (como el tablero de referencia) */
+.kpi .v,.big,.price,.num{font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 28%,transparent)}
+.meter{height:6px;border-radius:99px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--ink);border-radius:99px}
+.meter.g i{background:var(--acc)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:34px;margin-top:.5rem}
+.spark i{flex:1;min-height:3px;border-radius:3px;background:var(--acc)}
+.spark i.m{background:color-mix(in srgb,var(--ink) 22%,transparent)}
 
 /* animaciones: se apagan solas si el sistema del cliente pide menos movimiento */
 @media (prefers-reduced-motion:no-preference){
@@ -74,4 +109,4 @@ dialog::backdrop{background:rgba(20,12,4,.55);backdrop-filter:blur(2px)}
 
 .powered{padding:1.2rem 1rem;text-align:center;font-size:.75rem;letter-spacing:.02em;color:var(--muted)}
 .powered a{font-weight:700;color:inherit;text-decoration:none}
-.powered a:hover{color:var(--brand);text-decoration:underline}
+.powered a:hover{text-decoration:underline}

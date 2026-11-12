@@ -80,17 +80,44 @@ export default function Landing() {
             </div>
             <div className="muted small">Sin tarjeta de crédito · Lista en 5 minutos · Cancela cuando quieras · <a href="/catalogo-mesaya.pdf" download>Descargar catálogo (PDF)</a></div>
           </div>
-          <div className="phone">
-            <div className="screen">
-              <div className="top">
-                <b style={{ fontSize: "1.1rem" }}>Dragón Dorado</b>
-                <div style={{ opacity: 0.85 }}>Mesa 5 · Cocina china de barrio</div>
+          <div className="stage">
+            <div className="card dash" aria-label="Ejemplo del panel del restaurante">
+              <div className="top"><b>Resumen de hoy</b><div className="seg" aria-hidden="true"><span className="on">Hoy</span><span>7 días</span><span>30 días</span></div></div>
+              <div className="kp">
+                <div><div className="l">Ventas</div><div className="v">$1.860.000</div><div className="spark" aria-hidden="true">{[40, 62, 35, 70, 55, 88, 64].map((h, i) => <i key={i} className={i === 6 ? "" : "m"} style={{ height: h + "%" }}></i>)}</div></div>
+                <div><div className="l">Pedidos</div><div className="v">42</div><div className="spark" aria-hidden="true">{[30, 45, 60, 38, 72, 50, 80].map((h, i) => <i key={i} className={i === 6 ? "" : "m"} style={{ height: h + "%" }}></i>)}</div></div>
+                <div><div className="l">Ticket promedio</div><div className="v">$44.300</div><div className="spark" aria-hidden="true">{[55, 50, 66, 48, 60, 58, 70].map((h, i) => <i key={i} className={i === 6 ? "" : "m"} style={{ height: h + "%" }}></i>)}</div></div>
               </div>
-              <div className="it"><div className="th"></div><div className="grow"><b>Arroz especial</b><div className="muted">Cerdo, pollo, camarón y huevo</div></div><b>$24.000</b></div>
-              <div className="it"><div className="th"></div><div className="grow"><b>Lumpias</b><div className="muted">6 rollitos crujientes</div></div><b>$16.000</b></div>
-              <div className="it"><div className="th"></div><div className="grow"><b>Chop suey</b><div className="muted">Pollo y verduras al wok</div></div><b>$28.000</b></div>
-              <div className="it"><div className="th" style={{ opacity: 0.4 }}></div><div className="grow" style={{ opacity: 0.5 }}><b>Sopa wantán</b></div><span className="pill bad">Agotado</span></div>
-              <div className="go">Ver pedido · 3 · $68.000</div>
+              <div className="dash2">
+                <div className="gz">
+                  <svg viewBox="0 0 120 72" role="img" aria-label="7 de 10 mesas activas">
+                    <path d="M10 62 A50 50 0 0 1 110 62" fill="none" stroke="currentColor" strokeOpacity=".14" strokeWidth="11" strokeLinecap="round" />
+                    <path d="M10 62 A50 50 0 0 1 110 62" fill="none" stroke="#3ddc61" strokeWidth="11" strokeLinecap="round" strokeDasharray="110 157" />
+                    <text x="60" y="56" textAnchor="middle" fontSize="22" fontWeight="800" fill="currentColor">70%</text>
+                  </svg>
+                  <div className="l">Mesas activas · 7 de 10</div>
+                </div>
+                <div className="tbl">
+                  <div className="tt">Pedidos en curso</div>
+                  <div className="r"><b>Mesa 4</b><span className="muted">Preparando</span><div className="meter"><i style={{ width: "60%" }}></i></div></div>
+                  <div className="r"><b>Mesa 7</b><span className="muted">Nuevo</span><div className="meter"><i style={{ width: "12%" }}></i></div></div>
+                  <div className="r"><b>Para llevar</b><span><span className="dot"></span> Listo</span><div className="meter g"><i style={{ width: "100%" }}></i></div></div>
+                </div>
+              </div>
+              <div className="note">Vista de ejemplo con datos ilustrativos.</div>
+            </div>
+            <div className="phone" aria-hidden="true">
+              <div className="screen">
+                <div className="top">
+                  <b style={{ fontSize: "1.1rem" }}>Dragón Dorado</b>
+                  <div style={{ opacity: 0.85 }}>Mesa 5 · Cocina china de barrio</div>
+                </div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Arroz especial</b><div className="muted">Cerdo, pollo, camarón y huevo</div></div><b>$24.000</b></div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Lumpias</b><div className="muted">6 rollitos crujientes</div></div><b>$16.000</b></div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Chop suey</b><div className="muted">Pollo y verduras al wok</div></div><b>$28.000</b></div>
+                <div className="it"><div className="th" style={{ opacity: 0.4 }}></div><div className="grow" style={{ opacity: 0.5 }}><b>Sopa wantán</b></div><span className="pill bad">Agotado</span></div>
+                <div className="go">Ver pedido · 3 · $68.000</div>
+              </div>
             </div>
           </div>
         </div>

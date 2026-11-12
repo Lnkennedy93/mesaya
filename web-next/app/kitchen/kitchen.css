@@ -1,42 +1,42 @@
-.kitchen-root{background:#16130f;color:#f3ede4;--card:#241f19;--line:#3a332a;--ink:#f3ede4;--muted:#a39a8d;--bg:#16130f}
-.kitchen-root header{display:flex;gap:.8rem;align-items:center;padding:.7rem 1rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:#16130f;z-index:10;flex-wrap:wrap}
+/* Cocina y sala: mismo vidrio que el resto (claro u oscuro según el dispositivo). Letra grande y bordes gruesos de estado: se lee de lejos. */
+.kitchen-root{min-height:100vh}
+.kitchen-root header{display:flex;gap:.8rem;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--glass-bd);position:sticky;top:0;background:color-mix(in srgb,var(--solid) 64%,transparent);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);z-index:10;flex-wrap:wrap}
 .kitchen-root header h1{font-size:1.1rem;margin:0}
-.kitchen-root .tabs{display:flex;gap:.3rem;margin-left:1rem}
-.kitchen-root .tabs button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:.5em 1em;border-radius:99px;cursor:pointer}
-.kitchen-root .tabs button.on{background:var(--brand);color:var(--brand-ink)}
+.kitchen-root .tabs{display:flex;gap:.2rem;margin-left:1rem;padding:.25rem;border-radius:99px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.kitchen-root .tabs button{border:0;background:transparent;color:var(--muted);font-weight:700;padding:.5em 1.1em;border-radius:99px;cursor:pointer;min-height:44px}
+.kitchen-root .tabs button.on{background:var(--ink);color:var(--bg)}
 .kitchen-root .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;padding:.8rem;align-items:start}
 @media(max-width:860px){.kitchen-root .cols{grid-template-columns:1fr}}
-.kitchen-root .col h2{font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.2rem .2rem .6rem}
-.kitchen-root .ticket{background:var(--card);border-radius:14px;padding:.9rem;margin-bottom:.7rem;border-left:6px solid var(--ok)}
-.kitchen-root .ticket.warn{border-color:var(--warn)}.kitchen-root .ticket.late{border-color:var(--bad);animation:pulse 1.4s infinite}
-@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(214,69,69,.25)}}
-.kitchen-root .ticket .t{font-size:1.7rem;font-weight:900}
+.kitchen-root .col h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.2rem .2rem .6rem}
+.kitchen-root .ticket{background:color-mix(in srgb,var(--solid) 70%,transparent);border:1px solid var(--glass-bd);border-radius:18px;padding:.9rem;margin-bottom:.7rem;border-left:7px solid var(--ok);box-shadow:var(--shadow)}
+.kitchen-root .ticket.warn{border-left-color:var(--warn)}.kitchen-root .ticket.late{border-left-color:var(--bad);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--bad) 28%,transparent)}}
+.kitchen-root .ticket .t{font-size:1.7rem;font-weight:800;letter-spacing:-.03em}
 .kitchen-root .ticket li{margin:.25rem 0;list-style:none}
 .kitchen-root .ticket ul{padding:0;margin:.5rem 0}
-.kitchen-root .q{display:inline-block;min-width:1.8em;text-align:center;background:#fff;color:#1d1a16;border-radius:6px;font-weight:800;margin-right:.4rem}
-.kitchen-root .note{color:#ffd27a;font-size:.85rem}
+.kitchen-root .q{display:inline-block;min-width:1.8em;text-align:center;background:var(--ink);color:var(--bg);border-radius:8px;font-weight:800;margin-right:.4rem;font-variant-numeric:tabular-nums}
+.kitchen-root .note{color:var(--warn);font-size:.85rem;font-weight:600}
 .kitchen-root .calls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.6rem 1rem 0}
-.kitchen-root .calls .call{background:#5a1d1d;border-radius:12px;padding:.5rem .8rem;display:flex;gap:.6rem;align-items:center;animation:pulse 1.4s infinite}
+.kitchen-root .calls .call{background:#5a1d1d;color:#fff;border-radius:14px;padding:.5rem .8rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;animation:pulse 1.4s infinite}
+.kitchen-root .calls .call .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
+.kitchen-root .calls .call .muted{color:rgba(255,255,255,.78)}
 .kitchen-root .floor{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.7rem;padding:1rem}
-.kitchen-root .tb{background:var(--card);border-radius:14px;padding:.8rem;cursor:pointer;border:2px solid transparent;text-align:center}
+.kitchen-root .tb{background:color-mix(in srgb,var(--solid) 70%,transparent);border:2px solid var(--glass-bd);border-radius:18px;padding:.8rem;cursor:pointer;text-align:center;box-shadow:var(--shadow)}
 .kitchen-root .tb.occ{border-color:var(--warn)}.kitchen-root .tb.call{border-color:var(--bad)}.kitchen-root .tb.done{border-color:var(--ok)}
-.kitchen-root .tb b{font-size:1.6rem;display:block}
-.kitchen-root .login{max-width:340px;margin:12vh auto;padding:1.4rem}
-.kitchen-root dialog{background:#241f19;color:#f3ede4}
+.kitchen-root .tb b{font-size:1.6rem;display:block;font-variant-numeric:tabular-nums}
+.kitchen-root .login{max-width:360px;margin:12vh auto;padding:1.6rem}
 .kitchen-root .pad{padding:1rem}
 .kitchen-root .line{display:flex;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line)}
-.kitchen-root input,.kitchen-root select{background:#16130f;border-color:var(--line)}
 
-.kitchen-root{min-height:100vh}
 .kitchen-root .floor{align-items:start}
 .kitchen-root .cell{display:flex;flex-direction:column;gap:.4rem}
 .kitchen-root .tb.ready{border-color:var(--ok)}
-.kitchen-root .ready-alert{background:#123821;border:1.5px solid var(--ok);border-radius:12px;padding:.55rem .65rem;text-align:left;animation:pulse-ok 1.6s infinite}
+.kitchen-root .ready-alert{background:color-mix(in srgb,var(--ok) 16%,var(--solid));border:1.5px solid var(--ok);border-radius:14px;padding:.55rem .65rem;text-align:left;animation:pulse-ok 1.6s infinite}
 .kitchen-root .ready-alert .small{opacity:.85;margin:.15rem 0 .45rem}
-.kitchen-root .order-info{background:var(--card);border:1px solid #3a3228;border-radius:12px;padding:.5rem .65rem;text-align:left}
+.kitchen-root .order-info{background:color-mix(in srgb,var(--solid) 70%,transparent);border:1px solid var(--line);border-radius:14px;padding:.5rem .65rem;text-align:left}
 .kitchen-root .ready-alert ul,.kitchen-root .order-info ul{margin:.25rem 0 0;padding:0;list-style:none}
 .kitchen-root .ready-alert ul{margin-bottom:.45rem}
 .kitchen-root .order-info li,.kitchen-root .ready-alert li{padding:.1rem 0}
-@keyframes pulse-ok{50%{box-shadow:0 0 0 4px rgba(31,157,85,.35)}}
+@keyframes pulse-ok{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 30%,transparent)}}
 .kitchen-root .btn.sm{min-height:44px}
 @media (prefers-reduced-motion:reduce){.kitchen-root *{animation:none!important}}
