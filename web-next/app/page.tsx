@@ -113,14 +113,14 @@ export default function Landing() {
             <div className="phone" aria-hidden="true">
               <div className="screen">
                 <div className="top">
-                  <b style={{ fontSize: "1.1rem" }}>Dragón Dorado</b>
-                  <div style={{ opacity: 0.85 }}>Mesa 5 · Cocina china de barrio</div>
+                  <b style={{ fontSize: "1.1rem" }}>KennedyBurger</b>
+                  <div style={{ opacity: 0.85 }}>Mesa 5</div>
                 </div>
-                <div className="it"><div className="th"></div><div className="grow"><b>Arroz especial</b><div className="muted">Cerdo, pollo, camarón y huevo</div></div><b>$24.000</b></div>
-                <div className="it"><div className="th"></div><div className="grow"><b>Lumpias</b><div className="muted">6 rollitos crujientes</div></div><b>$16.000</b></div>
-                <div className="it"><div className="th"></div><div className="grow"><b>Chop suey</b><div className="muted">Pollo y verduras al wok</div></div><b>$28.000</b></div>
-                <div className="it"><div className="th" style={{ opacity: 0.4 }}></div><div className="grow" style={{ opacity: 0.5 }}><b>Sopa wantán</b></div><span className="pill bad">Agotado</span></div>
-                <div className="go">Ver pedido · 3 · $68.000</div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Hamburguesa con queso</b><div className="muted">Carne, queso, lechuga, tomate, cebolla, mayonesa y salsa de tomate</div></div><b>$21.500</b></div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Hamburguesa Especial</b><div className="muted">Carne, lechuga, queso, pepinillo, tomate, cebolla, mayonesa y salsa de tomate</div></div><b>$23.500</b></div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Papa Rustica</b><div className="muted">Papa rustica</div></div><b>$10.100</b></div>
+                <div className="it"><div className="th"></div><div className="grow"><b>Milhoja</b><div className="muted">Porción de milhoja</div></div><b>$11.300</b></div>
+                <div className="go">Ver pedido · 3 · $55.100</div>
               </div>
             </div>
           </div>

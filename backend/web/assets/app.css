@@ -24,7 +24,7 @@
     --line:rgba(255,255,255,.12); --glass-bd:rgba(255,255,255,.14);
     --ok:#4be07a; --warn:#f5b84a; --bad:#ff7a7a; --info:#7fb2ff; --focus:#7fb2ff;
     --shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 34px rgba(0,0,0,.45);
-    --glow1:rgba(61,220,97,.16); --glow2:rgba(86,140,255,.18); --glow3:rgba(40,120,200,.18);
+    --glow1:rgba(61,220,97,.10); --glow2:rgba(86,140,255,.18); --glow3:rgba(40,120,200,.18);
     --brand2:#1d2b3f; --on-sem:#0b0f14; --tint:12%;
     color-scheme:dark;
   }
