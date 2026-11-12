@@ -1,9 +1,11 @@
 name: Uptime
 # Revisa cada 15 minutos que MesaYa responda. Si falla, GitHub te envía un correo con la ejecución fallida.
 # (GitHub pausa los workflows programados si el repositorio pasa 60 días sin actividad.)
+# DESACTIVADO el horario mientras la cuenta de GitHub tenga bloqueada la facturación (los trabajos no arrancan y fallarían cada 15 minutos).
+# Para reactivarlo: resolver github.com/settings/billing y quitar los «#» de las dos líneas de schedule.
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  # schedule:
+  #   - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions: {}
