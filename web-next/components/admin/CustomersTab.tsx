@@ -12,10 +12,24 @@ export default function CustomersTab() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
+  const [qr, setQr] = useState<string | null>(null); // enlace del QR de registro ("" = aún no generado)
   const load = useCallback(async () => {
     try { setList((await api("/api/customers")).customers); } catch (e: Any) { toast(e.message, true); }
   }, [toast]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { api("/api/customers/qr").then((r) => setQr(r.url)).catch(() => setQr("")); }, []);
+
+  async function makeQr(rotate = false) {
+    if (rotate && !confirm("El QR impreso actual dejará de funcionar. ¿Generar uno nuevo?")) return;
+    try { setQr((await api("/api/customers/qr", { method: "POST", body: { rotate } })).url); } catch (e: Any) { toast(e.message, true); }
+  }
+
+  function printQr() {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<title>QR de fidelización</title><body style="font-family:system-ui;text-align:center;padding:2rem"><h1>¡Únete a nuestra fidelización!</h1><p>Escanea el código y llena tus datos</p><img src="/api/qr/customers.svg?v=${encodeURIComponent(qr || "")}" style="width:70vmin" onload="print()">`);
+    w.document.close();
+  }
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,6 +65,22 @@ export default function CustomersTab() {
         </div>
       </div>
       <p className="muted">{list.length} {list.length === 1 ? "cliente fidelizado" : "clientes fidelizados"}.</p>
+      <div className="card" style={{ margin: ".8rem 0" }}>
+        <h3><Icon n="qr" /> Registro por QR</h3>
+        <p className="muted small" style={{ margin: "0 0 .6rem" }}>Imprime este QR en el mostrador o las mesas. Cuando un cliente lo escanee verá un formulario (cédula, nombre, correo, celular y su autorización de datos) y se guarda aquí, en la base de fidelización de tu restaurante.</p>
+        {qr ? (
+          <div className="row wrap" style={{ alignItems: "center" }}>
+            <img src={`/api/qr/customers.svg?v=${encodeURIComponent(qr)}`} alt="QR de registro de clientes" style={{ width: 150, height: 150, background: "#fff", borderRadius: 12, padding: 6 }} />
+            <div className="grow">
+              <div className="muted small" style={{ wordBreak: "break-all" }}>{qr}</div>
+              <div className="row wrap" style={{ marginTop: ".6rem" }}>
+                <button className="btn sm" onClick={printQr}><Icon n="print" /> Imprimir QR</button>
+                <button className="btn sm ghost" onClick={() => makeQr(true)}>Renovar QR</button>
+              </div>
+            </div>
+          </div>
+        ) : qr === "" ? <button className="btn sm" onClick={() => makeQr()}>Generar QR de registro</button> : <p className="muted small">…</p>}
+      </div>
       {list.length > 5 && <input placeholder="Buscar por nombre, cédula, correo o celular…" value={q} onChange={(e) => setQ(e.target.value)} />}
       <div className="card" style={{ marginTop: ".8rem" }}>
         {shown.map((c) => (

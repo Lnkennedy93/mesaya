@@ -63,7 +63,7 @@ def _me_full(r: dict, role: str) -> dict:
     return {
         "role": role,
         "restaurant": {k: r[k] for k in (
-            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr",
+            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr", "takeaway_qr",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
             "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at", "paid_until", "cancel_requested_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
@@ -176,8 +176,8 @@ SETTINGS_FIELDS = {"name": str, "tagline": str, "brand_color": str, "brand_color
                    "legal_name": str, "nit": str, "tax_type": str, "fiscal_address": str, "fiscal_phone": str,
                    "fiscal_municipality_id": int, "inv_provider": str, "inv_env": str, "inv_range_id": int,
                    "wompi_env": str, "nequi_enabled": int, "breb_enabled": int, "breb_key": str,
-                   "breb_key_type": str, "breb_holder": str}
-BOOL_FIELDS = {"tax_included", "accepting_orders", "online_payments", "nequi_enabled", "breb_enabled"}
+                   "breb_key_type": str, "breb_holder": str, "takeaway_qr": int}
+BOOL_FIELDS = {"tax_included", "accepting_orders", "online_payments", "nequi_enabled", "breb_enabled", "takeaway_qr"}
 ENUMS = {"inv_provider": {"none", "factus", "mock"}, "inv_env": {"sandbox", "production"},
          "wompi_env": {"sandbox", "production"}, "tax_type": set(colombia.TAX_TYPES),
          "breb_key_type": {"celular", "cedula", "nit", "correo", "alfanumerica"}}
@@ -827,6 +827,48 @@ def qr_takeaway(s: Staff = Depends(staff_dep)):
     return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
 
 
+@router.get("/qr/customers.svg")
+def qr_customers(s: Staff = Depends(owner_dep)):
+    if not s.r["customers_key"]:
+        raise HTTPException(404)
+    buf = io.BytesIO()
+    segno.make(customers_url(s.r), error="m").save(
+        buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False, svgns=True, nl=False)
+    return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
+
+
+@router.get("/customers.xlsx")
+def export_customers(s: Staff = Depends(owner_dep)):
+    """Excel real (.xlsx, armado con zipfile): un CSV en un Excel con configuración es-CO abre todo en una sola columna."""
+    from xml.sax.saxutils import escape
+    rows = [["Cédula", "Nombre completo", "Correo electrónico", "Celular", "Fecha de registro (UTC)"]]
+    rows += [[c["document"], c["name"], c["email"], c["phone"], c["created_at"]]
+             for c in db.rows("SELECT document,name,email,phone,created_at FROM customers WHERE restaurant_id=? ORDER BY name", (s.id,))]
+    # todo va como texto en línea: así la cédula conserva ceros y nadie puede colar una fórmula (=, +, @) en la hoja
+    clean = lambda v: escape(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", v))
+    data = "".join(f'<row r="{i}">' + "".join(f'<c r="{"ABCDE"[j]}{i}" t="inlineStr"><is><t>{clean(v)}</t></is></c>' for j, v in enumerate(r)) + "</row>"
+                   for i, r in enumerate(rows, 1))
+    sheet = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+             '<cols><col min="1" max="1" width="16" customWidth="1"/><col min="2" max="3" width="34" customWidth="1"/>'
+             '<col min="4" max="4" width="16" customWidth="1"/><col min="5" max="5" width="22" customWidth="1"/></cols>'
+             f"<sheetData>{data}</sheetData></worksheet>")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                   '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+                   '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                   '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+        z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
+        z.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Clientes" sheetId="1" r:id="rId1"/></sheets></workbook>')
+        z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
+        z.writestr("xl/worksheets/sheet1.xml", sheet)
+    return Response(buf.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename=clientes-fidelizados.xlsx"})
+
+
 @router.get("/qr/{tid}.svg")
 def qr_svg(tid: int, s: Staff = Depends(staff_dep)):
     t = db.row("SELECT * FROM tables_ WHERE id=? AND restaurant_id=?", (tid, s.id))
@@ -1095,55 +1137,35 @@ def list_customers(s: Staff = Depends(owner_dep)):
 
 @router.post("/customers")
 def add_customer(body: CustomerIn, s: Staff = Depends(owner_dep)):
-    doc = re.sub(r"[.\s-]", "", body.document)
-    phone = re.sub(r"[\s()-]", "", body.phone)
-    email = body.email.strip().lower()
-    if not re.fullmatch(r"\d{5,12}", doc):
-        raise HTTPException(400, "La cédula debe tener entre 5 y 12 números")
-    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
-        raise HTTPException(400, "El correo no es válido")
-    if not re.fullmatch(r"\+?\d{7,15}", phone):
-        raise HTTPException(400, "El celular debe tener entre 7 y 15 números")
+    try:
+        doc, name, email, phone = colombia.loyalty_fields(body.document, body.name, body.email, body.phone)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     if not body.consent:  # Ley 1581: el cliente debe autorizar el tratamiento de sus datos
         raise HTTPException(400, "Confirma que el cliente autorizó el tratamiento de sus datos")
     if db.row("SELECT 1 FROM customers WHERE restaurant_id=? AND document=?", (s.id, doc)):
         raise HTTPException(409, "Ya hay un cliente con esa cédula")
     t = now()
     cid = db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at) VALUES (?,?,?,?,?,?,?)",
-                 (s.id, doc, " ".join(body.name.split()), email, phone, t, t))
+                 (s.id, doc, name, email, phone, t, t))
     return {"id": cid}
 
 
-@router.get("/customers.xlsx")
-def export_customers(s: Staff = Depends(owner_dep)):
-    """Excel real (.xlsx, armado con zipfile): un CSV en un Excel con configuración es-CO abre todo en una sola columna."""
-    from xml.sax.saxutils import escape
-    rows = [["Cédula", "Nombre completo", "Correo electrónico", "Celular", "Fecha de registro (UTC)"]]
-    rows += [[c["document"], c["name"], c["email"], c["phone"], c["created_at"]]
-             for c in db.rows("SELECT document,name,email,phone,created_at FROM customers WHERE restaurant_id=? ORDER BY name", (s.id,))]
-    # todo va como texto en línea: así la cédula conserva ceros y nadie puede colar una fórmula (=, +, @) en la hoja
-    clean = lambda v: escape(re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", v))
-    data = "".join(f'<row r="{i}">' + "".join(f'<c r="{"ABCDE"[j]}{i}" t="inlineStr"><is><t>{clean(v)}</t></is></c>' for j, v in enumerate(r)) + "</row>"
-                   for i, r in enumerate(rows, 1))
-    sheet = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-             '<cols><col min="1" max="1" width="16" customWidth="1"/><col min="2" max="3" width="34" customWidth="1"/>'
-             '<col min="4" max="4" width="16" customWidth="1"/><col min="5" max="5" width="22" customWidth="1"/></cols>'
-             f"<sheetData>{data}</sheetData></worksheet>")
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-                   '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
-                   '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-                   '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
-        z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
-        z.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-                   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Clientes" sheetId="1" r:id="rId1"/></sheets></workbook>')
-        z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
-        z.writestr("xl/worksheets/sheet1.xml", sheet)
-    return Response(buf.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": "attachment; filename=clientes-fidelizados.xlsx"})
+def customers_url(r: dict) -> str:
+    return f"{config.BASE_URL}/r/{r['slug']}/registro?k={r['customers_key']}" if r["customers_key"] else ""
+
+
+@router.get("/customers/qr")
+def customers_qr_info(s: Staff = Depends(owner_dep)):
+    return {"url": customers_url(s.r)}
+
+
+@router.post("/customers/qr")
+def customers_qr_make(body: dict, s: Staff = Depends(owner_dep)):
+    """Genera el QR de registro de clientes (o uno nuevo con `rotate`, que invalida el impreso)."""
+    key = secrets.token_urlsafe(9) if body.get("rotate") or not s.r["customers_key"] else s.r["customers_key"]
+    db.run("UPDATE restaurants SET customers_key=? WHERE id=?", (key, s.id))
+    return {"url": customers_url({**s.r, "customers_key": key})}
 
 
 @router.delete("/customers/{cid}")

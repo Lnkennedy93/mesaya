@@ -35,6 +35,21 @@ def nit_dv(nit: str) -> str:
     return str(r if r < 2 else 11 - r)
 
 
+def loyalty_fields(document: str, name: str, email: str, phone: str) -> tuple[str, str, str, str]:
+    """Valida y normaliza los datos de un cliente fidelizado (los usa el panel y el registro por QR). ValueError con el mensaje para el usuario."""
+    import re
+    doc = re.sub(r"[.\s-]", "", document)
+    phone = re.sub(r"[\s()-]", "", phone)
+    email = email.strip().lower()
+    if not re.fullmatch(r"\d{5,12}", doc):
+        raise ValueError("La cédula debe tener entre 5 y 12 números")
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise ValueError("El correo no es válido")
+    if not re.fullmatch(r"\+?\d{7,15}", phone):
+        raise ValueError("El celular debe tener entre 7 y 15 números")
+    return doc, " ".join(name.split()), email, phone
+
+
 def clean_customer(raw: dict | None) -> dict:
     """Normaliza los datos de factura que escribe el cliente. Sin datos → Consumidor Final."""
     raw = raw or {}

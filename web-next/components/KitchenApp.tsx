@@ -154,7 +154,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
         ))}
         {calls.map((c) => (
           <div className="call" key={"c" + c.id}>
-            <b>{c.type === "bill" ? <><Icon n="bill" /> Cuenta</> : <><Icon n="hand" /> Mesero</>} · Mesa {c.table_label}{c.method === "card" ? <> · <Icon n="card" /> Llevar datáfono</> : c.method === "cash" ? <> · <Icon n="cash" /> Efectivo</> : c.method === "qr" ? <> · <Icon n="qr" /> Paga con QR: revisa el comprobante</> : ""}</b>
+            <b>{c.type === "bill" ? <><Icon n="bill" /> Cuenta</> : <><Icon n="hand" /> Mesero</>} · {String(c.table_label).startsWith("PL-") ? <>Para llevar {c.table_label}</> : <>Mesa {c.table_label}</>}{c.method === "card" ? <> · <Icon n="card" /> Llevar datáfono</> : c.method === "cash" ? <> · <Icon n="cash" /> Efectivo</> : c.method === "qr" ? <> · <Icon n="qr" /> Paga con QR: revisa el comprobante</> : ""}</b>
             <button className="btn sm" onClick={() => act(() => api(`/api/calls/${c.id}/resolve`, { method: "POST" }))}>Atendido</button>
           </div>
         ))}

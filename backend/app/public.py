@@ -61,6 +61,50 @@ def takeaway_start(slug: str, body: dict, request: Request):
     return {"table": label, "key": service.takeaway_key(r, label)}
 
 
+def _signup_resto(slug: str, k: str) -> dict:
+    r = _resto(slug)
+    if not (r["customers_key"] and module_on(r, "customers") and safe_eq(k, r["customers_key"])):
+        raise HTTPException(403, "Este código de registro ya no es válido. Pide uno nuevo en el local.")
+    return r
+
+
+@router.get("/customers/signup")
+def customer_signup_info(slug: str, request: Request, k: str = ""):
+    """Lo que ve el cliente al escanear el QR de fidelización: el nombre y los colores del restaurante."""
+    r = _resto(slug)
+    rate_limit(f"cs:info:{_ip(request)}:{r['id']}", 120, 600)
+    r = _signup_resto(slug, k)
+    return {"name": r["name"], "logo": r["logo"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"]}
+
+
+class SignupIn(BaseModel):
+    k: str = Field(max_length=60)
+    document: str = Field(max_length=20)
+    name: str = Field(min_length=3, max_length=100)
+    email: str = Field(max_length=120)
+    phone: str = Field(max_length=20)
+    consent: bool = False
+
+
+@router.post("/customers/signup")
+def customer_signup(slug: str, body: SignupIn, request: Request):
+    """El cliente se registra solo en la fidelización de ESTE restaurante (cada uno tiene su propia base)."""
+    r = _resto(slug)
+    rate_limit(f"cs:ip:{_ip(request)}:{r['id']}", 40, 3600)  # (varios clientes comparten el WiFi del local)
+    rate_limit(f"cs:r:{r['id']}", 300, 3600)
+    _signup_resto(slug, body.k)
+    try:
+        doc, name, email, phone = colombia.loyalty_fields(body.document, body.name, body.email, body.phone)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not body.consent:  # Ley 1581: sin autorización expresa no se guarda nada
+        raise HTTPException(400, "Debes autorizar el tratamiento de tus datos para registrarte")
+    if not db.row("SELECT 1 FROM customers WHERE restaurant_id=? AND document=?", (r["id"], doc)):  # ya registrado: se responde igual (no se revela quién está en la base)
+        t = now()
+        db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at) VALUES (?,?,?,?,?,?,?)", (r["id"], doc, name, email, phone, t, t))
+    return {"ok": True}
+
+
 @router.get("/menu")
 def menu(slug: str, request: Request, t: str = "", k: str = ""):
     r = _resto(slug)
@@ -79,7 +123,7 @@ def menu(slug: str, request: Request, t: str = "", k: str = ""):
     allowed = table_ok and _plan_allows(r, t)
     return {
         "restaurant": {
-            "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "pay_qr": r["pay_qr"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"],
+            "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "pay_qr": r["pay_qr"], "takeaway_qr": bool(r["takeaway_qr"] and r["pay_qr"]), "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"],
             "currency": r["currency"], "decimals": r["decimals"], "tip_pct": r["tip_pct"],
             "tax_pct": r["tax_pct"], "tax_included": bool(r["tax_included"]),
             "google_review_url": r["google_review_url"], "whatsapp": r["whatsapp"],
@@ -181,7 +225,8 @@ PAY_METHODS = ("cash", "card", "qr")  # cómo pagará: el mesero sabe si lleva d
 
 def _ask_bill(r: dict, table: str, method: str):
     """Abre la solicitud de cuenta (o actualiza el método si ya estaba abierta) y avisa al equipo."""
-    if method not in PAY_METHODS or (method == "qr" and not r["pay_qr"]):
+    takeaway = table.startswith(service.TAKEAWAY_PREFIX)  # para llevar: el QR de pago solo si el dueño lo habilitó en esa sección
+    if method not in PAY_METHODS or (method == "qr" and not (r["pay_qr"] and (r["takeaway_qr"] or not takeaway))):
         raise HTTPException(400, "Elige cómo vas a pagar")
     if db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL", (r["id"], table)):
         db.run("UPDATE calls SET method=? WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL", (method, r["id"], table))
@@ -206,11 +251,15 @@ def call(slug: str, body: CallIn, request: Request):
     rate_limit(f"call:t:{r['id']}:{body.table}", 6, 300)
     if body.type not in ("waiter", "bill"):
         raise HTTPException(400, "Tipo inválido")
-    if body.table.startswith(service.TAKEAWAY_PREFIX):
+    takeaway = body.table.startswith(service.TAKEAWAY_PREFIX)
+    if takeaway and body.type != "bill":
         raise HTTPException(400, "Los pedidos para llevar se recogen en el mostrador")
-    if service.table_closed(service.bill_lines(r["id"], body.table)):  # mesa cerrada en sala: ya no hay a quién llamar ni cuenta que pedir
+    lines = service.bill_lines(r["id"], body.table)
+    if service.table_closed(lines):  # mesa cerrada en sala: ya no hay a quién llamar ni cuenta que pedir
         raise HTTPException(409, "La mesa ya fue cerrada. ¡Gracias por tu visita!")
     if body.type == "bill":
+        if takeaway and not any(l["state"] == "unpaid" for l in lines):
+            raise HTTPException(400, "Aún no tienes pedidos por pagar")
         _ask_bill(r, body.table, body.method)
         return {"ok": True}
     if not db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type=? AND resolved_at IS NULL",

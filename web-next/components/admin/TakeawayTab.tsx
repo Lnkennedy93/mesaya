@@ -1,7 +1,7 @@
 "use client";
 // Para llevar: un solo QR para negocios sin mesas (postres, comida rápida...). Máximo N pedidos en curso a la vez.
 import { useCallback, useEffect, useState } from "react";
-import { api, poll } from "@/lib/api";
+import { api, poll, shrinkImage } from "@/lib/api";
 import { Any, useAdmin } from "./ctx";
 import Icon from "@/components/Icon";
 
@@ -23,6 +23,16 @@ export default function TakeawayTab() {
     try { setME(await api("/api/takeaway", { method: "POST", body: { enabled, rotate } })); } catch (e: Any) { toast(e.message, true); }
   }
 
+  async function setQrPay(on: boolean) {
+    try { setME(await api("/api/settings", { method: "PUT", body: { takeaway_qr: on ? 1 : 0 } })); } catch (e: Any) { toast(e.message, true); }
+  }
+
+  async function uploadQr(file: File | undefined) {
+    if (!file) return;
+    const fd = new FormData();
+    try { fd.append("file", await shrinkImage(file, 1200)); const res = await api("/api/pay-qr", { method: "POST", body: fd }); setME({ ...ME, restaurant: { ...ME.restaurant, pay_qr: res.pay_qr } }); toast("QR de pago guardado"); } catch (e: Any) { toast(e.message, true); }
+  }
+
   return (
     <>
       <h1><Icon n="takeaway" /> Para llevar</h1>
@@ -35,6 +45,23 @@ export default function TakeawayTab() {
         <div className="row spread">
           <div><b>Recibir pedidos para llevar</b><div className="muted small">{r.takeaway ? "Activado: los clientes ya pueden pedir con el QR." : "Apagado: el QR no funciona."}</div></div>
           <label className="switch"><input type="checkbox" checked={!!r.takeaway} onChange={(e) => save(e.target.checked)} /><span /></label>
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: ".8rem" }}>
+        <div className="row spread">
+          <div>
+            <b>Pago ágil con QR (Bre-B o Nequi)</b>
+            <div className="muted small">{r.takeaway_qr ? "Activado: al pedir para llevar, el cliente puede elegir «QR» y pagar escaneando el tuyo." : "Apagado: el cliente solo avisa si pagará en efectivo o con datáfono al recoger."}</div>
+          </div>
+          <label className="switch"><input type="checkbox" aria-label="Pago ágil con QR" checked={!!r.takeaway_qr} disabled={!r.pay_qr && !r.takeaway_qr} onChange={(e) => setQrPay(e.target.checked)} /><span /></label>
+        </div>
+        <div className="row wrap" style={{ alignItems: "center", marginTop: ".7rem" }}>
+          {r.pay_qr && <img src={r.pay_qr} alt="QR de pago" style={{ width: 96, height: 96, objectFit: "contain", background: "#fff", borderRadius: 10, padding: 5 }} />}
+          <div className="grow">
+            <label style={{ marginTop: 0 }}>{r.pay_qr ? "Cambiar el QR de cobro" : "Sube el QR de cobro de tu negocio (Bre-B o Nequi)"}</label>
+            <input type="file" accept="image/*" aria-label="Imagen del QR de pago" onChange={(e) => { uploadQr(e.target.files?.[0]); e.target.value = ""; }} />
+            <div className="muted small" style={{ marginTop: ".3rem" }}>Es el mismo QR de Ajustes → «Pago por QR». Tu equipo ve el aviso en Cocina y Sala, revisa el comprobante y cobra con «Cobrado por QR».</div>
+          </div>
         </div>
       </div>
       {r.takeaway ? (
