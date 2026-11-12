@@ -3,6 +3,10 @@ y lo borran al terminar, así nunca tocan los datos reales. Con SQLite no hace n
 import atexit
 import os
 
+# Por omisión las pruebas usan SQLite aunque el .env apunte a la base real. Para probar contra PostgreSQL: MESAYA_TEST_PG=1
+# (y de preferencia con MESAYA_DATABASE_URL apuntando a una base de PRUEBAS, no a producción).
+if not os.getenv("MESAYA_TEST_PG"):
+    os.environ["MESAYA_DATABASE_URL"] = ""
 os.environ["MESAYA_PG_SCHEMA"] = "auto"
 
 

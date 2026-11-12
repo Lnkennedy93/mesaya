@@ -5,6 +5,7 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -51,6 +52,11 @@ async def http_exc(request: Request, exc: HTTPException):
     return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
 
+@app.exception_handler(RequestValidationError)
+async def invalid_body(request: Request, exc: RequestValidationError):
+    return JSONResponse({"error": "Revisa los datos ingresados"}, status_code=422)  # sin la estructura interna de FastAPI
+
+
 def page(name: str):
     def handler():
         return FileResponse(config.WEB_DIR / name, headers={"Cache-Control": "no-cache"})
@@ -87,7 +93,7 @@ app.get("/privacidad", include_in_schema=False)(legal_page("privacidad.html"))
 _started = time.time()
 
 
-@app.get("/healthz", include_in_schema=False)
+@app.api_route("/healthz", methods=["GET", "HEAD"], include_in_schema=False)  # (HEAD: algunos monitores de disponibilidad lo usan)
 def healthz():
     """Para el monitor de disponibilidad (UptimeRobot, Better Stack...). Revisa base de datos y copias."""
     try:
@@ -95,10 +101,13 @@ def healthz():
         db_ok = True
     except Exception:
         db_ok = False
+    out = {"ok": db_ok, "db": db_ok}
     age = backup.last_backup_age_hours()
-    enabled = config.BACKUP_EVERY_HOURS > 0
-    stale = enabled and ((age is None and time.time() - _started > 6 * 3600) or (age is not None and age > config.BACKUP_EVERY_HOURS * 3))
-    return JSONResponse({"ok": db_ok, "db": db_ok, "engine": "postgres" if db.IS_PG else "sqlite", "backup_age_hours": age, "backup_stale": bool(stale)}, status_code=200 if db_ok else 503)
+    if config.BACKUP_EVERY_HOURS > 0 or age is not None:  # donde no hay copias locales (Vercel) no se publica un «backup: null» que no dice nada
+        enabled = config.BACKUP_EVERY_HOURS > 0
+        stale = enabled and ((age is None and time.time() - _started > 6 * 3600) or (age is not None and age > config.BACKUP_EVERY_HOURS * 3))
+        out.update({"backup_age_hours": age, "backup_stale": bool(stale)})
+    return JSONResponse(out, status_code=200 if db_ok else 503)
 
 
 @app.get("/uploads/{name}", include_in_schema=False)

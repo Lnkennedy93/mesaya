@@ -57,7 +57,15 @@ def dummy_hash() -> str:
     return _DUMMY
 
 
+def purge_expired():
+    """Sesiones y enlaces de reseteo vencidos: sin esto la tabla solo crece."""
+    db.run("DELETE FROM sessions WHERE expires_at < ?", (now(),))
+    db.run("DELETE FROM password_resets WHERE expires_at < ?", (now(),))
+
+
 def create_session(restaurant_id: int, role: str, days: int = 30) -> str:
+    if secrets.randbelow(20) == 0:
+        purge_expired()
     token = secrets.token_urlsafe(32)
     exp = (datetime.now(timezone.utc) + timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
     db.run("INSERT INTO sessions(token, restaurant_id, role, expires_at) VALUES (?,?,?,?)",

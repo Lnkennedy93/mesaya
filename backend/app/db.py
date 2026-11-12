@@ -236,6 +236,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_resto ON sessions(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_images_resto ON images(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_resto ON invoices(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_resets_resto ON password_resets(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_paid ON order_items(paid_payment_id);
 """
 
 
@@ -422,6 +424,7 @@ def init_db():
                     for col, col_ddl in cols.items():
                         c.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_ddl}")
                 c.execute("CREATE INDEX IF NOT EXISTS idx_orders_ref ON orders(restaurant_id, client_ref)")  # (después de la migración: la columna es nueva)
+                c.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_ref ON orders(restaurant_id, table_label, client_ref) WHERE client_ref <> ''")  # red de seguridad de la idempotencia
                 # Supabase publica por su API REST las tablas de "public": con RLS activo y sin políticas esa API no
                 # ve nada. El backend, que es el dueño de las tablas, no se ve afectado.
                 for table in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", ddl):
@@ -438,6 +441,7 @@ def init_db():
                 if col not in have:
                     c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
         c.execute("CREATE INDEX IF NOT EXISTS idx_orders_ref ON orders(restaurant_id, client_ref)")
+        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_ref ON orders(restaurant_id, table_label, client_ref) WHERE client_ref <> ''")
 
 
 @contextmanager

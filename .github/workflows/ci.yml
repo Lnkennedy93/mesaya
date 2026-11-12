@@ -1,0 +1,51 @@
+name: CI
+# Cada push y cada PR corre las pruebas del servidor y compila el frontend: una regresión se ve aquí, no en producción.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: OCR local (lo usan las pruebas del lector de cartas)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa tesseract-ocr-eng
+      - run: pip install -r backend/requirements.txt
+      - name: Pruebas (SQLite; nunca tocan la base real)
+        working-directory: backend
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          fail=0
+          for f in tests/test_*.py; do
+            t=$(basename "$f" .py)
+            echo "::group::$t"
+            python -u -m "tests.$t" || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-next/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx next build

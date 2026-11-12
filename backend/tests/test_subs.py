@@ -116,6 +116,7 @@ with TestClient(app) as o, TestClient(app) as cust, TestClient(app) as kit:
     check(d.json()["order_id"] != a.json()["order_id"], "el mismo id en otra mesa no se confunde")
     e1, e2 = pedir("4"), pedir("4")
     check(e1.json()["order_id"] != e2.json()["order_id"], "sin request_id (versiones viejas del celular) cada envío es un pedido, como antes")
-    check(len(pedir("2", request_id="x" * 65).json()["detail"]) >= 1, "un request_id demasiado largo se rechaza")
+    bad = pedir("2", request_id="x" * 65)
+    check(bad.status_code == 422 and bad.json() == {"error": "Revisa los datos ingresados"}, "un request_id demasiado largo se rechaza, sin mostrar la estructura interna de FastAPI")
 
 print("Suscripciones y auditoría ✔")

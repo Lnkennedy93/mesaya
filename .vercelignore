@@ -18,3 +18,14 @@ backend/tests
 !web-next/public/catalogo-mesaya.pdf
 *.zip
 *.db
+# documentación, marketing y despliegues alternativos: no son parte de la aplicación
+marketing
+deploy
+handoff.md
+DEPLOY.md
+DEPLOY-VERCEL.md
+Dockerfile
+docker-compose*.yml
+fly.toml
+run.bat
+.github
