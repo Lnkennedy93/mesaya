@@ -39,7 +39,7 @@ def _set_cookie(resp: Response, token: str):
 
 
 STAFF_FIELDS = ("id", "slug", "name", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "tip_pct", "tax_pct", "tax_included",
-                "tz_offset", "accepting_orders", "online_payments", "takeaway", "plan", "inv_provider")
+                "tz_offset", "accepting_orders", "online_payments", "takeaway", "plan", "inv_provider", "pay_qr")
 
 
 def _me(r: dict, role: str) -> dict:
@@ -63,7 +63,7 @@ def _me_full(r: dict, role: str) -> dict:
     return {
         "role": role,
         "restaurant": {k: r[k] for k in (
-            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo",
+            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
             "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at", "paid_until", "cancel_requested_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
@@ -305,6 +305,22 @@ async def upload_logo(file: UploadFile = File(...), s: Staff = Depends(owner_dep
     return {"logo": path}
 
 
+@router.post("/pay-qr")
+async def upload_pay_qr(file: UploadFile = File(...), s: Staff = Depends(owner_dep)):
+    """QR de cobro (Bre-B o Nequi) del restaurante: el cliente lo ve al pedir la cuenta y paga escaneándolo."""
+    path = await _save_image(file, s.id, max_px=1000)
+    db.run("UPDATE restaurants SET pay_qr=? WHERE id=?", (path, s.id))
+    await run_in_threadpool(_drop_image, s.id, s.r["pay_qr"])
+    return {"pay_qr": path}
+
+
+@router.delete("/pay-qr")
+async def delete_pay_qr(s: Staff = Depends(owner_dep)):
+    db.run("UPDATE restaurants SET pay_qr='' WHERE id=?", (s.id,))
+    await run_in_threadpool(_drop_image, s.id, s.r["pay_qr"])
+    return {"pay_qr": ""}
+
+
 # ---------------------------------------------------------------- imágenes
 _MAGIC = {b"\xff\xd8\xff": "jpg", b"\x89PNG": "png", b"RIFF": "webp"}
 
@@ -339,7 +355,7 @@ def _drop_image(rid: int, path: str):
     if not path or not (in_blob or path.startswith("/uploads/")):
         return
     used = db.row("SELECT (SELECT COUNT(*) FROM items WHERE restaurant_id=? AND image=?) + "
-                  "(SELECT COUNT(*) FROM restaurants WHERE id=? AND logo=?) AS n", (rid, path, rid, path))["n"]
+                  "(SELECT COUNT(*) FROM restaurants WHERE id=? AND (logo=? OR pay_qr=?)) AS n", (rid, path, rid, path, path))["n"]
     if used:
         return
     if in_blob:

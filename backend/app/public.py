@@ -79,7 +79,7 @@ def menu(slug: str, request: Request, t: str = "", k: str = ""):
     allowed = table_ok and _plan_allows(r, t)
     return {
         "restaurant": {
-            "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"],
+            "name": r["name"], "tagline": r["tagline"], "logo": r["logo"], "pay_qr": r["pay_qr"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"],
             "currency": r["currency"], "decimals": r["decimals"], "tip_pct": r["tip_pct"],
             "tax_pct": r["tax_pct"], "tax_included": bool(r["tax_included"]),
             "google_review_url": r["google_review_url"], "whatsapp": r["whatsapp"],
@@ -176,13 +176,13 @@ async def stream(slug: str, table: str, k: str, request: Request):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-PAY_METHODS = ("cash", "card")  # cómo pagará en caja: el mesero sabe si lleva datáfono
+PAY_METHODS = ("cash", "card", "qr")  # cómo pagará: el mesero sabe si lleva datáfono o si el cliente paga con el QR del negocio
 
 
 def _ask_bill(r: dict, table: str, method: str):
     """Abre la solicitud de cuenta (o actualiza el método si ya estaba abierta) y avisa al equipo."""
-    if method not in PAY_METHODS:
-        raise HTTPException(400, "Elige cómo vas a pagar: efectivo o tarjeta")
+    if method not in PAY_METHODS or (method == "qr" and not r["pay_qr"]):
+        raise HTTPException(400, "Elige cómo vas a pagar")
     if db.row("SELECT 1 FROM calls WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL", (r["id"], table)):
         db.run("UPDATE calls SET method=? WHERE restaurant_id=? AND table_label=? AND type='bill' AND resolved_at IS NULL", (method, r["id"], table))
     else:
@@ -254,8 +254,8 @@ def pay(slug: str, body: PayIn, request: Request):
     rate_limit(f"pay:t:{r['id']}:{body.table}", 10, 600)
     if body.provider not in {p["id"] for p in payments.available_providers(r)}:
         raise HTTPException(400, "Método de pago no disponible")
-    if body.provider == "cashier" and body.method not in PAY_METHODS:
-        raise HTTPException(400, "Elige cómo vas a pagar: efectivo o tarjeta")
+    if body.provider == "cashier" and (body.method not in PAY_METHODS or (body.method == "qr" and not r["pay_qr"])):
+        raise HTTPException(400, "Elige cómo vas a pagar")
     if not body.item_ids:
         raise HTTPException(400, "Elige qué quieres pagar")
     lines = {l["id"]: l for l in service.bill_lines(r["id"], body.table)}
@@ -273,7 +273,7 @@ def pay(slug: str, body: PayIn, request: Request):
 
     if body.provider == "cashier":
         _ask_bill(r, body.table, body.method)
-        return {"ok": True, "mode": "cashier"}
+        return {"ok": True, "mode": "cashier", "total": tt["total"]}
 
     phone = ""
     if body.provider == "nequi":

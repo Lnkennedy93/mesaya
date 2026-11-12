@@ -59,6 +59,16 @@ export default function SettingsTab() {
     try { fd.append("file", await shrinkImage(file)); const res = await api("/api/logo", { method: "POST", body: fd }); setME({ ...ME, restaurant: { ...ME.restaurant, logo: res.logo } }); toast("Logo actualizado"); } catch (e: Any) { toast(e.message, true); }
   }
 
+  async function uploadPayQr(file: File | undefined) {
+    if (!file) return;
+    const fd = new FormData();
+    try { fd.append("file", await shrinkImage(file, 1200)); const res = await api("/api/pay-qr", { method: "POST", body: fd }); setME({ ...ME, restaurant: { ...ME.restaurant, pay_qr: res.pay_qr } }); toast("QR de pago guardado"); } catch (e: Any) { toast(e.message, true); }
+  }
+
+  async function removePayQr() {
+    try { await api("/api/pay-qr", { method: "DELETE" }); setME({ ...ME, restaurant: { ...ME.restaurant, pay_qr: "" } }); toast("QR de pago quitado"); } catch (e: Any) { toast(e.message, true); }
+  }
+
   return (
     <>
       <h1>Ajustes</h1>
@@ -88,6 +98,17 @@ export default function SettingsTab() {
         <label className="chk"><input type="checkbox" checked={f.accepting} onChange={(e) => setF({ ...f, accepting: e.target.checked })} /> Recibir pedidos desde el QR (si lo apagas, el QR solo muestra la carta)</label>
         <label>PIN del equipo, de 6 a 8 dígitos (cocina y meseros) — entran en <b>/kitchen</b> con el código <b>{r.slug}</b>. Si lo cambias, el equipo debe volver a entrar.</label>
         <input value={f.pin} onChange={set("pin")} inputMode="numeric" maxLength={8} style={{ maxWidth: 160 }} />
+      </div>
+      <div className="card" style={{ marginTop: ".8rem" }}>
+        <h3>Pago por QR (Bre-B o Nequi)</h3>
+        <p className="muted small" style={{ margin: "0 0 .6rem" }}>Sube la imagen del QR de cobro de tu negocio (la que genera tu app Bre-B o Nequi). Cuando el cliente pida la cuenta y elija «QR», se la mostramos para que pague desde su celular. Tu equipo ve el aviso en cocina/sala, revisa el comprobante y cierra la mesa con «Cobrado por QR».</p>
+        <div className="row wrap" style={{ alignItems: "center" }}>
+          {r.pay_qr && <img src={r.pay_qr} alt="QR de pago" style={{ width: 120, height: 120, objectFit: "contain", background: "#fff", borderRadius: 12, padding: 6 }} />}
+          <div className="grow">
+            <input type="file" accept="image/*" aria-label="Imagen del QR de pago" onChange={(e) => { uploadPayQr(e.target.files?.[0]); e.target.value = ""; }} />
+            {r.pay_qr && <p style={{ margin: ".4rem 0 0" }}><button type="button" className="btn ghost sm" onClick={removePayQr}>Quitar QR</button></p>}
+          </div>
+        </div>
       </div>
       <p><button className="btn" onClick={save}>Guardar cambios</button></p>
       <div className="card" style={{ marginBottom: ".8rem" }}>

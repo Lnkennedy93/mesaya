@@ -15,6 +15,7 @@ type Dlg =
   | { t: "cart" }
   | { t: "nequi"; res: Any; phase: "wait" | "fail"; timeout?: boolean }
   | { t: "breb"; res: Any; phase: "ask" | "check" | "fail" }
+  | { t: "payqr"; total: number }
   | { t: "thanks"; paymentId?: number; invoice?: Any };
 
 const STATUS_IDX: Record<string, number> = { new: 0, preparing: 1, ready: 2, served: 3 };
@@ -193,7 +194,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
       const res = await api(`/api/public/${slug}/pay`, { method: "POST", body: { table: TABLE, key: KEY, item_ids: ids, tip_pct: tipPct || 0, payer: dinerName, provider, method, phone: document.getElementById("nph") ? phone : "", invoice } });
       if (res.mode === "redirect") { location.href = res.url; return; }
       setSel(new Set());
-      if (res.mode === "cashier") toast(T("askBill"));
+      if (res.mode === "cashier") { if (method === "qr") setDlg({ t: "payqr", total: res.total }); else toast(T("askBill")); }
       else if (res.mode === "push") {
         setDlg({ t: "nequi", res, phase: "wait" });
         pollPayment(res.payment_id, (s) => setDlg({ t: "thanks", paymentId: res.payment_id, invoice: s.invoice }), (timeout) => setDlg({ t: "nequi", res, phase: "fail", timeout }));
@@ -215,11 +216,11 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
     pollPayment(res.payment_id, (s) => setDlg({ t: "thanks", paymentId: res.payment_id, invoice: s.invoice }), () => setDlg({ t: "breb", res, phase: "fail" }));
   }
 
-  async function sendCall(type: "bill" | "waiter", method = "") {
+  async function sendCall(type: "bill" | "waiter", method = "", total = 0) {
     try {
       await api(`/api/public/${slug}/call`, { method: "POST", body: { table: TABLE, key: KEY, type, method } });
       await refreshBill();
-      toast(type === "bill" ? T("billAsked") : T("waiterCalled"));
+      if (method === "qr") setDlg({ t: "payqr", total }); else toast(type === "bill" ? T("billAsked") : T("waiterCalled"));
     } catch (e: Any) { toast(e.message, true); }
   }
 
@@ -325,6 +326,7 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
         <button className="btn grow" onClick={() => onPick("cash")}><Icon n="cash" /> {T("payCash")}</button>
         <button className="btn grow" onClick={() => onPick("card")}><Icon n="card" /> {T("payCard")}</button>
       </div>
+      {R.pay_qr && <button className="btn block" style={{ marginTop: ".5rem" }} onClick={() => onPick("qr")}><Icon n="qr" /> {T("payQr")}</button>}
       <button className="btn ghost block" style={{ marginTop: ".5rem" }} onClick={() => setPicking(null)}>{T("cancelPick")}</button>
     </div>
   );
@@ -348,8 +350,9 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
           <div className="row spread" style={{ margin: ".3rem 0" }}><span className="big">{T("totalConsumption")}</span><span className="big">{money(total)}</span></div>
           {R.tip_pct ? <div className="muted small">{T("tipSuggested")} ({R.tip_pct}%): {money(tipS)}</div> : null}
           {picking === "simple" && !asked
-            ? methodPicker((m) => { setPicking(null); sendCall("bill", m); })
+            ? methodPicker((m) => { setPicking(null); sendCall("bill", m, total); })
             : <button className="btn block" style={{ marginTop: ".9rem" }} disabled={asked} onClick={() => setPicking("simple")}>{asked ? T("billAsked") : <><Icon n="bill" /> {T("finishTable")}</>}</button>}
+          {asked && R.pay_qr && <button className="btn ghost block" style={{ marginTop: ".5rem" }} onClick={() => setDlg({ t: "payqr", total })}><Icon n="qr" /> {T("payQrShow")}</button>}
         </div>
         {asked && feedbackBox}
       </>
@@ -544,6 +547,15 @@ export default function MenuApp({ slug, table: TABLE, tableKey: KEY, initialView
                 return true;
               } catch (e: Any) { toast(e.status === 0 ? T("sendRetry") : e.message, true); return false; }
             }} />
+        )}
+        {dlg?.t === "payqr" && (
+          <div style={{ textAlign: "center" }}>
+            <h2>{T("payQrTitle")}</h2>
+            <img src={R.pay_qr} alt="QR" style={{ width: "100%", maxWidth: 300, borderRadius: 14, background: "#fff", padding: 8 }} />
+            {dlg.total > 0 && <div style={{ margin: ".6rem 0" }}><div className="muted small">{T("payQrAmount")}</div><div className="big">{money(dlg.total)}</div></div>}
+            <p className="muted">{T("payQrHow")}</p>
+            <button className="btn block" onClick={closePay}>OK</button>
+          </div>
         )}
         {dlg?.t === "nequi" && (dlg.phase === "wait" ? (
           <div style={{ textAlign: "center", padding: ".6rem 0" }}>

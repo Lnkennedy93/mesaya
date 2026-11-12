@@ -396,6 +396,7 @@ MIGRATIONS = {
         "extra_tables": "INTEGER NOT NULL DEFAULT 0",  # mesas adicionales contratadas en el plan Esencial
         "ai_addon": "INTEGER NOT NULL DEFAULT 0",  # 1 = complemento de IA del plan Esencial
         "brand_color2": "TEXT NOT NULL DEFAULT ''",  # color secundario del restaurante ('' = el del producto): fondos y superficies suaves
+        "pay_qr": "TEXT NOT NULL DEFAULT ''",  # imagen del QR de cobro (Bre-B o Nequi) que sube el dueño; el cliente lo ve al pedir la cuenta
         "brand_color3": "TEXT NOT NULL DEFAULT ''",  # color de acento ('' = el del producto): barras, puntos y detalles
     },
     "calls": {

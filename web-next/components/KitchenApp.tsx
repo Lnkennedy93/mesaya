@@ -154,7 +154,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
         ))}
         {calls.map((c) => (
           <div className="call" key={"c" + c.id}>
-            <b>{c.type === "bill" ? <><Icon n="bill" /> Cuenta</> : <><Icon n="hand" /> Mesero</>} · Mesa {c.table_label}{c.method === "card" ? <> · <Icon n="card" /> Llevar datáfono</> : c.method === "cash" ? <> · <Icon n="cash" /> Efectivo</> : ""}</b>
+            <b>{c.type === "bill" ? <><Icon n="bill" /> Cuenta</> : <><Icon n="hand" /> Mesero</>} · Mesa {c.table_label}{c.method === "card" ? <> · <Icon n="card" /> Llevar datáfono</> : c.method === "cash" ? <> · <Icon n="cash" /> Efectivo</> : c.method === "qr" ? <> · <Icon n="qr" /> Paga con QR: revisa el comprobante</> : ""}</b>
             <button className="btn sm" onClick={() => act(() => api(`/api/calls/${c.id}/resolve`, { method: "POST" }))}>Atendido</button>
           </div>
         ))}
@@ -358,6 +358,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
               <div className="row">
                 <button className="btn grow ok" disabled={!total || busy} onClick={() => settle("cash")}>Cobrado en efectivo</button>
                 <button className="btn grow" disabled={!total || busy} onClick={() => settle("card")}>Cobrado con datáfono</button>
+                {ME.restaurant.pay_qr && <button className="btn grow" disabled={!total || busy} onClick={() => settle("qr")}>Cobrado por QR</button>}
               </div>
             ) : (
               <>

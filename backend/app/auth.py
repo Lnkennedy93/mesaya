@@ -118,7 +118,7 @@ _GATES = (
     (None, "/api/qr/takeaway", "takeaway"), (None, "/api/takeaway", "takeaway"),
     ("POST", "/api/tables", "tables"), ("DELETE", "/api/tables", "tables"), (None, "/api/qr", "tables"),
     (None, "/api/feedback", "reviews"), (None, "/api/customers", "customers"), (None, "/api/assistant", "assistant"),
-    ("PUT", "/api/settings", "settings"), (None, "/api/integrations", "settings"), (None, "/api/logo", "settings"),
+    ("PUT", "/api/settings", "settings"), (None, "/api/integrations", "settings"), (None, "/api/logo", "settings"), (None, "/api/pay-qr", "settings"),
 )
 
 
