@@ -165,6 +165,11 @@ const scenes = {
     await p.eval(`window.scrollTo(0, 40)`); await sleep(300);
     await shot(p, '30-para-llevar-pago');
   },
+  async 20(b) { // la tarjeta de sellos del cliente (CARD_URL = ruta de la tarjeta de un cliente de la demo)
+    const p = await openPage(b, { ...M, login: null });
+    await p.goto(BASE + process.env.CARD_URL, { settleMs: 2200 });
+    await shot(p, '31-tarjeta-sellos');
+  },
   // --- landing
   async 13(b) {
     const p = await openPage(b, { ...D, login: null });
