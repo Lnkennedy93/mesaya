@@ -4,10 +4,14 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import colombia, config, db, events, invoicing, payments, service
+import io
+
+import segno
+
+from . import colombia, config, db, events, invoicing, loyalty, payments, service
 from .auth import client_ip, is_active, module_on, now, rate_check, rate_hit, rate_limit, safe_eq
 
 router = APIRouter(prefix="/api/public/{slug}")
@@ -100,9 +104,38 @@ def customer_signup(slug: str, body: SignupIn, request: Request):
     if not body.consent:  # Ley 1581: sin autorización expresa no se guarda nada
         raise HTTPException(400, "Debes autorizar el tratamiento de tus datos para registrarte")
     if not db.row("SELECT 1 FROM customers WHERE restaurant_id=? AND document=?", (r["id"], doc)):  # ya registrado: se responde igual (no se revela quién está en la base)
-        t = now()
-        db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at) VALUES (?,?,?,?,?,?,?)", (r["id"], doc, name, email, phone, t, t))
+        t, key = now(), loyalty.new_card_key()
+        db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at,card_key) VALUES (?,?,?,?,?,?,?,?)", (r["id"], doc, name, email, phone, t, t, key))
+        if r["stamps_on"]:
+            return {"ok": True, "card": f"/r/{slug}/tarjeta?c={key}"}  # solo quien se acaba de registrar recibe el enlace de su tarjeta
     return {"ok": True}
+
+
+def _card(slug: str, c: str, request: Request):
+    r = _resto(slug)
+    rate_limit(f"lc:{_ip(request)}:{r['id']}", 120, 600)
+    cust = loyalty.find(r, card=c) if c else None
+    if not cust or not r["stamps_on"] or not module_on(r, "customers"):
+        raise HTTPException(404, "Tarjeta no encontrada")
+    return r, cust
+
+
+@router.get("/loyalty/card")
+def loyalty_card(slug: str, request: Request, c: str = ""):
+    """La tarjeta de sellos de un cliente (se abre con su QR o su tarjeta NFC). Solo muestra su primer nombre y sus sellos."""
+    r, cust = _card(slug, c, request)
+    st = loyalty.state(r, cust)
+    st["name"] = st["name"].split()[0]
+    return {**st, "restaurant": {"name": r["name"], "logo": r["logo"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"]}}
+
+
+@router.get("/loyalty/qr.svg")
+def loyalty_qr(slug: str, request: Request, c: str = ""):
+    r, _ = _card(slug, c, request)
+    buf = io.BytesIO()
+    segno.make(f"{config.BASE_URL}/r/{slug}/tarjeta?c={c}", error="m").save(
+        buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False, svgns=True, nl=False)
+    return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
 
 
 @router.get("/menu")

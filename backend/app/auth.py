@@ -115,7 +115,7 @@ def module_on(r: dict, name: str) -> bool:
 _GATES = (
     (None, "/api/analytics", "home"), (None, "/api/export", "home"),
     (None, "/api/categories", "menu"), (None, "/api/items", "menu"), (None, "/api/import", "menu"), ("DELETE", "/api/menu", "menu"),
-    (None, "/api/qr/takeaway", "takeaway"), (None, "/api/qr/customers", "customers"), (None, "/api/takeaway", "takeaway"),
+    (None, "/api/qr/takeaway", "takeaway"), (None, "/api/qr/customers", "customers"), (None, "/api/qr/card", "customers"), (None, "/api/loyalty", "customers"), (None, "/api/takeaway", "takeaway"),
     ("POST", "/api/tables", "tables"), ("DELETE", "/api/tables", "tables"), (None, "/api/qr", "tables"),
     (None, "/api/feedback", "reviews"), (None, "/api/customers", "customers"), (None, "/api/assistant", "assistant"),
     ("PUT", "/api/settings", "settings"), (None, "/api/integrations", "settings"), (None, "/api/logo", "settings"), (None, "/api/pay-qr", "settings"),

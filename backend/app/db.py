@@ -195,6 +195,16 @@ CREATE TABLE IF NOT EXISTS customers (
   created_at TEXT NOT NULL,
   UNIQUE(restaurant_id, document)
 );
+CREATE TABLE IF NOT EXISTS stamp_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  delta INTEGER NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_stamp_log_c ON stamp_log(restaurant_id, customer_id, id);
 CREATE TABLE IF NOT EXISTS rate_hits (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   k TEXT NOT NULL,
@@ -400,7 +410,14 @@ MIGRATIONS = {
         "takeaway_qr": "INTEGER NOT NULL DEFAULT 0",  # 1 = en pedidos para llevar el cliente también puede pagar escaneando el QR del dueño (pay_qr)
         "customers_key": "TEXT NOT NULL DEFAULT ''",  # clave del QR de registro de clientes fidelizados ('' = aún no generado)
         "license_start": "TEXT NOT NULL DEFAULT ''",  # cuándo EMPIEZA la licencia pagada, en UTC ('' = ya empezó). Antes de esa fecha sigue la prueba o el plan Gratis
+        "stamps_on": "INTEGER NOT NULL DEFAULT 0",  # 1 = el restaurante tiene tarjeta de sellos
+        "stamps_goal": "INTEGER NOT NULL DEFAULT 8",  # sellos para ganar el premio
+        "stamps_reward": "TEXT NOT NULL DEFAULT ''",  # el premio que ofrece el restaurante
         "brand_color3": "TEXT NOT NULL DEFAULT ''",  # color de acento ('' = el del producto): barras, puntos y detalles
+    },
+    "customers": {
+        "stamps": "INTEGER NOT NULL DEFAULT 0",  # sellos acumulados sin canjear
+        "card_key": "TEXT NOT NULL DEFAULT ''",  # clave del enlace personal de su tarjeta (QR o tarjeta NFC)
     },
     "calls": {
         "method": "TEXT NOT NULL DEFAULT ''",  # solo en type='bill': cash | card

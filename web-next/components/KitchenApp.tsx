@@ -249,7 +249,7 @@ export default function KitchenApp({ slugHint }: { slugHint: string }) {
       )}
 
       <TableDialog label={tableOpen} ME={ME} money={money} onClose={() => setTableOpen(null)}
-        onSettled={() => { setTableOpen(null); toast("Mesa cerrada"); safeRefresh(); }} onError={(m) => toast(m, true)} />
+        onSettled={(m) => { setTableOpen(null); toast(m || "Mesa cerrada"); safeRefresh(); }} onError={(m) => toast(m, true)} />
       {toastNode}
       <Powered />
     </div>
@@ -283,11 +283,12 @@ function StaffLogin({ slugHint, toast, toastNode }: { slugHint: string; toast: (
   );
 }
 
-function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label: string | null; ME: Any; money: (v: number) => string; onClose: () => void; onSettled: () => void; onError: (m: string) => void }) {
+function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label: string | null; ME: Any; money: (v: number) => string; onClose: () => void; onSettled: (msg?: string) => void; onError: (m: string) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [lines, setLines] = useState<Any[] | null>(null);
   const [inv, setInv] = useState({ doc_type: "CC", doc_number: "", name: "", email: "" });
   const [busy, setBusy] = useState(false); // evita el doble toque en «cobrar»: un segundo envío no debe cobrar de nuevo
+  const [who, setWho] = useState(""); // cédula del cliente fidelizado: al cobrar se le suma un sello
 
   useEffect(() => {
     const d = ref.current;
@@ -297,6 +298,7 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
     setLines(null);
     setBusy(false);
     setInv({ doc_type: "CC", doc_number: "", name: "", email: "" });
+    setWho("");
     api(`/api/floor/${encodeURIComponent(label)}`).then((r) => { if (!dead) { setLines(r.lines); if (!d.open) d.showModal(); } }).catch((e) => { onError(e.message); onClose(); });
     return () => { dead = true; };
   }, [label]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -309,8 +311,9 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
     setBusy(true);
     try {
       const invoice = inv.doc_number && inv.name ? inv : null;
-      await api(`/api/floor/${encodeURIComponent(label!)}/settle`, { method: "POST", body: { method, invoice } });
-      onSettled();
+      const res = await api(`/api/floor/${encodeURIComponent(label!)}/settle`, { method: "POST", body: { method, invoice, customer: who.trim() } });
+      const st = res.stamp;
+      onSettled(!st ? undefined : st.error ? `Cobrado. Sello no sumado: ${st.error}` : `Cobrado. Sello para ${String(st.name).split(" ")[0]}: ${st.filled}/${st.goal}${st.ready ? " · ¡premio listo!" : ""}`);
     } catch (e: Any) { onError(e.message); } finally { setBusy(false); }
   }
 
@@ -337,6 +340,12 @@ function TableDialog({ label, ME, money, onClose, onSettled, onError }: { label:
               </div>
             ))}
             {!L.length && <p className="muted">Sin consumo reciente</p>}
+            {ME.restaurant.stamps_on && total > 0 && (
+              <div style={{ margin: ".6rem 0" }}>
+                <label htmlFor="who">Cliente fidelizado (opcional): su cédula suma un sello</label>
+                <input id="who" inputMode="numeric" autoComplete="off" placeholder="Cédula del cliente" value={who} onChange={(e) => setWho(e.target.value)} />
+              </div>
+            )}
             <div className="row spread" style={{ margin: ".8rem 0" }}><b>Por cobrar</b><b className="big" style={{ fontSize: "1.4rem" }}>{money(total)}</b></div>
             {ME.features.invoicing && ME.restaurant.inv_provider !== "none" && total > 0 && (
               <>

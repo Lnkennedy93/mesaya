@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from . import ai_import, auth, colombia, config, db, drafts, events, invoicing, menu_reader, payments, service, storage, vault
+from . import ai_import, auth, colombia, config, db, drafts, events, invoicing, loyalty, menu_reader, payments, service, storage, vault
 from .auth import Staff, now, owner_dep, rate_limit, staff_dep
 
 router = APIRouter(prefix="/api")
@@ -39,7 +39,7 @@ def _set_cookie(resp: Response, token: str):
 
 
 STAFF_FIELDS = ("id", "slug", "name", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "tip_pct", "tax_pct", "tax_included",
-                "tz_offset", "accepting_orders", "online_payments", "takeaway", "plan", "inv_provider", "pay_qr")
+                "tz_offset", "accepting_orders", "online_payments", "takeaway", "plan", "inv_provider", "pay_qr", "stamps_on", "stamps_goal", "stamps_reward")
 
 
 def _me(r: dict, role: str) -> dict:
@@ -63,7 +63,7 @@ def _me_full(r: dict, role: str) -> dict:
     return {
         "role": role,
         "restaurant": {k: r[k] for k in (
-            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr", "takeaway_qr", "license_start",
+            "id", "slug", "name", "email", "staff_pin", "currency", "decimals", "brand_color", "brand_color2", "brand_color3", "tagline", "logo", "pay_qr", "takeaway_qr", "license_start", "stamps_on", "stamps_goal", "stamps_reward",
             "tip_pct", "tax_pct", "tax_included", "tz_offset", "google_review_url", "whatsapp",
             "accepting_orders", "online_payments", "takeaway", "plan", "subscription_status", "trial_ends_at", "paid_until", "cancel_requested_at",
             "legal_name", "nit", "nit_dv", "tax_type", "fiscal_address", "fiscal_phone", "fiscal_municipality_id",
@@ -176,8 +176,8 @@ SETTINGS_FIELDS = {"name": str, "tagline": str, "brand_color": str, "brand_color
                    "legal_name": str, "nit": str, "tax_type": str, "fiscal_address": str, "fiscal_phone": str,
                    "fiscal_municipality_id": int, "inv_provider": str, "inv_env": str, "inv_range_id": int,
                    "wompi_env": str, "nequi_enabled": int, "breb_enabled": int, "breb_key": str,
-                   "breb_key_type": str, "breb_holder": str, "takeaway_qr": int}
-BOOL_FIELDS = {"tax_included", "accepting_orders", "online_payments", "nequi_enabled", "breb_enabled", "takeaway_qr"}
+                   "breb_key_type": str, "breb_holder": str, "takeaway_qr": int, "stamps_on": int, "stamps_goal": int, "stamps_reward": str}
+BOOL_FIELDS = {"tax_included", "accepting_orders", "online_payments", "nequi_enabled", "breb_enabled", "takeaway_qr", "stamps_on"}
 ENUMS = {"inv_provider": {"none", "factus", "mock"}, "inv_env": {"sandbox", "production"},
          "wompi_env": {"sandbox", "production"}, "tax_type": set(colombia.TAX_TYPES),
          "breb_key_type": {"celular", "cedula", "nit", "correo", "alfanumerica"}}
@@ -208,6 +208,10 @@ def update_settings(body: dict, s: Staff = Depends(owner_dep)):
                     raise HTTPException(400, "El enlace de reseñas debe empezar por https://")
             if k in ("whatsapp", "fiscal_phone", "breb_key"):
                 v = v.strip()[:60]
+            if k == "stamps_goal" and not 2 <= v <= 30:
+                raise HTTPException(400, "Los sellos para el premio van de 2 a 30")
+            if k == "stamps_reward":
+                v = " ".join(v.split())[:80]
             if k == "tax_pct" and not 0 <= v <= 100:  # (también descarta NaN)
                 raise HTTPException(400, "El impuesto debe estar entre 0 y 100")
             if k == "tip_pct" and not 0 <= v <= 10:  # Ley 1935 de 2018: la propina sugerida es del 10 %, no más
@@ -1063,7 +1067,15 @@ def settle(label: str, body: dict, s: Staff = Depends(staff_dep)):
     invoicing.enqueue(pid)
     events.publish(f"t{s.id}:{label}", "update", {})
     events.publish(f"r{s.id}", "paid", {"table": label})
-    return {"ok": True, "total": tt["total"] + tip}
+    stamp = None
+    who = str(body.get("customer") or "").strip()
+    if who and s.r["stamps_on"]:  # tarjeta de sellos: el cobro ya quedó hecho, así que un problema con el sello nunca lo deshace
+        c = loyalty.find(s.r, card=who, document=who)
+        try:
+            stamp = loyalty.add_stamp(s.r, c, f"cobro {label}") if c else {"error": "Ese cliente no está registrado en la fidelización"}
+        except HTTPException as e:
+            stamp = {"error": e.detail}
+    return {"ok": True, "total": tt["total"] + tip, "stamp": stamp}
 
 
 @router.get("/stream")
@@ -1132,7 +1144,7 @@ class CustomerIn(BaseModel):
 
 @router.get("/customers")
 def list_customers(s: Staff = Depends(owner_dep)):
-    return {"customers": db.rows("SELECT id,document,name,email,phone,created_at FROM customers WHERE restaurant_id=? ORDER BY name", (s.id,))}
+    return {"customers": db.rows("SELECT id,document,name,email,phone,created_at,stamps FROM customers WHERE restaurant_id=? ORDER BY name", (s.id,))}
 
 
 @router.post("/customers")
@@ -1146,9 +1158,56 @@ def add_customer(body: CustomerIn, s: Staff = Depends(owner_dep)):
     if db.row("SELECT 1 FROM customers WHERE restaurant_id=? AND document=?", (s.id, doc)):
         raise HTTPException(409, "Ya hay un cliente con esa cédula")
     t = now()
-    cid = db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at) VALUES (?,?,?,?,?,?,?)",
-                 (s.id, doc, name, email, phone, t, t))
+    cid = db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at,card_key) VALUES (?,?,?,?,?,?,?,?)",
+                 (s.id, doc, name, email, phone, t, t, loyalty.new_card_key()))
     return {"id": cid}
+
+
+def card_url(r: dict, key: str) -> str:
+    return f"{config.BASE_URL}/r/{r['slug']}/tarjeta?c={key}"
+
+
+@router.get("/customers/{cid}/card")
+def customer_card(cid: int, s: Staff = Depends(owner_dep)):
+    """Enlace personal de la tarjeta de sellos de un cliente (lo mismo va en su QR o en una tarjeta NFC)."""
+    c = db.row("SELECT * FROM customers WHERE id=? AND restaurant_id=?", (cid, s.id))
+    if not c:
+        raise HTTPException(404)
+    return {"url": card_url(s.r, loyalty.ensure_key(c)), "name": c["name"], "stamps": c["stamps"]}
+
+
+@router.get("/qr/card/{cid}.svg")
+def qr_card(cid: int, s: Staff = Depends(owner_dep)):
+    c = db.row("SELECT * FROM customers WHERE id=? AND restaurant_id=?", (cid, s.id))
+    if not c:
+        raise HTTPException(404)
+    buf = io.BytesIO()
+    segno.make(card_url(s.r, loyalty.ensure_key(c)), error="m").save(
+        buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False, svgns=True, nl=False)
+    return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
+
+
+def _loyalty_customer(s: Staff, body: dict) -> dict:
+    c = loyalty.find(s.r, str(body.get("card", "")), str(body.get("document", "")))
+    if not c:
+        raise HTTPException(404, "Ese cliente no está registrado en la fidelización")
+    return c
+
+
+@router.get("/loyalty/lookup")
+def loyalty_lookup(card: str = "", document: str = "", s: Staff = Depends(staff_dep)):
+    return loyalty.state(s.r, _loyalty_customer(s, {"card": card, "document": document}))
+
+
+@router.post("/loyalty/stamp")
+def loyalty_stamp(body: dict, s: Staff = Depends(staff_dep)):
+    """Suma un sello (una visita). El equipo tiene un descanso entre sellos del mismo cliente; el dueño puede forzarlo."""
+    return loyalty.add_stamp(s.r, _loyalty_customer(s, body), "manual", force=s.role == "owner" and bool(body.get("force")))
+
+
+@router.post("/loyalty/redeem")
+def loyalty_redeem(body: dict, s: Staff = Depends(staff_dep)):
+    return loyalty.redeem(s.r, _loyalty_customer(s, body), "premio")
 
 
 def customers_url(r: dict) -> str:
