@@ -19,6 +19,7 @@ export default function LoyaltyCard({ slug, c, nuevo = false }: { slug: string; 
     try {
       const x = await api<Card>(`/api/public/${slug}/loyalty/card?c=${encodeURIComponent(c)}`);
       setCard(x);
+      try { localStorage.setItem("mesaya_card_" + slug, c); } catch { /* sin almacenamiento */ } // este celular recuerda la tarjeta: la próxima vez que escanee el QR del local llega directo
       if (x.restaurant.brand_color) setBrand(x.restaurant.brand_color, x.restaurant.brand_color2, x.restaurant.brand_color3);
     } catch (e: any) { setErr(e.message); }
   }, [slug, c]);

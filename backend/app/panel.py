@@ -831,14 +831,24 @@ def qr_takeaway(s: Staff = Depends(staff_dep)):
     return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
 
 
+def _svg(url: str) -> Response:
+    buf = io.BytesIO()
+    segno.make(url, error="m").save(buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False, svgns=True, nl=False)
+    return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
+
+
 @router.get("/qr/customers.svg")
 def qr_customers(s: Staff = Depends(owner_dep)):
     if not s.r["customers_key"]:
         raise HTTPException(404)
-    buf = io.BytesIO()
-    segno.make(customers_url(s.r), error="m").save(
-        buf, kind="svg", scale=10, border=2, dark="#111111", light="#ffffff", xmldecl=False, svgns=True, nl=False)
-    return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "private, max-age=300"})
+    return _svg(customers_url(s.r))
+
+
+@router.get("/qr/customers-card.svg")
+def qr_customers_card(s: Staff = Depends(owner_dep)):
+    if not s.r["customers_key"]:
+        raise HTTPException(404)
+    return _svg(customers_card_url(s.r))
 
 
 @router.get("/customers.xlsx")
@@ -1270,9 +1280,14 @@ def customers_url(r: dict) -> str:
     return f"{config.BASE_URL}/r/{r['slug']}/registro?k={r['customers_key']}" if r["customers_key"] else ""
 
 
+def customers_card_url(r: dict) -> str:
+    """El QR de «ver mi tarjeta»: el cliente ya registrado lo escanea y llega a SU tarjeta (con cédula y celular la primera vez)."""
+    return f"{config.BASE_URL}/r/{r['slug']}/mi-tarjeta?k={r['customers_key']}" if r["customers_key"] else ""
+
+
 @router.get("/customers/qr")
 def customers_qr_info(s: Staff = Depends(owner_dep)):
-    return {"url": customers_url(s.r)}
+    return {"url": customers_url(s.r), "card_url": customers_card_url(s.r)}
 
 
 @router.post("/customers/qr")
@@ -1280,7 +1295,8 @@ def customers_qr_make(body: dict, s: Staff = Depends(owner_dep)):
     """Genera el QR de registro de clientes (o uno nuevo con `rotate`, que invalida el impreso)."""
     key = secrets.token_urlsafe(9) if body.get("rotate") or not s.r["customers_key"] else s.r["customers_key"]
     db.run("UPDATE restaurants SET customers_key=? WHERE id=?", (key, s.id))
-    return {"url": customers_url({**s.r, "customers_key": key})}
+    r = {**s.r, "customers_key": key}
+    return {"url": customers_url(r), "card_url": customers_card_url(r)}
 
 
 @router.delete("/customers/{cid}")

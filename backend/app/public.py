@@ -120,6 +120,29 @@ def _card(slug: str, c: str, request: Request):
     return r, cust
 
 
+class FindIn(BaseModel):
+    k: str = Field(max_length=60)
+    document: str = Field(max_length=20)
+    phone: str = Field(max_length=20)
+
+
+@router.post("/loyalty/find")
+def loyalty_find(slug: str, body: FindIn, request: Request):
+    """El cliente ya registrado escribe su cédula y su celular y llega a su tarjeta. Los dos datos deben coincidir; si no, la respuesta es la misma (no se revela quién está registrado)."""
+    r = _resto(slug)
+    rate_limit(f"lf:ip:{_ip(request)}:{r['id']}", 15, 600)
+    rate_limit(f"lf:r:{r['id']}", 300, 3600)
+    _signup_resto(slug, body.k)
+    if not r["stamps_on"]:
+        raise HTTPException(400, "Este restaurante aún no tiene tarjeta de sellos")
+    digits = lambda v: "".join(ch for ch in v if ch.isdigit())  # noqa: E731
+    doc, ph = digits(body.document), digits(body.phone)[-10:]  # (con o sin el +57)
+    c = db.row("SELECT * FROM customers WHERE restaurant_id=? AND document=?", (r["id"], doc)) if len(ph) >= 7 else None
+    if not c or digits(c["phone"])[-10:] != ph:
+        raise HTTPException(404, "No encontramos una tarjeta con esa cédula y ese celular. Revisa los datos o regístrate.")
+    return {"card": f"/r/{slug}/tarjeta?c={loyalty.ensure_key(c)}"}
+
+
 @router.get("/loyalty/card")
 def loyalty_card(slug: str, request: Request, c: str = ""):
     """La tarjeta de sellos de un cliente (se abre con su QR o su tarjeta NFC). Solo muestra su primer nombre y sus sellos."""

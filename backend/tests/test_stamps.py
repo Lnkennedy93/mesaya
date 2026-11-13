@@ -72,6 +72,25 @@ with TestClient(app) as o, TestClient(app) as o2, TestClient(app) as kit, TestCl
     check(Image.open(BytesIO(anon.get(f"{base}/loyalty/icon.png", params={"c": key, "s": 512}).content)).size == (512, 512), "y también en 512")
     check(anon.get(f"{base}/loyalty/manifest.webmanifest", params={"c": "mala"}).status_code == 404 and anon.get(f"{base}/loyalty/icon.png", params={"c": "mala"}).status_code == 404, "con una clave falsa no hay acceso directo")
 
+    # ---------------- QR impreso «ver mi tarjeta»: el cliente ya registrado llega a SU tarjeta con cédula + celular
+    info = o.get("/api/customers/qr").json()
+    check(info["card_url"].startswith("http") and f"/r/{slug}/mi-tarjeta?k={k}" in info["card_url"], "el panel da el enlace del QR de «ver mi tarjeta» (misma clave del QR de registro)")
+    sv = o.get("/api/qr/customers-card.svg")
+    check(sv.status_code == 200 and "svg" in sv.headers["content-type"] and kit.get("/api/qr/customers-card.svg").status_code == 403, "se dibuja para imprimir; el equipo no lo pide")
+    find = lambda **b: anon.post(f"{base}/loyalty/find", json={"k": k, "document": "2030405060", "phone": "300 123 4567", **b})  # noqa: E731
+    f1 = find()
+    check(f1.status_code == 200 and f1.json()["card"] == f"/r/{slug}/tarjeta?c={key}", "con cédula y celular correctos llega a su tarjeta")
+    check(find(phone="+57 300-123-4567").status_code == 200 and find(document="2.030.405.060").status_code == 200, "acepta el celular con +57 y la cédula con puntos")
+    bad1, bad2 = find(phone="3009999999"), find(document="1111111")
+    check(bad1.status_code == 404 and bad2.status_code == 404 and bad1.json() == bad2.json(), "cédula o celular que no coinciden: mismo rechazo (no se revela quién está registrado)")
+    check(find(phone="123").status_code == 404, "un celular demasiado corto no sirve")
+    check(anon.post(f"{base}/loyalty/find", json={"k": "mala", "document": "2030405060", "phone": "3001234567"}).status_code == 403, "con la clave del QR equivocada no entra")
+    check(anon.post(f"/api/public/{other}/loyalty/find", json={"k": k, "document": "2030405060", "phone": "3001234567"}).status_code == 403, "ni en otro restaurante")
+    for _ in range(20):
+        find(phone="3000000000")
+    check(find().status_code == 429, "tras muchos intentos fallidos se frena (429)")
+    db.run("DELETE FROM rate_hits")
+
     # ---------------- sellos
     s1 = kit.post("/api/loyalty/stamp", json={"card": key})
     check(s1.status_code == 200 and s1.json()["stamps"] == 1 and s1.json()["ready"] is False, "el equipo escanea la tarjeta y suma un sello")

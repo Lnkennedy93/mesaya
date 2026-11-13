@@ -17,21 +17,24 @@ export default function CustomersTab() {
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
   const [qr, setQr] = useState<string | null>(null); // enlace del QR de registro ("" = aún no generado)
+  const [qrCard, setQrCard] = useState(""); // enlace del QR de «ver mi tarjeta»
   const load = useCallback(async () => {
     try { setList((await api("/api/customers")).customers); } catch (e: Any) { toast(e.message, true); }
   }, [toast]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api("/api/customers/qr").then((r) => setQr(r.url)).catch(() => setQr("")); }, []);
+  useEffect(() => { api("/api/customers/qr").then((r) => { setQr(r.url); setQrCard(r.card_url || ""); }).catch(() => setQr("")); }, []);
 
   async function makeQr(rotate = false) {
     if (rotate && !confirm("El QR impreso actual dejará de funcionar. ¿Generar uno nuevo?")) return;
-    try { setQr((await api("/api/customers/qr", { method: "POST", body: { rotate } })).url); } catch (e: Any) { toast(e.message, true); }
+    try { const r = await api("/api/customers/qr", { method: "POST", body: { rotate } }); setQr(r.url); setQrCard(r.card_url || ""); } catch (e: Any) { toast(e.message, true); }
   }
 
-  function printQr() {
+  function printQr(kind: "registro" | "tarjeta" = "registro") {
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<title>QR de fidelización</title><body style="font-family:system-ui;text-align:center;padding:2rem"><h1>¡Únete a nuestra fidelización!</h1><p>Escanea el código y llena tus datos</p><img src="/api/qr/customers.svg?v=${encodeURIComponent(qr || "")}" style="width:70vmin" onload="print()">`);
+    const t = kind === "tarjeta" ? ["Consulta tu tarjeta de sellos", "Escanea el código y mira cuántos sellos llevas", "/api/qr/customers-card.svg?v=" + encodeURIComponent(qrCard)]
+      : ["¡Únete a nuestra fidelización!", "Escanea el código y llena tus datos", "/api/qr/customers.svg?v=" + encodeURIComponent(qr || "")];
+    w.document.write(`<title>${t[0]}</title><body style="font-family:system-ui;text-align:center;padding:2rem"><h1>${t[0]}</h1><p>${t[1]}</p><img src="${t[2]}" style="width:70vmin" onload="print()">`);
     w.document.close();
   }
 
@@ -106,13 +109,29 @@ export default function CustomersTab() {
             <div className="grow">
               <div className="muted small" style={{ wordBreak: "break-all" }}>{qr}</div>
               <div className="row wrap" style={{ marginTop: ".6rem" }}>
-                <button className="btn sm" onClick={printQr}><Icon n="print" /> Imprimir QR</button>
+                <button className="btn sm" onClick={() => printQr()}><Icon n="print" /> Imprimir QR</button>
                 <button className="btn sm ghost" onClick={() => makeQr(true)}>Renovar QR</button>
               </div>
             </div>
           </div>
         ) : qr === "" ? <button className="btn sm" onClick={() => makeQr()}>Generar QR de registro</button> : <p className="muted small">…</p>}
       </div>
+      {qr && qrCard ? (
+        <div className="card" style={{ margin: ".8rem 0" }}>
+          <h3><Icon n="qr" /> QR para ver la tarjeta</h3>
+          <p className="muted small" style={{ margin: "0 0 .6rem" }}>Imprímelo para el mostrador o las mesas. El cliente ya registrado lo escanea, escribe su cédula y su celular una sola vez y llega a su tarjeta de sellos (con su QR personal y el botón para crear el acceso directo). Ese celular la recuerda: las próximas veces entra directo. Si aún no está registrado, el mismo QR le ofrece registrarse.</p>
+          <div className="row wrap" style={{ alignItems: "center" }}>
+            <img src={`/api/qr/customers-card.svg?v=${encodeURIComponent(qrCard)}`} alt="QR para ver la tarjeta" style={{ width: 150, height: 150, background: "#fff", borderRadius: 12, padding: 6 }} />
+            <div className="grow">
+              <div className="muted small" style={{ wordBreak: "break-all" }}>{qrCard}</div>
+              <div className="row wrap" style={{ marginTop: ".6rem" }}>
+                <button className="btn sm" onClick={() => printQr("tarjeta")}><Icon n="print" /> Imprimir QR</button>
+              </div>
+              {!r.stamps_on && <p className="muted small" style={{ margin: ".5rem 0 0" }}>Activa la tarjeta de sellos aquí abajo para que funcione.</p>}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="card" style={{ margin: ".8rem 0" }}>
         <h3><Icon n="gift" /> Tarjeta de sellos</h3>
         <p className="muted small" style={{ margin: "0 0 .6rem" }}>Cada visita suma un sello; al completar la tarjeta el cliente gana el premio que tú elijas. El sello se suma al cobrar la mesa en Sala (con la cédula del cliente) o cuando tu equipo abre el QR o la tarjeta NFC personal del cliente.</p>

@@ -38,7 +38,7 @@ with TestClient(app) as o, TestClient(app) as o2, TestClient(app) as cust, TestC
     form = {"document": "1.020.304.050", "name": "  Ana   María  Pérez ", "email": "ANA@Correo.co", "phone": "300 123 4567", "consent": True}
 
     # ---------------- registro de clientes por QR
-    check(o.get("/api/customers/qr").json() == {"url": ""}, "al inicio no hay QR de registro")
+    check(o.get("/api/customers/qr").json() == {"url": "", "card_url": ""}, "al inicio no hay QR de registro ni de «ver mi tarjeta»")
     check(cust.post(f"{base}/customers/signup", json={"k": "x", **form}).status_code == 403, "sin QR generado, nadie se puede registrar")
     url = o.post("/api/customers/qr", json={}).json()["url"]
     check(f"/r/{slug}/registro?k=" in url, "el dueño genera el QR de registro")
