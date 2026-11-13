@@ -11,7 +11,6 @@ export default function CustomerSignup({ slug, k }: { slug: string; k: string })
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState("");
-  const [card, setCard] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -29,7 +28,7 @@ export default function CustomerSignup({ slug, k }: { slug: string; k: string })
     setBusy(true); setMsg("");
     try {
       const res = await api<{ card?: string }>(`/api/public/${slug}/customers/signup`, { method: "POST", body: { k, ...d, consent: !!d.consent } });
-      setCard(res.card || "");
+      if (res.card) { location.replace(res.card); return; } // con tarjeta de sellos: directo a SU tarjeta, donde puede crear el acceso directo
       setDone(String(d.name).trim().split(" ")[0]);
     } catch (x: any) { setMsg(x.message); }
     setBusy(false);
@@ -48,8 +47,7 @@ export default function CustomerSignup({ slug, k }: { slug: string; k: string })
         {done ? (
           <div className="card" style={{ marginTop: "1rem", textAlign: "center" }}>
             <h2>¡Gracias, {done}!</h2>
-            <p className="muted">Ya haces parte de la fidelización de {info.name}.{card ? "" : " Puedes cerrar esta página."}</p>
-            {card && <a className="btn block" href={card}>Ver mi tarjeta de sellos</a>}
+            <p className="muted">Ya haces parte de la fidelización de {info.name}. Puedes cerrar esta página.</p>
           </div>
         ) : (
           <form className="card" style={{ marginTop: "1rem" }} onSubmit={submit}>

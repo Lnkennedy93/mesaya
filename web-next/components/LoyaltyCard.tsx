@@ -6,11 +6,14 @@ import Icon from "@/components/Icon";
 
 type Card = { name: string; stamps: number; goal: number; filled: number; rewards: number; ready: boolean; reward: string; restaurant: { name: string; logo: string; brand_color: string; brand_color2: string; brand_color3: string } };
 
-export default function LoyaltyCard({ slug, c }: { slug: string; c: string }) {
+export default function LoyaltyCard({ slug, c, nuevo = false }: { slug: string; c: string; nuevo?: boolean }) {
   const [card, setCard] = useState<Card | null>(null);
   const [err, setErr] = useState("");
   const [staff, setStaff] = useState(false);
   const [msg, setMsg] = useState<{ t: string; bad?: boolean } | null>(null);
+  const [install, setInstall] = useState<any>(null); // evento de Chrome para instalar el acceso directo
+  const [howTo, setHowTo] = useState(false); // instrucciones cuando el navegador no deja instalarlo con un toque (iPhone, por ejemplo)
+  const [installed, setInstalled] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -24,6 +27,29 @@ export default function LoyaltyCard({ slug, c }: { slug: string; c: string }) {
     load();
     api("/api/me").then(() => setStaff(true)).catch(() => setStaff(false)); // con sesión del equipo aparecen los botones
   }, [load]);
+
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
+    if (standalone) { setInstalled(true); return; } // ya abierta desde el ícono: no se ofrece de nuevo
+    const onPrompt = (e: Event) => { e.preventDefault(); setInstall(e); };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", () => setInstalled(true));
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+
+  useEffect(() => { // el acceso directo lleva el nombre y el logo del restaurante y abre ESTA tarjeta
+    if (!card) return;
+    const q = `c=${encodeURIComponent(c)}`;
+    const add = (rel: string, href: string) => { const l = document.createElement("link"); l.rel = rel; l.href = href; document.head.appendChild(l); return l; };
+    const links = [add("manifest", `/api/public/${slug}/loyalty/manifest.webmanifest?${q}`), add("apple-touch-icon", `/api/public/${slug}/loyalty/icon.png?${q}&s=192`)];
+    document.title = `${card.restaurant.name} · Mi tarjeta`;
+    return () => links.forEach((l) => l.remove());
+  }, [card?.restaurant.name, slug, c]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function shortcut() {
+    if (install) { install.prompt(); setInstall(null); return; }
+    setHowTo(true);
+  }
 
   async function act(kind: "stamp" | "redeem") {
     try {
@@ -44,6 +70,7 @@ export default function LoyaltyCard({ slug, c }: { slug: string; c: string }) {
         <div className="grow"><h1>{card.restaurant.name}</h1><div className="muted small">Tarjeta de sellos</div></div>
       </div>
       <main>
+        {nuevo && <div className="notice" role="status" style={{ marginTop: "1rem" }}><b>¡Listo, ya estás registrado!</b> Esta es tu tarjeta de sellos: guárdala en tu celular con el botón de abajo.</div>}
         <div className="card" style={{ marginTop: "1rem", textAlign: "center" }}>
           <h2 style={{ marginTop: 0 }}>Hola, {card.name}</h2>
           <div style={{ display: "flex", flexWrap: "wrap", gap: ".5rem", justifyContent: "center", margin: "1rem 0" }} role="img" aria-label={`${card.filled} de ${card.goal} sellos`}>
@@ -60,6 +87,18 @@ export default function LoyaltyCard({ slug, c }: { slug: string; c: string }) {
             <p className="muted" style={{ marginBottom: 0 }}>Te {left === 1 ? "falta 1 sello" : `faltan ${left} sellos`}{card.reward ? ` para: ${card.reward}` : " para tu premio"}.</p>
           )}
         </div>
+        {!installed && !staff && (
+          <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}>
+            <button className="btn block" onClick={shortcut}><Icon n="phone" /> Crear acceso directo</button>
+            {howTo && (
+              <p className="muted small" style={{ marginBottom: 0 }}>
+                {/iPhone|iPad|iPod/.test(navigator.userAgent)
+                  ? "En Safari toca el botón Compartir (el cuadro con la flecha hacia arriba) y elige «Agregar a pantalla de inicio»."
+                  : "Abre el menú del navegador (los tres puntos) y elige «Agregar a pantalla de inicio» o «Instalar aplicación»."}
+              </p>
+            )}
+          </div>
+        )}
         <div className="card" style={{ marginTop: ".8rem", textAlign: "center" }}>
           <p className="muted small" style={{ marginTop: 0 }}>Muestra este QR al pagar y te suman tu sello.</p>
           <img src={`/api/public/${slug}/loyalty/qr.svg?c=${encodeURIComponent(c)}`} alt="Tu QR personal" style={{ width: 200, background: "#fff", borderRadius: 12, padding: 8 }} />

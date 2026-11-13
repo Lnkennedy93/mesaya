@@ -11,7 +11,7 @@ from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
 
 import segno
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
@@ -1128,6 +1128,62 @@ def analytics(days: int = 7, s: Staff = Depends(owner_dep)):
     }
 
 
+def _history_range(s: Staff, frm: str, to: str):
+    """Fechas elegidas (AAAA-MM-DD, en la hora del negocio) → límites en UTC. Tope de 93 días para no cargar de más."""
+    try:
+        a, b = datetime.strptime(frm, "%Y-%m-%d"), datetime.strptime(to, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(400, "Fechas inválidas: usa AAAA-MM-DD")
+    if b < a:
+        raise HTTPException(400, "La fecha final no puede ser anterior a la inicial")
+    if (b - a).days > 92:
+        raise HTTPException(400, "El rango máximo es de 93 días")
+    off = timedelta(minutes=s.r["tz_offset"])
+    fmt = "%Y-%m-%d %H:%M:%S"
+    return (a - off).strftime(fmt), (b + timedelta(days=1) - off).strftime(fmt), off
+
+
+def _table_clause(table: str):
+    """«» = todas; «PL» = todos los pedidos para llevar; cualquier otra cosa = esa mesa."""
+    if not table:
+        return "", ()
+    if table == "PL":
+        return " AND o.table_label LIKE ?", (service.TAKEAWAY_PREFIX + "%",)
+    return " AND o.table_label=?", (table,)
+
+
+@router.get("/orders/history")
+def orders_history(table: str = "", frm: str = Query("", alias="from"), to: str = "", s: Staff = Depends(owner_dep)):
+    """Pedidos de un rango de fechas, con su contenido y valor, filtrables por mesa; más cuántos pedidos tuvo cada mesa."""
+    today = (datetime.now(timezone.utc) + timedelta(minutes=s.r["tz_offset"])).strftime("%Y-%m-%d")
+    frm, to = frm or (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=6)).strftime("%Y-%m-%d"), to or today
+    lo, hi, off = _history_range(s, frm, to)
+    total_sql = "(SELECT COALESCE(SUM(qty*unit_price),0) FROM order_items WHERE order_id=o.id)"
+    base = db.rows(f"SELECT o.table_label, o.status, {total_sql} AS total FROM orders o WHERE o.restaurant_id=? AND o.created_at>=? AND o.created_at<?", (s.id, lo, hi))
+    tables: dict = {}
+    for o in base:
+        if o["status"] == "cancelled":
+            continue  # lo cancelado no cuenta como pedido ni como venta (aparece en la lista, marcado)
+        key = "PL" if o["table_label"].startswith(service.TAKEAWAY_PREFIX) else o["table_label"]
+        t = tables.setdefault(key, {"table": key, "label": "Para llevar" if key == "PL" else "Mesa " + key, "orders": 0, "total": 0})
+        t["orders"] += 1
+        t["total"] += o["total"]
+    clause, args = _table_clause(table)
+    ords = db.rows(f"""SELECT o.id, o.seq, o.table_label, o.diner_name, o.note, o.status, o.created_at, {total_sql} AS total
+                       FROM orders o WHERE o.restaurant_id=? AND o.created_at>=? AND o.created_at<?{clause} ORDER BY o.id DESC LIMIT 300""", (s.id, lo, hi, *args))
+    if ords:
+        its = db.rows(f"SELECT order_id,name,qty,options_text,note,unit_price FROM order_items WHERE order_id IN ({','.join('?' * len(ords))}) ORDER BY id", tuple(o["id"] for o in ords))
+        for o in ords:
+            o["items"] = [{"name": i["name"], "qty": i["qty"], "options": i["options_text"], "note": i["note"], "unit_price": i["unit_price"], "line_total": i["qty"] * i["unit_price"]}
+                          for i in its if i["order_id"] == o["id"]]
+            o["local_time"] = (datetime.strptime(o["created_at"], "%Y-%m-%d %H:%M:%S") + off).strftime("%Y-%m-%d %H:%M")
+            o["takeaway"] = o["table_label"].startswith(service.TAKEAWAY_PREFIX)
+    counted = [o for o in ords if o["status"] != "cancelled"]
+    return {"from": frm, "to": to, "table": table,
+            "tables": sorted(tables.values(), key=lambda t: (t["table"] == "PL", int(t["table"]) if t["table"].isdigit() else 10**6, t["table"])),
+            "orders": ords, "count": len(counted), "total": sum(o["total"] for o in counted), "truncated": len(ords) == 300}
+
+
 @router.get("/feedback")
 def list_feedback(s: Staff = Depends(owner_dep)):
     return {"feedback": db.rows("SELECT * FROM feedback WHERE restaurant_id=? ORDER BY created_at DESC LIMIT 100", (s.id,))}
@@ -1234,13 +1290,18 @@ def del_customer(cid: int, s: Staff = Depends(owner_dep)):
 
 
 @router.get("/export/orders.csv")
-def export_csv(s: Staff = Depends(owner_dep)):
+def export_csv(table: str = "", frm: str = Query("", alias="from"), to: str = "", s: Staff = Depends(owner_dep)):
+    clause, args, lo_hi = "", (), ()
+    if frm and to:  # con fechas (y mesa) exporta solo lo filtrado en Resumen; sin ellas, todo como siempre
+        lo, hi, _ = _history_range(s, frm, to)
+        clause, args = _table_clause(table)
+        clause, lo_hi = " AND o.created_at>=? AND o.created_at<?" + clause, (lo, hi)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["pedido", "fecha_utc", "mesa", "estado", "plato", "opciones", "cantidad", "precio_unitario", "total_linea"])
     for r in db.rows(
         """SELECT o.id, o.created_at, o.table_label, o.status, oi.name, oi.options_text, oi.qty, oi.unit_price
-           FROM orders o JOIN order_items oi ON oi.order_id=o.id WHERE o.restaurant_id=? ORDER BY o.id""", (s.id,)):
+           FROM orders o JOIN order_items oi ON oi.order_id=o.id WHERE o.restaurant_id=?{clause} ORDER BY o.id""".replace("{clause}", clause), (s.id, *lo_hi, *args)):
         w.writerow([r["id"], r["created_at"], r["table_label"], r["status"], r["name"], r["options_text"], r["qty"],
                     r["unit_price"], r["qty"] * r["unit_price"]])
     return Response("﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",

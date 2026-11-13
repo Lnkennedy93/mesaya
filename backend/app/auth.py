@@ -113,7 +113,7 @@ def module_on(r: dict, name: str) -> bool:
 
 # (método o None, prefijo de ruta, función): qué función del panel usa cada ruta. El orden importa: gana la primera coincidencia.
 _GATES = (
-    (None, "/api/analytics", "home"), (None, "/api/export", "home"),
+    (None, "/api/analytics", "home"), (None, "/api/orders/history", "home"), (None, "/api/export", "home"),
     (None, "/api/categories", "menu"), (None, "/api/items", "menu"), (None, "/api/import", "menu"), ("DELETE", "/api/menu", "menu"),
     (None, "/api/qr/takeaway", "takeaway"), (None, "/api/qr/customers", "customers"), (None, "/api/qr/card", "customers"), (None, "/api/loyalty", "customers"), (None, "/api/takeaway", "takeaway"),
     ("POST", "/api/tables", "tables"), ("DELETE", "/api/tables", "tables"), (None, "/api/qr", "tables"),

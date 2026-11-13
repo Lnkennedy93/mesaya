@@ -14,5 +14,5 @@ export default async function CardPage({
   const { slug } = await params;
   const sp = await searchParams;
   const c = Array.isArray(sp.c) ? sp.c[0] : sp.c;
-  return <LoyaltyCard slug={slug} c={c || ""} />;
+  return <LoyaltyCard slug={slug} c={c || ""} nuevo={sp.nuevo === "1"} />;
 }

@@ -46,7 +46,8 @@ with TestClient(app) as o, TestClient(app) as o2, TestClient(app) as kit, TestCl
     # ---------------- enlace personal
     g = reg("2030405060", name="Carlos Ruiz").json()
     check(g["ok"] and g["card"].startswith(f"/r/{slug}/tarjeta?c="), "quien se registra con el programa activo recibe el enlace de su tarjeta")
-    key = g["card"].split("c=")[1]
+    key = g["card"].split("c=")[1].split("&")[0]
+    check(g["card"].endswith("&nuevo=1"), "el enlace trae la marca de recién registrado (para darle la bienvenida)")
     check(reg("2030405060").json() == {"ok": True}, "registrarse otra vez no devuelve su tarjeta (no se filtra)")
     card = anon.get(f"{base}/loyalty/card", params={"c": key}).json()
     check(card["name"] == "Carlos" and card["stamps"] == 0 and card["goal"] == 3 and card["reward"] == "Un postre gratis" and card["restaurant"]["name"] == "Café Sellos", "la tarjeta muestra solo el primer nombre y su avance")
@@ -56,6 +57,20 @@ with TestClient(app) as o, TestClient(app) as o2, TestClient(app) as kit, TestCl
     check(qr.status_code == 200 and "svg" in qr.headers["content-type"], "la tarjeta se puede mostrar como QR")
     check(o.get(f"/api/customers/{cid}/card").json()["url"].count("/tarjeta?c=") == 1, "el dueño obtiene el enlace de un cliente que ya existía")
     check(o.get(f"/api/qr/card/{cid}.svg").status_code == 200 and kit.get(f"/api/qr/card/{cid}.svg").status_code == 403, "y su QR; el equipo no lo pide")
+
+    # ---------------- acceso directo en la pantalla de inicio del celular
+    mf = anon.get(f"{base}/loyalty/manifest.webmanifest", params={"c": key})
+    m = mf.json()
+    check(mf.status_code == 200 and "manifest+json" in mf.headers["content-type"] and m["start_url"] == f"/r/{slug}/tarjeta?c={key}" and m["display"] == "standalone" and "Café Sellos" in m["name"],
+          "el acceso directo abre la tarjeta de ESTE cliente, con el nombre del restaurante")
+    check([i["sizes"] for i in m["icons"]] == ["192x192", "512x512"], "con íconos de 192 y 512")
+    from io import BytesIO  # noqa: E402
+    from PIL import Image  # noqa: E402
+    ic = anon.get(m["icons"][0]["src"])
+    img = Image.open(BytesIO(ic.content))
+    check(ic.status_code == 200 and ic.headers["content-type"] == "image/png" and img.size == (192, 192), "el ícono se dibuja (color de marca e inicial del restaurante)")
+    check(Image.open(BytesIO(anon.get(f"{base}/loyalty/icon.png", params={"c": key, "s": 512}).content)).size == (512, 512), "y también en 512")
+    check(anon.get(f"{base}/loyalty/manifest.webmanifest", params={"c": "mala"}).status_code == 404 and anon.get(f"{base}/loyalty/icon.png", params={"c": "mala"}).status_code == 404, "con una clave falsa no hay acceso directo")
 
     # ---------------- sellos
     s1 = kit.post("/api/loyalty/stamp", json={"card": key})

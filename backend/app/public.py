@@ -11,7 +11,7 @@ import io
 
 import segno
 
-from . import colombia, config, db, events, invoicing, loyalty, payments, service
+from . import colombia, config, db, events, invoicing, loyalty, payments, service, storage
 from .auth import client_ip, is_active, module_on, now, rate_check, rate_hit, rate_limit, safe_eq
 
 router = APIRouter(prefix="/api/public/{slug}")
@@ -107,7 +107,7 @@ def customer_signup(slug: str, body: SignupIn, request: Request):
         t, key = now(), loyalty.new_card_key()
         db.run("INSERT INTO customers(restaurant_id,document,name,email,phone,consent_at,created_at,card_key) VALUES (?,?,?,?,?,?,?,?)", (r["id"], doc, name, email, phone, t, t, key))
         if r["stamps_on"]:
-            return {"ok": True, "card": f"/r/{slug}/tarjeta?c={key}"}  # solo quien se acaba de registrar recibe el enlace de su tarjeta
+            return {"ok": True, "card": f"/r/{slug}/tarjeta?c={key}&nuevo=1"}  # solo quien se acaba de registrar recibe el enlace de su tarjeta
     return {"ok": True}
 
 
@@ -127,6 +127,60 @@ def loyalty_card(slug: str, request: Request, c: str = ""):
     st = loyalty.state(r, cust)
     st["name"] = st["name"].split()[0]
     return {**st, "restaurant": {"name": r["name"], "logo": r["logo"], "brand_color": r["brand_color"], "brand_color2": r["brand_color2"], "brand_color3": r["brand_color3"]}}
+
+
+@router.get("/loyalty/manifest.webmanifest")
+def loyalty_manifest(slug: str, request: Request, c: str = ""):
+    """Para «Crear acceso directo»: el celular instala un ícono con el nombre y el logo del restaurante que abre la tarjeta de ESTE cliente."""
+    r, _ = _card(slug, c, request)
+    from urllib.parse import quote
+    start = f"/r/{slug}/tarjeta?c={quote(c, safe='')}"
+    icon = lambda s: {"src": f"/api/public/{slug}/loyalty/icon.png?c={quote(c, safe='')}&s={s}", "sizes": f"{s}x{s}", "type": "image/png", "purpose": "any"}  # noqa: E731
+    body = {"id": start, "name": f"{r['name']} · Mi tarjeta", "short_name": r["name"][:12], "start_url": start, "scope": f"/r/{slug}/", "display": "standalone",
+            "background_color": "#ffffff", "theme_color": r["brand_color"] or "#0b0f14", "lang": "es", "icons": [icon(192), icon(512)]}
+    return Response(json.dumps(body, ensure_ascii=False), media_type="application/manifest+json", headers={"Cache-Control": "private, max-age=300"})
+
+
+def _logo_image(r: dict):
+    """El logo del restaurante como imagen (de la base o de Blob); None si no hay o no se puede leer."""
+    from PIL import Image
+    path = r["logo"] or ""
+    try:
+        if path.startswith("/uploads/"):
+            row = db.row("SELECT data FROM images WHERE name=? AND restaurant_id=?", (path.rsplit("/", 1)[-1], r["id"]))
+            raw = bytes(row["data"]) if row else None
+        elif storage.owns(path, r["id"]):
+            import urllib.request
+            raw = urllib.request.urlopen(path, timeout=4).read(2_000_000)  # noqa: S310 (solo URLs de Blob de este restaurante)
+        else:
+            raw = None
+        return Image.open(io.BytesIO(raw)).convert("RGBA") if raw else None
+    except Exception:
+        return None
+
+
+@router.get("/loyalty/icon.png")
+def loyalty_icon(slug: str, request: Request, c: str = "", s: int = 192):
+    """Ícono del acceso directo: el logo del restaurante sobre su color de marca (o su inicial si no tiene logo)."""
+    from PIL import Image, ImageDraw, ImageFont
+    r, _ = _card(slug, c, request)
+    size = 512 if s >= 512 else 192
+    col = r["brand_color"] if len(r["brand_color"] or "") == 7 else "#0b0f14"
+    im = Image.new("RGB", (size, size), col)
+    logo = _logo_image(r)
+    if logo:
+        logo.thumbnail((int(size * .7), int(size * .7)))
+        im.paste(logo, ((size - logo.width) // 2, (size - logo.height) // 2), logo)
+    else:
+        lum = (int(col[1:3], 16) * 299 + int(col[3:5], 16) * 587 + int(col[5:7], 16) * 114) / 1000
+        try:
+            font = ImageFont.load_default(size=int(size * .55))
+        except TypeError:  # Pillow muy viejo: sin tamaño de letra
+            font = ImageFont.load_default()
+        ImageDraw.Draw(im).text((size / 2, size / 2), (r["name"].strip()[:1] or "M").upper(), fill="#ffffff" if lum < 150 else "#111111", font=font, anchor="mm")
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/loyalty/qr.svg")
